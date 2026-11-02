@@ -4,3 +4,4 @@ dist
 .env.*
 coverage
 npm-debug.log
+uploads

@@ -165,8 +165,11 @@ export function StaffWorkspacePage() {
     {message && <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{message}</div>}
 
     <div className="grid gap-3 sm:grid-cols-3">
-      {[['Chờ xác nhận',pending],['Chờ giao xe',confirmed],['Đang thuê',renting]].map(([label,value]) =>
-        <div key={label} className="rounded-xl border bg-white p-4 shadow-sm"><p className="text-sm text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>)}
+      {[['Chờ xác nhận',pending,'bg-amber-50 text-amber-700','!'],['Chờ giao xe',confirmed,'bg-blue-50 text-blue-700','↗'],['Đang thuê',renting,'bg-emerald-50 text-emerald-700','✓']].map(([label,value,tone,icon]) =>
+        <article key={label} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{value}</p><p className="mt-1 text-xs text-slate-400">Đơn tại điểm được phân công</p></div>
+          <span className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl font-bold ${tone}`}>{icon}</span>
+        </article>)}
     </div>
 
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

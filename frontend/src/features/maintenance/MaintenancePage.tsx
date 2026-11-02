@@ -48,9 +48,17 @@ export function MaintenancePage(){
   async function changeStatus(record:RecordItem,status:MaintenanceStatus){
     const confirmText=status==='COMPLETED'?'Xác nhận hoàn thành bảo dưỡng và đưa xe về trạng thái trước bảo dưỡng?':status==='CANCELLED'?'Xác nhận hủy phiếu bảo dưỡng?':'Chuyển phiếu sang trạng thái đang bảo dưỡng?';
     if(!window.confirm(confirmText))return;
+    let payload:{status:MaintenanceStatus;cost?:number}={status};
+    if(status==='COMPLETED'){
+      const raw=window.prompt('Nhập chi phí thực tế sau bảo dưỡng (VNĐ):',record.cost);
+      if(raw===null)return;
+      const actualCost=Number(raw);
+      if(!Number.isFinite(actualCost)||actualCost<0){setError('Chi phí thực tế không hợp lệ.');return;}
+      payload={status,cost:actualCost};
+    }
     setError('');setMessage('');
     try{
-      await api.patch('/maintenance-records/'+record.id,{status});
+      await api.patch('/maintenance-records/'+record.id,payload);
       setMessage('Đã cập nhật phiếu bảo dưỡng #'+record.id+'.');
       await load();
     }catch(err:any){setError(err.response?.data?.message||'Không thể cập nhật trạng thái phiếu.');}

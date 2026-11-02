@@ -7,6 +7,7 @@ import { Role } from '../../common/enums/role.enum';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
+import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 import { BookingStatusHistory } from './booking-status-history.entity';
 import { BookingCharge } from './booking-charge.entity';
 import { CreateBookingChargeDto } from './booking-charge.dto';
@@ -34,6 +35,21 @@ export class BookingsService {
       const vehicle = await vehicleRepo.findOne({ where: { id: dto.vehicleId, isActive: true }, lock: { mode: 'pessimistic_write' } });
       if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
       if (vehicle.status !== VehicleStatus.ACTIVE) throw new BadRequestException('Xe hiện không thể đặt');
+
+      // Maintenance records in SCHEDULED or IN_PROGRESS reserve the vehicle.
+      // The current maintenance specification has a single scheduledAt timestamp,
+      // not a maintenance end time; therefore an open record blocks new bookings
+      // until it is completed or cancelled.
+      const openMaintenance = await manager.getRepository(MaintenanceRecord).findOne({
+        where: {
+          vehicleId: vehicle.id,
+          status: In([MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS]),
+        },
+        select: { id: true, status: true, scheduledAt: true },
+      });
+      if (openMaintenance) {
+        throw new BadRequestException('Xe đang có phiếu bảo dưỡng chưa kết thúc, không thể đặt thuê');
+      }
 
       const overlapping = await bookingRepo
         .createQueryBuilder('b')

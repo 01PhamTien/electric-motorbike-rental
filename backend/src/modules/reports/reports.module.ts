@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { PaymentTransaction } from '../payments/payment.entity';
+import { MaintenanceRecord } from '../maintenance/maintenance.entity';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Booking, Vehicle, PaymentTransaction])],
+  imports: [TypeOrmModule.forFeature([Booking, Vehicle, PaymentTransaction, MaintenanceRecord])],
   controllers: [ReportsController],
   providers: [ReportsService],
 })

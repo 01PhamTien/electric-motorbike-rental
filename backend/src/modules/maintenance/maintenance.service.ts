@@ -45,6 +45,7 @@ export class MaintenanceService {
       if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
       this.assertStation(user, vehicle);
       if (vehicle.status === VehicleStatus.INACTIVE) throw new BadRequestException('Xe đang ngừng khai thác');
+      if (vehicle.status === VehicleStatus.MAINTENANCE) throw new BadRequestException('Xe đang ở trạng thái bảo dưỡng, cần kiểm tra phiếu hiện có trước khi tạo phiếu mới');
       const openCount = await maintenanceRepo.count({
         where: [
           { vehicleId: vehicle.id, status: MaintenanceStatus.SCHEDULED },

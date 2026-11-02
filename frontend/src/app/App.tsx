@@ -9,6 +9,7 @@ import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { StaffPage } from '../features/staff/StaffPage';
 import { StaffWorkspacePage } from '../features/staff/StaffWorkspacePage';
 import { StaffPaymentsPage } from '../features/staff/StaffPaymentsPage';
+import { MaintenancePage } from '../features/maintenance/MaintenancePage';
 import { MainLayout } from '../layouts/MainLayout';
 
 export function App() {
@@ -25,6 +26,7 @@ export function App() {
       <Route path="/admin/staff" element={<StaffPage />} />
       <Route path="/staff/workspace" element={<StaffWorkspacePage />} />
       <Route path="/staff/payments" element={<StaffPaymentsPage />} />
+      <Route path="/maintenance" element={<MaintenancePage />} />
     </Route>
   </Routes>;
 }

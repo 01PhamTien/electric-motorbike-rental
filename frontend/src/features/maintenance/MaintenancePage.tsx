@@ -71,15 +71,19 @@ export function MaintenancePage(){
   };
 
   return <section className="space-y-6">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><p className="text-sm font-semibold text-blue-700">QUẢN LÝ ĐỘI XE</p><h1 className="mt-1 text-2xl font-bold">Lịch bảo dưỡng xe</h1>
-        <p className="mt-1 text-sm text-slate-500">Lập lịch, theo dõi nội dung, chi phí và kết quả bảo dưỡng.</p></div>
-      <button onClick={()=>void load()} className="rounded-lg border px-4 py-2 text-sm">Làm mới</button>
-    </div>
+    <header className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-lg sm:px-8">
+      <div className="pointer-events-none absolute -right-14 -top-20 h-64 w-64 rounded-full bg-amber-400/10 blur-3xl" />
+      <div className="relative flex flex-wrap items-end justify-between gap-4">
+        <div><span className="inline-flex rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-[11px] font-bold tracking-[0.15em] text-amber-200">QUẢN LÝ ĐỘI XE</span>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">Lịch bảo dưỡng xe</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-300">Lập lịch, theo dõi nội dung công việc, chi phí và kết quả bảo dưỡng.</p></div>
+        <button onClick={()=>void load()} disabled={loading} className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-50">{loading?'Đang tải...':'↻ Làm mới'}</button>
+      </div>
+    </header>
     {error&&<div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{Array.isArray(error)?error.join(', '):error}</div>}
     {message&&<div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{message}</div>}
 
-    <form onSubmit={create} className="grid gap-4 rounded-xl border bg-white p-5 shadow-sm md:grid-cols-2">
+    <form onSubmit={create} className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2 sm:p-6">
       <div className="md:col-span-2"><h2 className="font-semibold">Tạo phiếu bảo dưỡng</h2><p className="mt-1 text-xs text-slate-500">Xe chỉ chuyển sang MAINTENANCE khi nhân viên bắt đầu công việc. Lịch SCHEDULED chỉ chặn các đơn thuê giao với khung giờ bảo dưỡng.</p></div>
       <label className="block text-sm font-medium">Xe
         <select required value={form.vehicleId} onChange={e=>setForm({...form,vehicleId:e.target.value})} className="mt-1 w-full rounded-lg border bg-white px-3 py-2">
@@ -104,7 +108,7 @@ export function MaintenancePage(){
       <div className="md:col-span-2"><button disabled={saving||!form.vehicleId} className="rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving?'Đang lưu...':'Tạo phiếu bảo dưỡng'}</button></div>
     </form>
 
-    <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><div><h2 className="font-semibold">Danh sách phiếu ({filtered.length})</h2><p className="text-xs text-slate-500">Tối đa 200 phiếu gần nhất trong phạm vi điểm thuê của tài khoản.</p></div>
         <select value={filter} onChange={e=>setFilter(e.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm">
           <option value="ALL">Tất cả trạng thái</option><option value="SCHEDULED">Đã lên lịch</option><option value="IN_PROGRESS">Đang bảo dưỡng</option><option value="COMPLETED">Hoàn thành</option><option value="CANCELLED">Đã hủy</option>

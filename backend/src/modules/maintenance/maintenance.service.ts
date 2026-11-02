@@ -102,9 +102,35 @@ export class MaintenanceService {
       if ([MaintenanceStatus.COMPLETED, MaintenanceStatus.CANCELLED].includes(record.status)) {
         throw new BadRequestException('Phiếu đã kết thúc, không thể cập nhật');
       }
-      if (dto.scheduledAt) record.scheduledAt = new Date(dto.scheduledAt);
-      if (dto.plannedEndAt) record.plannedEndAt = new Date(dto.plannedEndAt);
-      if (record.plannedEndAt <= record.scheduledAt) throw new BadRequestException('Thời gian kết thúc dự kiến phải sau thời gian bắt đầu');
+      if (dto.scheduledAt || dto.plannedEndAt) {
+        if (record.status !== MaintenanceStatus.SCHEDULED) {
+          throw new BadRequestException('Chỉ được đổi khung giờ khi phiếu còn ở trạng thái SCHEDULED');
+        }
+        const nextStart = dto.scheduledAt ? new Date(dto.scheduledAt) : record.scheduledAt;
+        const nextEnd = dto.plannedEndAt ? new Date(dto.plannedEndAt) : record.plannedEndAt;
+        if (!Number.isFinite(nextStart.getTime()) || !Number.isFinite(nextEnd.getTime()) || nextEnd <= nextStart) {
+          throw new BadRequestException('Thời gian kết thúc dự kiến phải sau thời gian bắt đầu');
+        }
+        const overlappingMaintenance = await repo.createQueryBuilder('m')
+          .where('m.vehicleId = :vehicleId', { vehicleId: vehicle.id })
+          .andWhere('m.id != :id', { id: record.id })
+          .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
+          .andWhere('(m.status = :inProgress OR (m.scheduledAt < :nextEnd AND m.plannedEndAt > :nextStart))', {
+            inProgress: MaintenanceStatus.IN_PROGRESS, nextStart, nextEnd,
+          }).getOne();
+        if (overlappingMaintenance) throw new BadRequestException('Khung giờ bị trùng với phiếu bảo dưỡng khác');
+
+        const overlappingBooking = await manager.getRepository(Booking).createQueryBuilder('b')
+          .where('b.vehicleId = :vehicleId', { vehicleId: vehicle.id })
+          .andWhere('b.status IN (:...statuses)', { statuses: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.RENTING] })
+          .andWhere('(b.status != :pending OR b.holdExpiresAt IS NULL OR b.holdExpiresAt > :now)', {
+            pending: BookingStatus.PENDING, now: new Date(),
+          })
+          .andWhere('b.pickupAt < :nextEnd AND b.returnAt > :nextStart', { nextStart, nextEnd }).getOne();
+        if (overlappingBooking) throw new BadRequestException('Khung giờ bị trùng với đơn thuê còn hiệu lực');
+        record.scheduledAt = nextStart;
+        record.plannedEndAt = nextEnd;
+      }
       if (dto.reason !== undefined) record.reason = dto.reason.trim();
       if (dto.description !== undefined) record.description = dto.description.trim() || null;
       if (dto.cost !== undefined) record.cost = (Math.round(dto.cost * 100) / 100).toFixed(2);

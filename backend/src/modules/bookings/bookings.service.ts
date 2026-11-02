@@ -41,7 +41,7 @@ export class BookingsService {
       const maintenanceConflict = await manager.getRepository(MaintenanceRecord).createQueryBuilder('m')
         .where('m.vehicleId = :vehicleId', { vehicleId: vehicle.id })
         .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
-        .andWhere('(m.status = :inProgress OR (m.scheduledAt < :returnAt AND m.plannedEndAt > :pickupAt))', {
+        .andWhere('(m.status = :inProgress OR (m.plannedEndAt IS NULL OR (m.scheduledAt < :returnAt AND m.plannedEndAt > :pickupAt)))', {
           inProgress: MaintenanceStatus.IN_PROGRESS, pickupAt, returnAt,
         })
         .getOne();

@@ -85,7 +85,7 @@ export class UsersService {
   }
 
   async updateAvatar(id: number, avatarDataUrl: string) {
-    const match = /^data:(image\\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(avatarDataUrl || '');
+    const match = new RegExp('^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$').exec(avatarDataUrl || '');
     if (!match) throw new BadRequestException('Ảnh phải ở định dạng JPG, PNG hoặc WEBP');
     const mimeType = match[1];
     const buffer = Buffer.from(match[2], 'base64');

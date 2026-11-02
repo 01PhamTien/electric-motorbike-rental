@@ -36,3 +36,11 @@
 - Google Maps UI
 - Upload ảnh
 - Migrations + seed + tests
+
+
+## Booking lifecycle hardening
+- Xác nhận và hủy đơn dùng transaction + khóa bản ghi booking để tránh cập nhật trạng thái đồng thời
+- Khi xác nhận đơn PENDING đã quá hạn, chuyển EXPIRED và ghi lịch sử trước khi trả lỗi
+- Hủy đơn ghi cancelReason và status history trong cùng transaction
+- API GET /bookings/:id/history trả lịch sử theo quyền sở hữu/điểm thuê
+- Trang đơn thuê khách hàng hiển thị timeline lịch sử trạng thái

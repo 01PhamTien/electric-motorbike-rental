@@ -20,7 +20,8 @@
 ## Cần hoàn thiện tiếp
 - Vehicle model CRUD
 - Tìm xe theo thời gian + kiểm tra maintenance
-- Booking expiration scheduler
+- Booking expiration scheduler (implemented: checks on startup and every 60 seconds; writes EXPIRED status history)
+- Expired PENDING holds no longer block vehicle availability
 - Pickup/return records + images
 - Charges + payment transactions + idempotency
 - Maintenance CRUD + conflict checking

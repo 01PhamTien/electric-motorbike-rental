@@ -20,3 +20,14 @@ export class UpdateStaffDto {
 export class UpdateStaffStatusDto {
   @IsEnum(UserStatus) status: UserStatus;
 }
+
+export class UpdateMyProfileDto {
+  @IsOptional() @IsString() @MaxLength(120) fullName?: string;
+  @IsOptional() @IsEmail() @MaxLength(160) email?: string;
+  @IsOptional() @IsString() @MaxLength(20) phone?: string | null;
+}
+
+export class ChangePasswordDto {
+  @IsString() currentPassword: string;
+  @IsString() @MinLength(8) @MaxLength(72) newPassword: string;
+}

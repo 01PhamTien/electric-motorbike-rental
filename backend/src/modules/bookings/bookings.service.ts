@@ -40,6 +40,11 @@ export class BookingsService {
         .setLock('pessimistic_write')
         .where('b.vehicleId = :vehicleId', { vehicleId: dto.vehicleId })
         .andWhere('b.status IN (:...statuses)', { statuses: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.RENTING] })
+        // A PENDING booking stops blocking the vehicle once its configured hold expires.
+        .andWhere('(b.status != :pendingStatus OR b.holdExpiresAt IS NULL OR b.holdExpiresAt > :now)', {
+          pendingStatus: BookingStatus.PENDING,
+          now: new Date(),
+        })
         .andWhere('b.pickupAt < :returnAt AND b.returnAt > :pickupAt', { pickupAt, returnAt })
         .getOne();
       if (overlapping) throw new BadRequestException('Xe đã có lịch trong khoảng thời gian này');

@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { DataSource } from 'typeorm';
 import { Role } from '../../common/enums/role.enum';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
+import { BookingStatus } from '../../common/enums/booking-status.enum';
+import { Booking } from '../bookings/booking.entity';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { CreateMaintenanceDto, UpdateMaintenanceDto } from './dto';
@@ -36,6 +38,13 @@ export class MaintenanceService {
   }
 
   async create(user: JwtUser, dto: CreateMaintenanceDto) {
+    const scheduledAt = new Date(dto.scheduledAt);
+    const plannedEndAt = new Date(dto.plannedEndAt);
+    if (!Number.isFinite(scheduledAt.getTime()) || !Number.isFinite(plannedEndAt.getTime()) || plannedEndAt <= scheduledAt) {
+      throw new BadRequestException('Thời gian kết thúc dự kiến phải sau thời gian bắt đầu');
+    }
+    if (scheduledAt <= new Date()) throw new BadRequestException('Thời gian bảo dưỡng phải ở tương lai');
+
     return this.dataSource.transaction(async manager => {
       const vehicleRepo = manager.getRepository(Vehicle);
       const maintenanceRepo = manager.getRepository(MaintenanceRecord);
@@ -45,27 +54,34 @@ export class MaintenanceService {
       if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
       this.assertStation(user, vehicle);
       if (vehicle.status === VehicleStatus.INACTIVE) throw new BadRequestException('Xe đang ngừng khai thác');
-      if (vehicle.status === VehicleStatus.MAINTENANCE) throw new BadRequestException('Xe đang ở trạng thái bảo dưỡng, cần kiểm tra phiếu hiện có trước khi tạo phiếu mới');
-      const openCount = await maintenanceRepo.count({
-        where: [
-          { vehicleId: vehicle.id, status: MaintenanceStatus.SCHEDULED },
-          { vehicleId: vehicle.id, status: MaintenanceStatus.IN_PROGRESS },
-        ],
-      });
-      if (openCount) throw new BadRequestException('Xe đã có phiếu bảo dưỡng chưa kết thúc');
+      if (vehicle.status === VehicleStatus.MAINTENANCE) throw new BadRequestException('Xe đang bảo dưỡng thực tế, không thể lên lịch thêm');
+
+      const overlappingMaintenance = await maintenanceRepo.createQueryBuilder('m')
+        .where('m.vehicleId = :vehicleId', { vehicleId: vehicle.id })
+        .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
+        .andWhere('(m.status = :inProgress OR (m.scheduledAt < :plannedEndAt AND m.plannedEndAt > :scheduledAt))', {
+          inProgress: MaintenanceStatus.IN_PROGRESS, scheduledAt, plannedEndAt,
+        })
+        .getOne();
+      if (overlappingMaintenance) throw new BadRequestException('Xe đã có lịch bảo dưỡng trùng thời gian');
+
+      const overlappingBooking = await manager.getRepository(Booking).createQueryBuilder('b')
+        .where('b.vehicleId = :vehicleId', { vehicleId: vehicle.id })
+        .andWhere('b.status IN (:...statuses)', { statuses: [BookingStatus.CONFIRMED, BookingStatus.RENTING, BookingStatus.PENDING] })
+        .andWhere('(b.status != :pending OR b.holdExpiresAt IS NULL OR b.holdExpiresAt > :now)', {
+          pending: BookingStatus.PENDING, now: new Date(),
+        })
+        .andWhere('b.pickupAt < :plannedEndAt AND b.returnAt > :scheduledAt', { scheduledAt, plannedEndAt })
+        .getOne();
+      if (overlappingBooking) throw new BadRequestException('Không thể lên lịch bảo dưỡng trùng với đơn thuê còn hiệu lực');
+
       const record = maintenanceRepo.create({
-        vehicleId: vehicle.id,
-        scheduledAt: new Date(dto.scheduledAt),
-        completedAt: null,
-        reason: dto.reason.trim(),
-        description: dto.description?.trim() || null,
+        vehicleId: vehicle.id, scheduledAt, plannedEndAt, completedAt: null,
+        reason: dto.reason.trim(), description: dto.description?.trim() || null,
         cost: (Math.round((dto.cost ?? 0) * 100) / 100).toFixed(2),
-        status: MaintenanceStatus.SCHEDULED,
-        previousVehicleStatus: vehicle.status,
+        status: MaintenanceStatus.SCHEDULED, previousVehicleStatus: vehicle.status,
         createdById: user.sub,
       });
-      vehicle.status = VehicleStatus.MAINTENANCE;
-      await vehicleRepo.save(vehicle);
       return maintenanceRepo.save(record);
     });
   }
@@ -87,6 +103,8 @@ export class MaintenanceService {
         throw new BadRequestException('Phiếu đã kết thúc, không thể cập nhật');
       }
       if (dto.scheduledAt) record.scheduledAt = new Date(dto.scheduledAt);
+      if (dto.plannedEndAt) record.plannedEndAt = new Date(dto.plannedEndAt);
+      if (record.plannedEndAt <= record.scheduledAt) throw new BadRequestException('Thời gian kết thúc dự kiến phải sau thời gian bắt đầu');
       if (dto.reason !== undefined) record.reason = dto.reason.trim();
       if (dto.description !== undefined) record.description = dto.description.trim() || null;
       if (dto.cost !== undefined) record.cost = (Math.round(dto.cost * 100) / 100).toFixed(2);
@@ -102,24 +120,17 @@ export class MaintenanceService {
           throw new BadRequestException('Chuyển trạng thái bảo dưỡng không hợp lệ');
         }
         record.status = dto.status;
-        if (dto.status === MaintenanceStatus.COMPLETED) {
-          record.completedAt = new Date();
-          const anotherOpen = await repo.createQueryBuilder('m')
-            .where('m.vehicleId = :vehicleId', { vehicleId: vehicle.id })
-            .andWhere('m.id != :id', { id: record.id })
-            .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
-            .getCount();
-          if (!anotherOpen) vehicle.status = record.previousVehicleStatus ?? VehicleStatus.ACTIVE;
+        if (dto.status === MaintenanceStatus.IN_PROGRESS) {
+          if (vehicle.status === VehicleStatus.INACTIVE) throw new BadRequestException('Xe đang ngừng khai thác');
+          vehicle.status = VehicleStatus.MAINTENANCE;
           await vehicleRepo.save(vehicle);
-        } else if (dto.status === MaintenanceStatus.CANCELLED) {
-          record.completedAt = null;
-          const anotherOpen = await repo.createQueryBuilder('m')
-            .where('m.vehicleId = :vehicleId', { vehicleId: vehicle.id })
-            .andWhere('m.id != :id', { id: record.id })
-            .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
-            .getCount();
-          if (!anotherOpen) vehicle.status = record.previousVehicleStatus ?? VehicleStatus.ACTIVE;
-          await vehicleRepo.save(vehicle);
+        }
+        if ([MaintenanceStatus.COMPLETED, MaintenanceStatus.CANCELLED].includes(dto.status)) {
+          record.completedAt = dto.status === MaintenanceStatus.COMPLETED ? new Date() : null;
+          if (vehicle.status === VehicleStatus.MAINTENANCE) {
+            vehicle.status = record.previousVehicleStatus ?? VehicleStatus.ACTIVE;
+            await vehicleRepo.save(vehicle);
+          }
         }
       }
       return repo.save(record);

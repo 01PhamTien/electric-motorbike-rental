@@ -20,8 +20,8 @@ export class MaintenanceRecord {
   @Column({ type: 'datetime' })
   scheduledAt: Date;
 
-  @Column({ type: 'datetime' })
-  plannedEndAt: Date;
+  @Column({ type: 'datetime', nullable: true })
+  plannedEndAt: Date | null;
 
   @Column({ type: 'datetime', nullable: true })
   completedAt: Date | null;

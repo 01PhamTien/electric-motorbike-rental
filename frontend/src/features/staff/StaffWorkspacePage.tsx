@@ -8,7 +8,7 @@ type Booking = {
   vehicle?: { code?: string; licensePlate?: string; model?: { name?: string }; station?: { name?: string } };
 };
 type HandoverKind = 'pickup' | 'return';
-type HandoverForm = { batteryPercent: string; odometerKm: string; conditionNote: string };
+type HandoverForm = { batteryPercent: string; odometerKm: string; conditionNote: string; imageUrls: string };
 
 const statusText: Record<string,string> = {
   PENDING: 'Chờ xác nhận', CONFIRMED: 'Chờ giao xe', RENTING: 'Đang thuê',
@@ -22,7 +22,7 @@ export function StaffWorkspacePage() {
   const [message, setMessage] = useState('');
   const [active, setActive] = useState<Booking | null>(null);
   const [kind, setKind] = useState<HandoverKind>('pickup');
-  const [form, setForm] = useState<HandoverForm>({ batteryPercent: '90', odometerKm: '', conditionNote: '' });
+  const [form, setForm] = useState<HandoverForm>({ batteryPercent: '90', odometerKm: '', conditionNote: '', imageUrls: '' });
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -45,7 +45,7 @@ export function StaffWorkspacePage() {
 
   function openHandover(item: Booking, action: HandoverKind) {
     setActive(item); setKind(action);
-    setForm({ batteryPercent: action === 'pickup' ? '95' : '60', odometerKm: '', conditionNote: '' });
+    setForm({ batteryPercent: action === 'pickup' ? '95' : '60', odometerKm: '', conditionNote: '', imageUrls: '' });
   }
 
   async function submitHandover(event: FormEvent) {
@@ -56,6 +56,7 @@ export function StaffWorkspacePage() {
         batteryPercent: Number(form.batteryPercent),
         odometerKm: Number(form.odometerKm),
         conditionNote: form.conditionNote.trim(),
+        imageUrls: form.imageUrls.split('\n').map(url => url.trim()).filter(Boolean),
       });
       setMessage(kind === 'pickup' ? `Đã giao xe cho đơn #${active.id}.` : `Đã nhận xe trả cho đơn #${active.id}.`);
       setActive(null); await load();
@@ -120,6 +121,10 @@ export function StaffWorkspacePage() {
         </label>
         <label className="block text-sm font-medium">Tình trạng xe
           <textarea required maxLength={1000} value={form.conditionNote} onChange={e=>setForm({...form,conditionNote:e.target.value})} className="mt-1 w-full rounded-lg border px-3 py-2" rows={3} placeholder="Mô tả tình trạng xe, phụ kiện, hư hỏng nếu có..."/>
+        </label>
+        <label className="block text-sm font-medium">Ảnh hiện trạng xe (mỗi URL một dòng)
+          <textarea value={form.imageUrls} onChange={e=>setForm({...form,imageUrls:e.target.value})} className="mt-1 w-full rounded-lg border px-3 py-2" rows={3} placeholder="https://..."/>
+          <span className="mt-1 block text-xs text-slate-500">Tối đa 10 ảnh. Nhập URL ảnh đã được tải lên kho lưu trữ; chưa phải chức năng tải file trực tiếp.</span>
         </label>
         <div className="flex justify-end gap-2"><button type="button" onClick={()=>setActive(null)} className="rounded-lg border px-4 py-2 text-sm">Hủy</button>
           <button disabled={saving} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Đang lưu...' : 'Lưu biên bản'}</button></div>

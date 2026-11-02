@@ -14,6 +14,7 @@ type Payment = {
   method: Method; amount: string; note?: string | null; createdAt: string;
 };
 type PaymentForm = { purpose: Purpose; method: Method; amount: string; note: string };
+type Charge = { id:number; category:string; amount:string; applyToDeposit:boolean; reason:string; createdAt:string };
 
 const purposeText: Record<string,string> = { RENT: 'Thu tiền thuê', DEPOSIT: 'Thu tiền cọc', EXTRA: 'Phụ phí', REFUND: 'Hoàn tiền cọc' };
 const methodText: Record<string,string> = { CASH: 'Tiền mặt', TRANSFER: 'Chuyển khoản' };
@@ -24,6 +25,7 @@ const sum=(payments:Payment[], purpose:string)=>payments.filter(p=>p.purpose===p
 export function StaffPaymentsPage() {
   const [bookings,setBookings]=useState<Booking[]>([]);
   const [payments,setPayments]=useState<Record<number,Payment[]>>({});
+  const [charges,setCharges]=useState<Record<number,Charge[]>>({});
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [message,setMessage]=useState('');
@@ -38,10 +40,14 @@ export function StaffPaymentsPage() {
       const rows=response.data;
       setBookings(rows);
       const ledger=await Promise.all(rows.map(async booking=>{
-        try { const result=await api.get<Payment[]>('/bookings/'+booking.id+'/payments');return [booking.id,result.data] as const; }
-        catch { return [booking.id,[]] as const; }
+        const [p,c]=await Promise.all([
+          api.get<Payment[]>('/bookings/'+booking.id+'/payments').catch(()=>({data:[]} as any)),
+          api.get<Charge[]>('/bookings/'+booking.id+'/charges').catch(()=>({data:[]} as any)),
+        ]);
+        return [booking.id,p.data,c.data] as const;
       }));
-      setPayments(Object.fromEntries(ledger));
+      setPayments(Object.fromEntries(ledger.map(([id,p])=>[id,p])));
+      setCharges(Object.fromEntries(ledger.map(([id,_p,c])=>[id,c])));
     } catch(err:any) {
       setError(err.response?.data?.message||'Không tải được dữ liệu thanh toán. Hãy đăng nhập bằng tài khoản STAFF hoặc ADMIN.');
     } finally { setLoading(false); }
@@ -105,7 +111,9 @@ export function StaffPaymentsPage() {
         const rent=sum(list,'RENT'),deposit=sum(list,'DEPOSIT'),refund=sum(list,'REFUND');
         const rentLeft=Math.max(0,Number(booking.rentalAmount)-rent);
         const depositLeft=Math.max(0,Number(booking.depositSnapshot)-deposit);
-        const refundable=Math.max(0,deposit-refund);
+        const chargeList=charges[booking.id]||[];
+        const depositDeductions=chargeList.filter(c=>c.applyToDeposit).reduce((n,c)=>n+Number(c.amount),0);
+        const refundable=Math.max(0,deposit-depositDeductions-refund);
         const blocked=['CANCELLED','EXPIRED'].includes(booking.status);
         return <article key={booking.id} className="space-y-3 p-4">
           <div className="flex flex-wrap justify-between gap-2"><div><h3 className="font-semibold">Đơn #{booking.id} · {booking.vehicle?.code||booking.vehicle?.licensePlate||'Xe'}</h3>
@@ -114,11 +122,12 @@ export function StaffPaymentsPage() {
           <div className="grid gap-2 text-sm sm:grid-cols-3">
             <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Tiền thuê</p><p className="font-semibold">{money(rent)} / {money(booking.rentalAmount)}</p><p className="text-xs text-slate-500">Còn: {money(rentLeft)}</p></div>
             <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Tiền cọc</p><p className="font-semibold">{money(deposit)} / {money(booking.depositSnapshot)}</p><p className="text-xs text-slate-500">Còn phải thu: {money(depositLeft)}</p></div>
-            <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Cọc đã hoàn</p><p className="font-semibold">{money(refund)}</p><p className="text-xs text-slate-500">Còn có thể hoàn: {money(refundable)}</p></div>
+            <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Cọc đã hoàn</p><p className="font-semibold">{money(refund)}</p><p className="text-xs text-slate-500">Khấu trừ: {money(depositDeductions)} · Còn hoàn: {money(refundable)}</p></div>
           </div>
           <div className="flex flex-wrap gap-2">
             {!blocked&&rentLeft>0.009&&<button onClick={()=>openForm(booking,'RENT')} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white">Thu tiền thuê</button>}
             {!blocked&&depositLeft>0.009&&<button onClick={()=>openForm(booking,'DEPOSIT')} className="rounded-lg bg-indigo-700 px-3 py-2 text-sm font-semibold text-white">Thu tiền cọc</button>}
+            {booking.status==='COMPLETED'&&<button onClick={async()=>{const amount=window.prompt('Số tiền phụ phí / khấu trừ (VNĐ):');if(!amount)return;const reason=window.prompt('Lý do và căn cứ:');if(!reason)return;try{await api.post('/bookings/'+booking.id+'/charges',{category:'DAMAGE_OR_EXTRA',amount:Number(amount),applyToDeposit:true,reason});setMessage('Đã ghi nhận khoản khấu trừ cho đơn #'+booking.id);await load();}catch(err:any){setError(err.response?.data?.message||'Không thể ghi nhận khoản khấu trừ.');}}} className="rounded-lg border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-800">Ghi nhận khấu trừ cọc</button>}
             {booking.status==='COMPLETED'&&refundable>0.009&&<button onClick={()=>openForm(booking,'REFUND')} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white">Hoàn tiền cọc</button>}
           </div>
           {list.length>0&&<details className="text-sm"><summary className="cursor-pointer font-medium text-slate-700">Lịch sử giao dịch ({list.length})</summary>

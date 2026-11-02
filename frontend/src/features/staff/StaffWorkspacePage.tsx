@@ -40,6 +40,11 @@ export function StaffWorkspacePage() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentSaving, setPaymentSaving] = useState(false);
+  const [chargeCategory, setChargeCategory] = useState('DAMAGE');
+  const [chargeAmount, setChargeAmount] = useState('');
+  const [chargeReason, setChargeReason] = useState('');
+  const [chargeToDeposit, setChargeToDeposit] = useState(true);
+  const [chargeSaving, setChargeSaving] = useState(false);
 
   async function load() {
     setLoading(true); setError('');
@@ -91,6 +96,26 @@ export function StaffWorkspacePage() {
     } catch (err: any) {
       setError(err.response?.data?.message || 'Không thể ghi nhận giao dịch.');
     } finally { setPaymentSaving(false); }
+  }
+
+  async function addSettlementCharge(event: FormEvent) {
+    event.preventDefault();
+    if (!settlementBooking || !chargeAmount || Number(chargeAmount) <= 0 || !chargeReason.trim()) return;
+    setChargeSaving(true); setError(''); setMessage('');
+    try {
+      await api.post(`/bookings/${settlementBooking.id}/charges`, {
+        category: chargeCategory.trim().toUpperCase(),
+        amount: Number(chargeAmount),
+        applyToDeposit: chargeToDeposit,
+        reason: chargeReason.trim(),
+      });
+      const response = await api.get<SettlementSummary>(`/bookings/${settlementBooking.id}/payments/summary`);
+      setSettlement(response.data);
+      setChargeAmount(''); setChargeReason('');
+      setMessage('Đã ghi nhận khoản phụ phí vào quyết toán.');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Không thể ghi nhận phụ phí.');
+    } finally { setChargeSaving(false); }
   }
 
   function suggestedAmount(purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND') {
@@ -183,12 +208,30 @@ export function StaffWorkspacePage() {
             <div className="rounded-xl border p-4"><p className="text-sm text-slate-500">Dòng tiền ròng</p><p className="mt-1 text-lg font-bold">{settlement.cashFlow.net.toLocaleString('vi-VN')} đ</p><p className="text-xs text-slate-500">Tổng thu {settlement.cashFlow.totalCollected.toLocaleString('vi-VN')} đ · Hoàn {settlement.cashFlow.totalRefunded.toLocaleString('vi-VN')} đ</p></div>
           </div>
           {settlement.deposit.deductionExceedsCollected && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Khoản khấu trừ đang lớn hơn tiền cọc đã thu. Cần kiểm tra trước khi hoàn tiền.</p>}
+          {settlementBooking.status === 'COMPLETED' && <form onSubmit={addSettlementCharge} className="space-y-3 rounded-xl border p-4">
+            <h3 className="font-semibold">Ghi nhận phụ phí / khấu trừ</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-medium">Loại khoản phí
+                <select value={chargeCategory} onChange={e=>setChargeCategory(e.target.value)} className="mt-1 w-full rounded-lg border bg-white px-3 py-2">
+                  <option value="DAMAGE">Hư hỏng</option><option value="LATE_RETURN">Trả xe muộn</option><option value="MISSING_ACCESSORY">Thiếu phụ kiện</option><option value="CLEANING">Vệ sinh</option><option value="OTHER">Khác</option>
+                </select>
+              </label>
+              <label className="text-sm font-medium">Số tiền (VND)
+                <input required type="number" min="0.01" step="0.01" value={chargeAmount} onChange={e=>setChargeAmount(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2"/>
+              </label>
+            </div>
+            <label className="block text-sm font-medium">Lý do / mô tả
+              <textarea required maxLength={500} value={chargeReason} onChange={e=>setChargeReason(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" rows={2}/>
+            </label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={chargeToDeposit} onChange={e=>setChargeToDeposit(e.target.checked)}/> Khấu trừ khoản này từ tiền cọc (không thu EXTRA riêng)</label>
+            <button disabled={chargeSaving} className="rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-800 disabled:opacity-50">{chargeSaving?'Đang lưu...':'Thêm khoản phụ phí'}</button>
+          </form>}
           <form onSubmit={recordPayment} className="space-y-3 rounded-xl border bg-slate-50 p-4">
             <h3 className="font-semibold">Ghi nhận giao dịch</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium">Loại giao dịch
                 <select value={paymentPurpose} onChange={e=>{const p=e.target.value as typeof paymentPurpose;setPaymentPurpose(p);setPaymentAmount(String(suggestedAmount(p)||''));}} className="mt-1 w-full rounded-lg border bg-white px-3 py-2">
-                  <option value="RENT">Thu tiền thuê</option><option value="DEPOSIT">Thu tiền cọc</option><option value="EXTRA">Thu phụ phí</option><option value="REFUND">Hoàn tiền cọc</option>
+                  <option value="RENT">Thu tiền thuê</option><option value="DEPOSIT">Thu tiền cọc</option><option value="EXTRA">Thu phụ phí</option><option value="REFUND" disabled={!settlement.canRefundDeposit}>Hoàn tiền cọc</option>
                 </select>
               </label>
               <label className="text-sm font-medium">Phương thức

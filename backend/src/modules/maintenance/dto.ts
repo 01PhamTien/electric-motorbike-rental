@@ -4,6 +4,7 @@ import { MaintenanceStatus } from './maintenance.entity';
 export class CreateMaintenanceDto {
   @IsNumber() @Min(1) vehicleId: number;
   @IsDateString() scheduledAt: string;
+  @IsDateString() plannedEndAt: string;
   @IsString() @Length(2, 160) reason: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsNumber() @Min(0) cost?: number;
@@ -11,6 +12,7 @@ export class CreateMaintenanceDto {
 
 export class UpdateMaintenanceDto {
   @IsOptional() @IsDateString() scheduledAt?: string;
+  @IsOptional() @IsDateString() plannedEndAt?: string;
   @IsOptional() @IsString() @Length(2, 160) reason?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsNumber() @Min(0) cost?: number;

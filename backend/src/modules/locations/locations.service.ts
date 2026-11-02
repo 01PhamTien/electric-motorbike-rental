@@ -23,6 +23,19 @@ export class LocationsService {
     return vehicle;
   }
 
+  async latestForManagedVehicles(current: JwtUser) {
+    const query = this.repo.createQueryBuilder('location')
+      .innerJoinAndSelect('location.vehicle', 'vehicle')
+      .leftJoinAndSelect('vehicle.station', 'station')
+      .leftJoinAndSelect('vehicle.model', 'model')
+      .where('location.id IN (SELECT MAX(latest.id) FROM vehicle_locations latest GROUP BY latest.vehicleId)');
+    if (current.role === Role.STAFF) {
+      if (!current.stationId) return [];
+      query.andWhere('vehicle.stationId = :stationId', { stationId: current.stationId });
+    }
+    return query.orderBy('location.createdAt', 'DESC').getMany();
+  }
+
   async simulate(current: JwtUser, vehicleId: number, dto: SimulateLocationDto) {
     await this.assertVehicleScope(current, vehicleId);
     return this.repo.save(this.repo.create({

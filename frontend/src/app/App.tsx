@@ -8,6 +8,7 @@ import { VehiclesPage } from '../features/vehicles/VehiclesPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { StaffPage } from '../features/staff/StaffPage';
 import { StaffWorkspacePage } from '../features/staff/StaffWorkspacePage';
+import { StaffPaymentsPage } from '../features/staff/StaffPaymentsPage';
 import { MainLayout } from '../layouts/MainLayout';
 
 export function App() {
@@ -23,6 +24,7 @@ export function App() {
       <Route path="/admin/dashboard" element={<DashboardPage />} />
       <Route path="/admin/staff" element={<StaffPage />} />
       <Route path="/staff/workspace" element={<StaffWorkspacePage />} />
+      <Route path="/staff/payments" element={<StaffPaymentsPage />} />
     </Route>
   </Routes>;
 }

@@ -6,7 +6,7 @@ import { Role } from '../../common/enums/role.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { CreateStaffDto, UpdateStaffDto, UpdateStaffStatusDto } from './dto';
+import { ChangePasswordDto, CreateStaffDto, UpdateAvatarDto, UpdateMyProfileDto, UpdateStaffDto, UpdateStaffStatusDto } from './dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -19,6 +19,21 @@ export class UsersController {
   @Get('me')
   me(@CurrentUser() current: JwtUser) {
     return this.usersService.findById(current.sub);
+  }
+
+  @Patch('me')
+  updateMe(@CurrentUser() current: JwtUser, @Body() dto: UpdateMyProfileDto) {
+    return this.usersService.updateMyProfile(current.sub, dto);
+  }
+
+  @Patch('me/password')
+  changeMyPassword(@CurrentUser() current: JwtUser, @Body() dto: ChangePasswordDto) {
+    return this.usersService.changePassword(current.sub, dto);
+  }
+
+  @Patch('me/avatar')
+  updateMyAvatar(@CurrentUser() current: JwtUser, @Body() dto: UpdateAvatarDto) {
+    return this.usersService.updateAvatar(current.sub, dto.avatarDataUrl);
   }
 
   @Get('staff')

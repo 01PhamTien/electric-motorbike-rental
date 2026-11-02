@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
 
+type StatusHistory = { id: number; fromStatus: string; toStatus: string; reason?: string | null; createdAt: string; performedById?: number | null };
 type Booking = {
   id: number; status: string; pickupAt: string; returnAt: string;
   rentalAmount: string; depositSnapshot: string; holdExpiresAt?: string | null;
@@ -19,6 +20,8 @@ export function MyBookingsPage() {
   const [error,setError]=useState('');
   const [message,setMessage]=useState('');
   const [busy,setBusy]=useState<number|null>(null);
+  const [historyByBooking,setHistoryByBooking]=useState<Record<number,StatusHistory[]>>({});
+  const [historyLoading,setHistoryLoading]=useState<number|null>(null);
 
   const load=useCallback(async()=>{
     setLoading(true);setError('');
@@ -27,6 +30,21 @@ export function MyBookingsPage() {
     finally{setLoading(false);}
   },[]);
   useEffect(()=>{void load();},[load]);
+
+  async function toggleHistory(item: Booking) {
+    if (historyByBooking[item.id]) {
+      setHistoryByBooking(current => { const next = { ...current }; delete next[item.id]; return next; });
+      return;
+    }
+    setHistoryLoading(item.id);
+    setError('');
+    try {
+      const response = await api.get<StatusHistory[]>('/bookings/' + item.id + '/history');
+      setHistoryByBooking(current => ({ ...current, [item.id]: response.data }));
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Không tải được lịch sử trạng thái đơn.');
+    } finally { setHistoryLoading(null); }
+  }
 
   async function cancel(item:Booking){
     if(!window.confirm(`Bạn chắc chắn muốn yêu cầu hủy đơn #${item.id}?`))return;
@@ -55,6 +73,18 @@ export function MyBookingsPage() {
         {item.status==='PENDING'&&item.holdExpiresAt&&<p className="mt-3 text-xs text-amber-700">Hạn giữ chỗ: {new Date(item.holdExpiresAt).toLocaleString('vi-VN')}</p>}
         {['PENDING','CONFIRMED'].includes(item.status)&&<div className="mt-4"><button disabled={busy===item.id} onClick={()=>void cancel(item)} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">{busy===item.id?'Đang xử lý...':'Hủy đơn thuê'}</button></div>}
         {item.cancelReason&&<p className="mt-2 text-xs text-slate-500">Lý do hủy: {item.cancelReason}</p>}
+        <div className="mt-3 border-t pt-3">
+          <button type="button" disabled={historyLoading===item.id} onClick={()=>void toggleHistory(item)} className="text-sm font-semibold text-blue-700 underline disabled:opacity-50">
+            {historyLoading===item.id?'Đang tải lịch sử...':historyByBooking[item.id]?'Ẩn lịch sử trạng thái':'Xem lịch sử trạng thái'}
+          </button>
+          {historyByBooking[item.id]&&<ol className="mt-3 space-y-2 border-l-2 border-slate-200 pl-4">
+            {historyByBooking[item.id].map(entry=><li key={entry.id} className="relative text-sm">
+              <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-blue-600"/>
+              <p className="font-semibold">{statusText[entry.toStatus]||entry.toStatus}</p>
+              <p className="text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString('vi-VN')}{entry.reason?' · '+entry.reason:''}</p>
+            </li>)}
+          </ol>}
+        </div>
       </article>)}</div>}
   </section>;
 }

@@ -20,7 +20,6 @@ export class MaintenanceService {
   async list(user: JwtUser, vehicleId?: number) {
     const repo = this.dataSource.getRepository(MaintenanceRecord);
     const qb = repo.createQueryBuilder('m')
-      .leftJoinAndSelect('m.vehicle', 'vehicle')
       .orderBy('m.scheduledAt', 'DESC')
       .take(200);
     if (vehicleId) {
@@ -30,7 +29,8 @@ export class MaintenanceService {
       qb.andWhere('m.vehicleId = :vehicleId', { vehicleId });
     } else if (user.role === Role.STAFF) {
       if (!user.stationId) return [];
-      qb.andWhere('vehicle.stationId = :stationId', { stationId: user.stationId });
+      qb.innerJoin(Vehicle, 'vehicle', 'vehicle.id = m.vehicleId')
+        .andWhere('vehicle.stationId = :stationId', { stationId: user.stationId });
     }
     return qb.getMany();
   }

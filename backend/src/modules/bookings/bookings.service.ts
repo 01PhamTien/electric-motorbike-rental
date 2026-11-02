@@ -8,6 +8,8 @@ import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from './booking-status-history.entity';
+import { BookingCharge } from './booking-charge.entity';
+import { CreateBookingChargeDto } from './booking-charge.dto';
 import { Booking } from './booking.entity';
 import { CancelBookingDto, CreateBookingDto } from './dto';
 
@@ -70,6 +72,32 @@ export class BookingsService {
       }));
       return bookingRepo.findOne({ where: { id: booking.id } });
     });
+  }
+
+  async addCharge(current: JwtUser, id: number, dto: CreateBookingChargeDto) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    return this.dataSource.transaction(async manager => {
+      const booking = await manager.getRepository(Booking).findOne({
+        where: { id }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+      this.assertAccess(current, booking);
+      if (booking.status !== BookingStatus.COMPLETED) {
+        throw new BadRequestException('Chỉ được quyết toán phụ phí sau khi đã nhận xe trả');
+      }
+      return manager.getRepository(BookingCharge).save(manager.getRepository(BookingCharge).create({
+        bookingId: id, category: dto.category.trim().toUpperCase(),
+        amount: (Math.round(dto.amount * 100) / 100).toFixed(2),
+        applyToDeposit: dto.applyToDeposit, reason: dto.reason.trim(), createdById: current.sub,
+      }));
+    });
+  }
+
+  async listCharges(current: JwtUser, id: number) {
+    const booking = await this.bookingRepo.findOne({ where: { id } });
+    if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+    this.assertAccess(current, booking);
+    return this.dataSource.getRepository(BookingCharge).find({ where: { bookingId: id }, order: { id: 'ASC' } });
   }
 
   async operationsQueue(current: JwtUser) {

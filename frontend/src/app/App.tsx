@@ -17,6 +17,7 @@ import { StaffPage } from '../features/staff/StaffPage';
 import { StaffWorkspacePage } from '../features/staff/StaffWorkspacePage';
 import { StaffPaymentsPage } from '../features/staff/StaffPaymentsPage';
 import { MaintenancePage } from '../features/maintenance/MaintenancePage';
+import { ProfilePage } from '../features/profile/ProfilePage';
 import { MainLayout } from '../layouts/MainLayout';
 
 function HomeRedirect() {
@@ -32,6 +33,9 @@ export function App() {
     <Route element={<MainLayout />}>
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/stations" element={<StationsPage />} />
+      <Route element={<RequireRole allowed={['CUSTOMER', 'STAFF', 'ADMIN']} />}>
+        <Route path="/profile" element={<ProfilePage />} />
+      </Route>
       <Route path="/vehicles" element={<VehiclesPage />} />
       <Route path="/vehicles/:id" element={<VehicleDetailPage />} />
 

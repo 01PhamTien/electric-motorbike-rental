@@ -62,3 +62,15 @@
 - Staff workspace can add documented charges after completion and choose whether each charge is deducted from the deposit or billed separately.
 - A charge applied to deposit is not also counted as a separately billable EXTRA, avoiding double collection.
 - Late-return pricing/rates are not automatically calculated because the approved business rules do not define a fee formula or grace period; staff must enter a justified charge manually.
+
+
+## Maintenance scheduling and late-return policy
+- Added optional `plannedEndAt` to maintenance records. New maintenance creation requires a future start and an end later than start.
+- SCHEDULED maintenance reserves only its planned time window; it does not change the vehicle's operational status before work begins.
+- IN_PROGRESS maintenance changes the vehicle to MAINTENANCE and blocks all new availability/booking requests until completion or cancellation.
+- Maintenance creation and schedule edits reject overlaps with valid PENDING, CONFIRMED, RENTING bookings and other open maintenance windows.
+- Completing/cancelling an in-progress maintenance record restores the vehicle's previous operational status.
+- Legacy maintenance rows without plannedEndAt are treated conservatively as blocking availability until an end time is added or the record is closed.
+- Late-return policy: 60-minute grace period; after grace, charge one daily-rate snapshot for each started 24-hour block. Formula: ceil(max(0, actualReturnAt - scheduledReturnAt - 60 minutes) / 24 hours) × booking.dailyRateSnapshot.
+- Late-return charge is recorded automatically as a LATE_RETURN charge after the return handover, billed separately by default (applyToDeposit=false); staff may later choose to deduct it from deposit through the settlement workflow.
+- Example at 150,000 VND/day: 30 minutes late = 0; 2 hours late = 150,000; 25 hours late = 150,000; 49 hours late = 300,000.

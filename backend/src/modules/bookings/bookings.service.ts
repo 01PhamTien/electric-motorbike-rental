@@ -36,19 +36,17 @@ export class BookingsService {
       if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
       if (vehicle.status !== VehicleStatus.ACTIVE) throw new BadRequestException('Xe hiện không thể đặt');
 
-      // Maintenance records in SCHEDULED or IN_PROGRESS reserve the vehicle.
-      // The current maintenance specification has a single scheduledAt timestamp,
-      // not a maintenance end time; therefore an open record blocks new bookings
-      // until it is completed or cancelled.
-      const openMaintenance = await manager.getRepository(MaintenanceRecord).findOne({
-        where: {
-          vehicleId: vehicle.id,
-          status: In([MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS]),
-        },
-        select: { id: true, status: true, scheduledAt: true },
-      });
-      if (openMaintenance) {
-        throw new BadRequestException('Xe đang có phiếu bảo dưỡng chưa kết thúc, không thể đặt thuê');
+      // A scheduled maintenance record blocks only its planned time window.
+      // Once maintenance is IN_PROGRESS, it blocks new bookings until completed/cancelled.
+      const maintenanceConflict = await manager.getRepository(MaintenanceRecord).createQueryBuilder('m')
+        .where('m.vehicleId = :vehicleId', { vehicleId: vehicle.id })
+        .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
+        .andWhere('(m.status = :inProgress OR (m.scheduledAt < :returnAt AND m.plannedEndAt > :pickupAt))', {
+          inProgress: MaintenanceStatus.IN_PROGRESS, pickupAt, returnAt,
+        })
+        .getOne();
+      if (maintenanceConflict) {
+        throw new BadRequestException('Xe có lịch bảo dưỡng trùng với thời gian thuê hoặc đang được bảo dưỡng');
       }
 
       const overlapping = await bookingRepo

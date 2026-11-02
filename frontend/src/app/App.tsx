@@ -11,6 +11,7 @@ import { AdminStationsPage } from '../features/stations/AdminStationsPage';
 import { VehiclesPage } from '../features/vehicles/VehiclesPage';
 import { AdminVehiclesPage } from '../features/vehicles/AdminVehiclesPage';
 import { AdminVehicleModelsPage } from '../features/vehicles/AdminVehicleModelsPage';
+import { VehicleDetailPage } from '../features/vehicles/VehicleDetailPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { StaffPage } from '../features/staff/StaffPage';
 import { StaffWorkspacePage } from '../features/staff/StaffWorkspacePage';
@@ -32,6 +33,7 @@ export function App() {
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/stations" element={<StationsPage />} />
       <Route path="/vehicles" element={<VehiclesPage />} />
+      <Route path="/vehicles/:id" element={<VehicleDetailPage />} />
 
       <Route element={<RequireRole allowed={['CUSTOMER']} />}>
         <Route path="/bookings/my" element={<MyBookingsPage />} />

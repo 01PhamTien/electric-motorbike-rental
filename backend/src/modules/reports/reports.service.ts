@@ -6,6 +6,7 @@ import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { PaymentPurpose, PaymentTransaction } from '../payments/payment.entity';
+import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 
 @Injectable()
 export class ReportsService {
@@ -13,6 +14,7 @@ export class ReportsService {
     @InjectRepository(Booking) private readonly bookings: Repository<Booking>,
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
     @InjectRepository(PaymentTransaction) private readonly payments: Repository<PaymentTransaction>,
+    @InjectRepository(MaintenanceRecord) private readonly maintenance: Repository<MaintenanceRecord>,
   ) {}
 
   async getOverview(from?: string, to?: string) {
@@ -82,6 +84,29 @@ export class ReportsService {
     if (range.to) utilizationQuery.andWhere('booking.createdAt <= :to', { to: range.to });
     const utilization = await utilizationQuery.getRawOne<{ vehiclesUsed: string; scheduledMinutes: string }>();
 
+    const maintenanceQuery = this.maintenance.createQueryBuilder('maintenance');
+    if (range.from) maintenanceQuery.andWhere('maintenance.scheduledAt >= :from', { from: range.from });
+    if (range.to) maintenanceQuery.andWhere('maintenance.scheduledAt <= :to', { to: range.to });
+    const maintenanceRows = await maintenanceQuery
+      .select('maintenance.status', 'status')
+      .addSelect('COUNT(maintenance.id)', 'count')
+      .addSelect('COALESCE(SUM(maintenance.cost), 0)', 'cost')
+      .groupBy('maintenance.status')
+      .getRawMany<{ status: MaintenanceStatus; count: string; cost: string }>();
+    const maintenanceSummary = Object.values(MaintenanceStatus).reduce((acc, status) => {
+      const row = maintenanceRows.find(item => item.status === status);
+      acc.byStatus[status] = Number(row?.count ?? 0);
+      acc.costByStatus[status] = Number(row?.cost ?? 0);
+      acc.totalCost += Number(row?.cost ?? 0);
+      return acc;
+    }, {
+      totalRecords: 0,
+      totalCost: 0,
+      byStatus: {} as Record<MaintenanceStatus, number>,
+      costByStatus: {} as Record<MaintenanceStatus, number>,
+    });
+    maintenanceSummary.totalRecords = Object.values(maintenanceSummary.byStatus).reduce((sum, count) => sum + count, 0);
+
     const totalBookings = Object.values(bookingCounts).reduce((sum, value) => sum + value, 0);
     return {
       generatedAt: new Date().toISOString(),
@@ -93,6 +118,7 @@ export class ReportsService {
         maintenance: maintenanceVehicles,
         inactive: inactiveVehicles,
       },
+      maintenance: maintenanceSummary,
       payments: {
         transactionCount: Number(paymentRaw?.count ?? 0),
         rentCollected,
@@ -111,6 +137,7 @@ export class ReportsService {
         'Tiền thuê, tiền cọc và phụ phí được trình bày riêng; tổng thu tiền mặt không đồng nghĩa doanh thu kế toán.',
         'Dòng tiền ròng = tổng giao dịch thu - tổng giao dịch hoàn; tiền cọc vẫn được theo dõi riêng.',
         'Mức sử dụng hiện thể hiện số xe có đơn CONFIRMED/RENTING/COMPLETED và tổng thời lượng thuê theo lịch, chưa phải tỷ lệ công suất.',
+        'Chi phí bảo dưỡng được nhóm theo trạng thái phiếu và lọc theo scheduledAt; đây là chi phí ghi nhận trên phiếu, không phải chi phí kế toán đã đối soát.'
       ],
     };
   }

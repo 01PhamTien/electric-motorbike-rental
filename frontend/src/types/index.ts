@@ -9,6 +9,8 @@ export interface Station {
   phone?: string | null;
 }
 
+export interface VehicleImage { id: number; imageUrl: string; createdAt?: string; }
+
 export interface Vehicle {
   id: number;
   code: string;
@@ -17,5 +19,6 @@ export interface Vehicle {
   depositAmount: string;
   status: 'ACTIVE' | 'CHARGING' | 'MAINTENANCE' | 'INACTIVE';
   station: Station;
-  model: { id: number; brand: string; name: string };
+  model: { id: number; brand: string; name: string; specifications?: string | null };
+  images?: VehicleImage[];
 }

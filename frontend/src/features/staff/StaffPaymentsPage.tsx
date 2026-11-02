@@ -89,21 +89,24 @@ export function StaffPaymentsPage() {
   }
 
   return <section className="space-y-6">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><p className="text-sm font-semibold text-blue-700">THU NGÂN VÀ ĐỐI SOÁT</p>
-        <h1 className="mt-1 text-2xl font-bold">Thanh toán và tiền cọc</h1>
-        <p className="mt-1 text-sm text-slate-500">Ghi nhận tiền thuê, tiền cọc và hoàn cọc theo từng đơn thuê.</p></div>
-      <button onClick={()=>void load()} className="rounded-lg border px-4 py-2 text-sm">Làm mới</button>
-    </div>
+    <header className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-lg sm:px-8">
+      <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
+      <div className="relative flex flex-wrap items-end justify-between gap-4">
+        <div><div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-bold tracking-[0.15em] text-emerald-200">THU NGÂN VÀ ĐỐI SOÁT</div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Thanh toán và tiền cọc</h1>
+          <p className="mt-2 text-sm text-slate-300">Ghi nhận tiền thuê, tiền cọc và hoàn cọc theo từng đơn tại điểm thuê.</p></div>
+        <button onClick={()=>void load()} disabled={loading} className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50">{loading?'Đang tải...':'↻ Làm mới dữ liệu'}</button>
+      </div>
+    </header>
     {error&&<div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{Array.isArray(error)?error.join(', '):error}</div>}
     {message&&<div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{message}</div>}
     <div className="grid gap-3 sm:grid-cols-3">
-      <div className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-500">Tổng tiền thuê đã thu</p><p className="mt-1 text-xl font-bold">{money(summary.rent)}</p></div>
-      <div className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-500">Tổng tiền cọc đã nhận</p><p className="mt-1 text-xl font-bold">{money(summary.deposit)}</p></div>
-      <div className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-500">Tổng tiền cọc đã hoàn</p><p className="mt-1 text-xl font-bold">{money(summary.refund)}</p></div>
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-medium text-slate-500">Tiền thuê đã thu</p><p className="mt-2 text-2xl font-bold tracking-tight text-blue-700">{money(summary.rent)}</p><p className="mt-1 text-xs text-slate-400">Tổng giao dịch tiền thuê</p></article>
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-medium text-slate-500">Tiền cọc đã nhận</p><p className="mt-2 text-2xl font-bold tracking-tight text-violet-700">{money(summary.deposit)}</p><p className="mt-1 text-xs text-slate-400">Tổng tiền cọc đã thu</p></article>
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-medium text-slate-500">Tiền cọc đã hoàn</p><p className="mt-2 text-2xl font-bold tracking-tight text-emerald-700">{money(summary.refund)}</p><p className="mt-1 text-xs text-slate-400">Tổng tiền đã hoàn khách</p></article>
     </div>
-    <div className="overflow-hidden rounded-xl border bg-white">
-      <div className="border-b p-4"><h2 className="font-semibold">Danh sách đơn thuê ({bookings.length})</h2></div>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5"><div><h2 className="font-bold text-slate-900">Danh sách đơn thuê</h2><p className="mt-1 text-xs text-slate-500">Theo dõi số đã thu, còn phải thu và số tiền cọc có thể hoàn.</p></div><span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">{bookings.length} đơn</span></div>
       {loading?<p className="p-5 text-sm text-slate-500">Đang tải dữ liệu...</p>:
       bookings.length===0?<p className="p-5 text-sm text-slate-500">Không có đơn thuê tại điểm được phân công.</p>:
       <div className="divide-y">{bookings.map(booking=>{
@@ -115,11 +118,11 @@ export function StaffPaymentsPage() {
         const depositDeductions=chargeList.filter(c=>c.applyToDeposit).reduce((n,c)=>n+Number(c.amount),0);
         const refundable=Math.max(0,deposit-depositDeductions-refund);
         const blocked=['CANCELLED','EXPIRED'].includes(booking.status);
-        return <article key={booking.id} className="space-y-3 p-4">
+        return <article key={booking.id} className="space-y-4 p-5 transition hover:bg-slate-50/70">
           <div className="flex flex-wrap justify-between gap-2"><div><h3 className="font-semibold">Đơn #{booking.id} · {booking.vehicle?.code||booking.vehicle?.licensePlate||'Xe'}</h3>
             <p className="text-sm text-slate-500">{booking.customer?.fullName||booking.customer?.email||'Khách hàng'} · {booking.vehicle?.station?.name||'Điểm thuê'}</p></div>
             <span className="h-fit rounded-full bg-slate-100 px-3 py-1 text-xs">{statusText[booking.status]||booking.status}</span></div>
-          <div className="grid gap-2 text-sm sm:grid-cols-3">
+          <div className="grid gap-2 rounded-xl bg-slate-50 p-3 text-sm sm:grid-cols-3">
             <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Tiền thuê</p><p className="font-semibold">{money(rent)} / {money(booking.rentalAmount)}</p><p className="text-xs text-slate-500">Còn: {money(rentLeft)}</p></div>
             <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Tiền cọc</p><p className="font-semibold">{money(deposit)} / {money(booking.depositSnapshot)}</p><p className="text-xs text-slate-500">Còn phải thu: {money(depositLeft)}</p></div>
             <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Cọc đã hoàn</p><p className="font-semibold">{money(refund)}</p><p className="text-xs text-slate-500">Khấu trừ: {money(depositDeductions)} · Còn hoàn: {money(refundable)}</p></div>

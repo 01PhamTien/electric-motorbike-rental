@@ -54,26 +54,33 @@ export function MyBookingsPage() {
     finally{setBusy(null);}
   }
 
-  return <section className="space-y-5">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold text-blue-700">TÀI KHOẢN KHÁCH HÀNG</p>
-      <h1 className="mt-1 text-2xl font-bold">Đơn thuê của tôi</h1><p className="mt-1 text-sm text-slate-500">Theo dõi trạng thái, lịch nhận và trả xe.</p></div>
-      <button onClick={()=>void load()} className="rounded-lg border px-4 py-2 text-sm">Làm mới</button></div>
+  return <section className="space-y-6">
+    <header className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-lg sm:px-8">
+      <div className="pointer-events-none absolute -right-14 -top-20 h-64 w-64 rounded-full bg-blue-500/15 blur-3xl" />
+      <div className="relative flex flex-wrap items-end justify-between gap-4">
+        <div><span className="inline-flex rounded-full border border-blue-300/20 bg-blue-300/10 px-3 py-1 text-[11px] font-bold tracking-[0.15em] text-blue-200">KHÔNG GIAN KHÁCH HÀNG</span>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">Đơn thuê của tôi</h1>
+          <p className="mt-2 text-sm text-slate-300">Theo dõi lịch trình, trạng thái xác nhận và lịch sử từng lần thuê xe.</p></div>
+        <div className="flex gap-2"><a href="/vehicles" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-500">Tìm xe</a>
+          <button onClick={()=>void load()} disabled={loading} className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50">{loading?'Đang tải...':'↻ Làm mới'}</button></div>
+      </div>
+    </header>
     {error&&<div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{Array.isArray(error)?error.join(', '):error}</div>}
     {message&&<div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{message}</div>}
     {loading?<p className="py-8 text-center text-sm text-slate-500">Đang tải đơn thuê...</p>:
-      items.length===0?<div className="rounded-xl border bg-white p-8 text-center"><p className="font-semibold">Bạn chưa có đơn thuê nào</p><a href="/vehicles" className="mt-2 inline-block text-sm font-semibold text-blue-700 underline">Tìm xe để đặt thuê</a></div>:
-      <div className="space-y-3">{items.map(item=><article key={item.id} className="rounded-xl border bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold">Đơn #{item.id} · {item.vehicle?.model?.brand||''} {item.vehicle?.model?.name||item.vehicle?.code||''}</h2>
+      items.length===0?<div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-xl font-black text-blue-700">EV</div><p className="mt-4 font-bold text-slate-900">Bạn chưa có đơn thuê nào</p><p className="mt-1 text-sm text-slate-500">Khám phá đội xe và tạo đơn thuê đầu tiên của bạn.</p><a href="/vehicles" className="mt-5 inline-flex rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white hover:bg-blue-800">Khám phá xe điện</a></div>:
+      <div className="space-y-3">{items.map(item=><article key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/70 p-5"><div><p className="mb-1 text-[11px] font-bold tracking-[0.12em] text-blue-700">MÃ ĐƠN #{item.id}</p><h2 className="font-bold text-slate-950"> {item.vehicle?.model?.brand||''} {item.vehicle?.model?.name||item.vehicle?.code||''}</h2>
           <p className="mt-1 text-sm text-slate-500">{item.vehicle?.station?.name||'Điểm thuê'} · {item.vehicle?.licensePlate||''}</p></div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{statusText[item.status]||item.status}</span></div>
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2"><p><span className="text-slate-500">Nhận xe:</span> {new Date(item.pickupAt).toLocaleString('vi-VN')}</p>
+        <div className="grid gap-3 p-5 text-sm sm:grid-cols-2"><p><span className="text-slate-500">Nhận xe:</span> {new Date(item.pickupAt).toLocaleString('vi-VN')}</p>
           <p><span className="text-slate-500">Trả xe:</span> {new Date(item.returnAt).toLocaleString('vi-VN')}</p>
           <p><span className="text-slate-500">Tiền thuê dự kiến:</span> <strong>{money(item.rentalAmount)}</strong></p>
           <p><span className="text-slate-500">Tiền cọc:</span> <strong>{money(item.depositSnapshot)}</strong></p></div>
         {item.status==='PENDING'&&item.holdExpiresAt&&<p className="mt-3 text-xs text-amber-700">Hạn giữ chỗ: {new Date(item.holdExpiresAt).toLocaleString('vi-VN')}</p>}
         {['PENDING','CONFIRMED'].includes(item.status)&&<div className="mt-4"><button disabled={busy===item.id} onClick={()=>void cancel(item)} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">{busy===item.id?'Đang xử lý...':'Hủy đơn thuê'}</button></div>}
         {item.cancelReason&&<p className="mt-2 text-xs text-slate-500">Lý do hủy: {item.cancelReason}</p>}
-        <div className="mt-3 border-t pt-3">
+        <div className="mx-5 mb-5 border-t border-slate-100 pt-4">
           <button type="button" disabled={historyLoading===item.id} onClick={()=>void toggleHistory(item)} className="text-sm font-semibold text-blue-700 underline disabled:opacity-50">
             {historyLoading===item.id?'Đang tải lịch sử...':historyByBooking[item.id]?'Ẩn lịch sử trạng thái':'Xem lịch sử trạng thái'}
           </button>

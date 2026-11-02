@@ -7,6 +7,7 @@ import { StationsPage } from '../features/stations/StationsPage';
 import { VehiclesPage } from '../features/vehicles/VehiclesPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { StaffPage } from '../features/staff/StaffPage';
+import { StaffWorkspacePage } from '../features/staff/StaffWorkspacePage';
 import { MainLayout } from '../layouts/MainLayout';
 
 export function App() {
@@ -21,6 +22,7 @@ export function App() {
       <Route path="/locations" element={<LocationsPage />} />
       <Route path="/admin/dashboard" element={<DashboardPage />} />
       <Route path="/admin/staff" element={<StaffPage />} />
+      <Route path="/staff/workspace" element={<StaffWorkspacePage />} />
     </Route>
   </Routes>;
 }

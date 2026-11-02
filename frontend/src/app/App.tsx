@@ -5,8 +5,9 @@ import { MyBookingsPage } from '../features/bookings/MyBookingsPage';
 import { LocationsPage } from '../features/locations/LocationsPage';
 import { StationsPage } from '../features/stations/StationsPage';
 import { VehiclesPage } from '../features/vehicles/VehiclesPage';
-import { MainLayout } from '../layouts/MainLayout';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { StaffPage } from '../features/staff/StaffPage';
+import { MainLayout } from '../layouts/MainLayout';
 
 export function App() {
   return <Routes>
@@ -19,6 +20,7 @@ export function App() {
       <Route path="/bookings/my" element={<MyBookingsPage />} />
       <Route path="/locations" element={<LocationsPage />} />
       <Route path="/admin/dashboard" element={<DashboardPage />} />
+      <Route path="/admin/staff" element={<StaffPage />} />
     </Route>
   </Routes>;
 }

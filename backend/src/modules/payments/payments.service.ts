@@ -56,6 +56,18 @@ export class PaymentsService {
         if (amount > remaining) throw new BadRequestException('Số tiền cọc vượt quá tiền cọc còn phải thu');
       }
 
+      if (dto.purpose === PaymentPurpose.EXTRA) {
+        if (booking.status !== BookingStatus.COMPLETED) {
+          throw new BadRequestException('Chỉ ghi nhận thu phụ phí sau khi đơn đã hoàn thành');
+        }
+        const charges = await em.getRepository(BookingCharge).findBy({ bookingId, applyToDeposit: false });
+        const chargeTotal = charges.reduce((sum, charge) => sum + Number(charge.amount), 0);
+        const remaining = Math.round((chargeTotal - total(PaymentPurpose.EXTRA)) * 100) / 100;
+        if (amount > remaining) {
+          throw new BadRequestException('Số thu phụ phí vượt quá tổng phụ phí chưa thanh toán');
+        }
+      }
+
       if (dto.purpose === PaymentPurpose.REFUND) {
         const depositDeductions = (await em.getRepository(BookingCharge).findBy({ bookingId, applyToDeposit: true }))
           .reduce((sum, charge) => sum + Number(charge.amount), 0);
@@ -76,6 +88,64 @@ export class PaymentsService {
         recordedById: user.sub,
       }));
     });
+  }
+
+  async settlementSummary(user: JwtUser, bookingId: number) {
+    const booking = await this.ds.getRepository(Booking).findOne({ where: { id: bookingId } });
+    if (!booking) throw new NotFoundException('Không tìm thấy đơn');
+    this.access(user, booking);
+
+    const [payments, charges] = await Promise.all([
+      this.ds.getRepository(PaymentTransaction).find({ where: { bookingId } }),
+      this.ds.getRepository(BookingCharge).find({ where: { bookingId } }),
+    ]);
+    const paid = (purpose: PaymentPurpose) => payments
+      .filter(payment => payment.purpose === purpose)
+      .reduce((sum, payment) => sum + Number(payment.amount), 0);
+    const rounded = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+    const rentCollected = rounded(paid(PaymentPurpose.RENT));
+    const depositCollected = rounded(paid(PaymentPurpose.DEPOSIT));
+    const extraCollected = rounded(paid(PaymentPurpose.EXTRA));
+    const refunded = rounded(paid(PaymentPurpose.REFUND));
+    const depositDeductions = rounded(charges
+      .filter(charge => charge.applyToDeposit)
+      .reduce((sum, charge) => sum + Number(charge.amount), 0));
+    const separatelyBillableExtras = rounded(charges
+      .filter(charge => !charge.applyToDeposit)
+      .reduce((sum, charge) => sum + Number(charge.amount), 0));
+    const depositRefundable = rounded(Math.max(0, depositCollected - depositDeductions - refunded));
+
+    return {
+      bookingId,
+      status: booking.status,
+      currency: 'VND',
+      rental: {
+        amountDue: rounded(Number(booking.rentalAmount)),
+        collected: rentCollected,
+        outstanding: rounded(Math.max(0, Number(booking.rentalAmount) - rentCollected)),
+      },
+      deposit: {
+        amountExpected: rounded(Number(booking.depositSnapshot)),
+        collected: depositCollected,
+        deductions: depositDeductions,
+        refunded,
+        refundable: depositRefundable,
+        deductionExceedsCollected: depositDeductions > depositCollected,
+      },
+      extras: {
+        separatelyBillable: separatelyBillableExtras,
+        collected: extraCollected,
+        outstanding: rounded(Math.max(0, separatelyBillableExtras - extraCollected)),
+        deductedFromDeposit: depositDeductions,
+      },
+      cashFlow: {
+        totalCollected: rounded(rentCollected + depositCollected + extraCollected),
+        totalRefunded: refunded,
+        net: rounded(rentCollected + depositCollected + extraCollected - refunded),
+      },
+      canRefundDeposit: booking.status === BookingStatus.COMPLETED && depositRefundable > 0,
+      note: 'Phụ phí applyToDeposit được khấu trừ từ tiền cọc, không cộng vào khoản thu EXTRA. Phụ phí còn lại được thu riêng.',
+    };
   }
 
   async list(user: JwtUser, bookingId: number) {

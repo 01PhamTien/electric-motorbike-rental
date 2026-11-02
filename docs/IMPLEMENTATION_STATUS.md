@@ -44,3 +44,11 @@
 - Hủy đơn ghi cancelReason và status history trong cùng transaction
 - API GET /bookings/:id/history trả lịch sử theo quyền sở hữu/điểm thuê
 - Trang đơn thuê khách hàng hiển thị timeline lịch sử trạng thái
+
+
+## Handover evidence improvements
+- Handover DTO validates battery percentage (0-100), non-negative odometer, condition note and up to 10 image URLs.
+- Added `handover_images` entity and relation to handover records.
+- Image evidence rows and handover status transition are saved in the same database transaction.
+- Handover history endpoint returns image relations.
+- Staff handover form accepts image URLs, one per line. This stores references only; direct binary file upload/storage is not implemented yet.

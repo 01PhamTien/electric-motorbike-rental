@@ -15,6 +15,7 @@ export function MainLayout() {
         <Link to="/admin/staff">Nhân viên</Link>
         <Link to="/staff/workspace">Vận hành Staff</Link>
         <Link to="/staff/payments">Thanh toán</Link>
+        <Link to="/maintenance">Bảo dưỡng</Link>
         <button onClick={logout} className="rounded bg-slate-100 px-3 py-1.5">Đăng xuất</button>
       </nav>
     </div>

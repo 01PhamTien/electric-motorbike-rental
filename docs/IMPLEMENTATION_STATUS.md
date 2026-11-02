@@ -19,7 +19,8 @@
 
 ## Cần hoàn thiện tiếp
 - Vehicle model CRUD
-- Tìm xe theo thời gian + kiểm tra maintenance
+- Kiểm tra booking: từ chối xe có phiếu bảo dưỡng SCHEDULED/IN_PROGRESS (đặc tả hiện chỉ có scheduledAt, chưa định nghĩa thời điểm kết thúc nên phiếu mở khóa toàn bộ xe đến khi hoàn tất/hủy)
+- Tìm xe theo thời gian + bộ lọc bảo dưỡng theo khoảng thời gian (cần bổ sung thời lượng bảo dưỡng sau khi chốt nghiệp vụ)
 - Booking expiration scheduler (implemented: checks on startup and every 60 seconds; writes EXPIRED status history)
 - Expired PENDING holds no longer block vehicle availability
 - Pickup/return records + images

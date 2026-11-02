@@ -8,11 +8,12 @@ import { Booking } from './booking.entity';
 import { BookingCharge } from './booking-charge.entity';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
+import { BookingExpirationService } from './booking-expiration.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Booking, BookingStatusHistory, BookingCharge, Vehicle]), AuthModule],
   controllers: [BookingsController],
-  providers: [BookingsService, RolesGuard],
+  providers: [BookingsService, BookingExpirationService, RolesGuard],
   exports: [BookingsService, TypeOrmModule],
 })
 export class BookingsModule {}

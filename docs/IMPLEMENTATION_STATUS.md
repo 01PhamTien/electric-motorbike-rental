@@ -52,3 +52,13 @@
 - Image evidence rows and handover status transition are saved in the same database transaction.
 - Handover history endpoint returns image relations.
 - Staff handover form accepts image URLs, one per line. This stores references only; direct binary file upload/storage is not implemented yet.
+
+
+## Booking financial settlement
+- Added `GET /bookings/:id/payments/summary` with rent due/collected/outstanding, deposit collected/deductions/refunds/refundable, separately billable extras and net cash flow.
+- Payment purpose EXTRA is accepted only after booking completion and capped at outstanding non-deposit charges.
+- Deposit refunds remain limited to completed bookings and deposit received less deposit-applied charges and previous refunds.
+- Staff workspace displays the settlement summary and supports recording CASH/TRANSFER transactions with a fresh idempotency key.
+- Staff workspace can add documented charges after completion and choose whether each charge is deducted from the deposit or billed separately.
+- A charge applied to deposit is not also counted as a separately billable EXTRA, avoiding double collection.
+- Late-return pricing/rates are not automatically calculated because the approved business rules do not define a fee formula or grace period; staff must enter a justified charge manually.

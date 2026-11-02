@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../../services/api';
 
 type StatusHistory = { id: number; fromStatus: string; toStatus: string; reason?: string | null; createdAt: string; performedById?: number | null };
@@ -16,6 +16,8 @@ const money=(v:string|number)=>Number(v).toLocaleString('vi-VN')+' đ';
 
 export function MyBookingsPage() {
   const [items,setItems]=useState<Booking[]>([]);
+  const [keyword,setKeyword]=useState('');
+  const [statusFilter,setStatusFilter]=useState('ALL');
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [message,setMessage]=useState('');
@@ -30,6 +32,16 @@ export function MyBookingsPage() {
     finally{setLoading(false);}
   },[]);
   useEffect(()=>{void load();},[load]);
+
+  const filteredItems=useMemo(()=>items.filter(item=>{
+    const text=[item.id,item.vehicle?.code,item.vehicle?.licensePlate,item.vehicle?.model?.brand,item.vehicle?.model?.name,item.vehicle?.station?.name].join(' ').toLowerCase();
+    return text.includes(keyword.trim().toLowerCase())&&(statusFilter==='ALL'||item.status===statusFilter);
+  }),[items,keyword,statusFilter]);
+  const statusTone:Record<string,string>={
+    PENDING:'bg-amber-50 text-amber-700 ring-amber-200',CONFIRMED:'bg-blue-50 text-blue-700 ring-blue-200',
+    RENTING:'bg-violet-50 text-violet-700 ring-violet-200',COMPLETED:'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    CANCELLED:'bg-rose-50 text-rose-700 ring-rose-200',EXPIRED:'bg-slate-100 text-slate-600 ring-slate-200',
+  };
 
   async function toggleHistory(item: Booking) {
     if (historyByBooking[item.id]) {
@@ -67,12 +79,22 @@ export function MyBookingsPage() {
     </header>
     {error&&<div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{Array.isArray(error)?error.join(', '):error}</div>}
     {message&&<div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{message}</div>}
+    {!loading&&items.length>0&&<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="grid gap-3 sm:grid-cols-[1fr_220px]">
+        <input value={keyword} onChange={event=>setKeyword(event.target.value)} placeholder="Tìm mã đơn, tên xe, biển số..." aria-label="Tìm đơn thuê" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"/>
+        <select value={statusFilter} onChange={event=>setStatusFilter(event.target.value)} aria-label="Lọc trạng thái đơn thuê" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
+          <option value="ALL">Tất cả trạng thái</option><option value="PENDING">Chờ xác nhận</option><option value="CONFIRMED">Đã xác nhận</option><option value="RENTING">Đang thuê</option><option value="COMPLETED">Hoàn thành</option><option value="CANCELLED">Đã hủy</option><option value="EXPIRED">Đã hết hạn</option>
+        </select>
+      </div>
+      <p className="mt-3 text-xs text-slate-500">Đang hiển thị <strong className="text-slate-700">{filteredItems.length}</strong> / {items.length} đơn thuê</p>
+    </div>}
     {loading?<p className="py-8 text-center text-sm text-slate-500">Đang tải đơn thuê...</p>:
       items.length===0?<div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-xl font-black text-blue-700">EV</div><p className="mt-4 font-bold text-slate-900">Bạn chưa có đơn thuê nào</p><p className="mt-1 text-sm text-slate-500">Khám phá đội xe và tạo đơn thuê đầu tiên của bạn.</p><a href="/vehicles" className="mt-5 inline-flex rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white hover:bg-blue-800">Khám phá xe điện</a></div>:
-      <div className="space-y-3">{items.map(item=><article key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+      filteredItems.length===0?<div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center"><p className="font-semibold text-slate-800">Không tìm thấy đơn thuê phù hợp</p><p className="mt-1 text-sm text-slate-500">Thử thay đổi từ khóa hoặc trạng thái lọc.</p></div>:
+      <div className="space-y-3">{filteredItems.map(item=><article key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/70 p-5"><div><p className="mb-1 text-[11px] font-bold tracking-[0.12em] text-blue-700">MÃ ĐƠN #{item.id}</p><h2 className="font-bold text-slate-950"> {item.vehicle?.model?.brand||''} {item.vehicle?.model?.name||item.vehicle?.code||''}</h2>
           <p className="mt-1 text-sm text-slate-500">{item.vehicle?.station?.name||'Điểm thuê'} · {item.vehicle?.licensePlate||''}</p></div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{statusText[item.status]||item.status}</span></div>
+          <span className={'rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset '+(statusTone[item.status]||'bg-slate-100 text-slate-600 ring-slate-200')}>{statusText[item.status]||item.status}</span></div>
         <div className="grid gap-3 p-5 text-sm sm:grid-cols-2"><p><span className="text-slate-500">Nhận xe:</span> {new Date(item.pickupAt).toLocaleString('vi-VN')}</p>
           <p><span className="text-slate-500">Trả xe:</span> {new Date(item.returnAt).toLocaleString('vi-VN')}</p>
           <p><span className="text-slate-500">Tiền thuê dự kiến:</span> <strong>{money(item.rentalAmount)}</strong></p>

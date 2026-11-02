@@ -7,6 +7,7 @@ import { Role } from '../../common/enums/role.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { HandoverDto } from './dto';
 import { HandoverKind, HandoverRecord } from './handover.entity';
+import { HandoverImage } from './handover-image.entity';
 
 @Injectable()
 export class HandoversService {
@@ -27,9 +28,20 @@ export class HandoversService {
         if (!pickup) throw new BadRequestException('Thiếu biên bản giao xe');
         if (dto.odometerKm < Number(pickup.odometerKm)) throw new BadRequestException('Số km trả không được nhỏ hơn lúc giao');
       }
-      const record = await manager.getRepository(HandoverRecord).save(manager.getRepository(HandoverRecord).create({
-        bookingId, kind, batteryPercent: dto.batteryPercent, odometerKm: String(dto.odometerKm), conditionNote: dto.conditionNote, staffId: current.sub,
+      const recordRepo = manager.getRepository(HandoverRecord);
+      const record = await recordRepo.save(recordRepo.create({
+        bookingId, kind, batteryPercent: dto.batteryPercent, odometerKm: String(dto.odometerKm),
+        conditionNote: dto.conditionNote.trim(), staffId: current.sub,
       }));
+
+      if (dto.imageUrls?.length) {
+        const imageRepo = manager.getRepository(HandoverImage);
+        await imageRepo.save(dto.imageUrls.map(imageUrl => imageRepo.create({
+          handoverId: record.id,
+          imageUrl: imageUrl.trim(),
+        })));
+      }
+
       booking.status = next;
       await manager.getRepository(Booking).save(booking);
       await manager.getRepository(BookingStatusHistory).save({ bookingId, fromStatus: expected, toStatus: next, performedById: current.sub,
@@ -42,6 +54,8 @@ export class HandoversService {
     if (!booking) throw new NotFoundException('Không tìm thấy đơn');
     if (current.role === Role.CUSTOMER && booking.customerId !== current.sub) throw new ForbiddenException();
     if (current.role === Role.STAFF && current.stationId !== booking.vehicle.stationId) throw new ForbiddenException();
-    return this.dataSource.getRepository(HandoverRecord).find({ where: { bookingId }, order: { id: 'ASC' } });
+    return this.dataSource.getRepository(HandoverRecord).find({
+      where: { bookingId }, relations: { images: true }, order: { id: 'ASC' },
+    });
   }
 }

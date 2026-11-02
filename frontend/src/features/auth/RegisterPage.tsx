@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
+import { useAuth } from './AuthContext';
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', password: '' });
   const [error, setError] = useState('');
 
@@ -12,7 +14,8 @@ export function RegisterPage() {
     try {
       const { data } = await api.post('/auth/register', form);
       localStorage.setItem('accessToken', data.accessToken);
-      navigate('/vehicles');
+      await refreshUser();
+      navigate('/vehicles', { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Đăng ký thất bại');
     }

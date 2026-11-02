@@ -59,7 +59,7 @@ export class VehiclesService {
         WHERE maintenance.vehicleId = vehicle.id
           AND maintenance.status IN (:...maintenanceStatuses)
           AND (maintenance.status = :inProgress OR
-               (maintenance.scheduledAt < :returnAt AND maintenance.plannedEndAt > :pickupAt))
+               (maintenance.plannedEndAt IS NULL OR (maintenance.scheduledAt < :returnAt AND maintenance.plannedEndAt > :pickupAt)))
       )`, {
         maintenanceStatuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS],
         inProgress: MaintenanceStatus.IN_PROGRESS,

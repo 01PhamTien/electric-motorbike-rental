@@ -7,6 +7,7 @@ export interface Station {
   latitude: string;
   longitude: string;
   phone?: string | null;
+  isActive?: boolean;
 }
 
 export interface VehicleImage { id: number; imageUrl: string; createdAt?: string; }

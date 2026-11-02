@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../../services/api';
 
 type Booking = {
@@ -25,6 +25,8 @@ const statusText: Record<string,string> = {
 
 export function StaffWorkspacePage() {
   const [items, setItems] = useState<Booking[]>([]);
+  const [keyword, setKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -147,9 +149,17 @@ export function StaffWorkspacePage() {
     finally { setSaving(false); }
   }
 
+  const filteredItems = useMemo(() => items.filter(item => {
+    const haystack = [item.id, item.customer?.fullName, item.customer?.email, item.customer?.phone,
+      item.vehicle?.code, item.vehicle?.licensePlate, item.vehicle?.model?.name, item.vehicle?.station?.name]
+      .join(' ').toLowerCase();
+    return haystack.includes(keyword.trim().toLowerCase()) && (statusFilter === 'ALL' || item.status === statusFilter);
+  }), [items, keyword, statusFilter]);
   const pending = items.filter(x => x.status === 'PENDING').length;
   const confirmed = items.filter(x => x.status === 'CONFIRMED').length;
   const renting = items.filter(x => x.status === 'RENTING').length;
+  const completed = items.filter(x => x.status === 'COMPLETED').length;
+  const statusTone: Record<string,string> = { PENDING:'bg-amber-50 text-amber-700 ring-amber-200', CONFIRMED:'bg-blue-50 text-blue-700 ring-blue-200', RENTING:'bg-violet-50 text-violet-700 ring-violet-200', COMPLETED:'bg-emerald-50 text-emerald-700 ring-emerald-200', CANCELLED:'bg-rose-50 text-rose-700 ring-rose-200', EXPIRED:'bg-slate-100 text-slate-600 ring-slate-200' };
 
   return <section className="space-y-6">
     <header className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-lg sm:px-8">
@@ -164,25 +174,34 @@ export function StaffWorkspacePage() {
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{Array.isArray(error) ? error.join(', ') : error}</div>}
     {message && <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{message}</div>}
 
-    <div className="grid gap-3 sm:grid-cols-3">
-      {[['Chờ xác nhận',pending,'bg-amber-50 text-amber-700','!'],['Chờ giao xe',confirmed,'bg-blue-50 text-blue-700','↗'],['Đang thuê',renting,'bg-emerald-50 text-emerald-700','✓']].map(([label,value,tone,icon]) =>
-        <article key={label} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {[['Chờ xác nhận',pending,'bg-amber-50 text-amber-700','!'],['Chờ giao xe',confirmed,'bg-blue-50 text-blue-700','↗'],['Đang thuê',renting,'bg-violet-50 text-violet-700','⌁'],['Đã hoàn thành',completed,'bg-emerald-50 text-emerald-700','✓']].map(([label,value,tone,icon]) =>
+        <article key={label} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <div><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{value}</p><p className="mt-1 text-xs text-slate-400">Đơn tại điểm được phân công</p></div>
           <span className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl font-bold ${tone}`}>{icon}</span>
         </article>)}
     </div>
 
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5"><div><h2 className="font-bold text-slate-900">Đơn thuê cần xử lý</h2><p className="mt-1 text-xs text-slate-500">Danh sách công việc theo phạm vi điểm thuê của tài khoản</p></div><span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">{items.length} đơn</span></div>
+      <div className="space-y-4 border-b border-slate-100 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold text-slate-900">Đơn thuê cần xử lý</h2><p className="mt-1 text-xs text-slate-500">Danh sách công việc theo phạm vi điểm thuê của tài khoản</p></div><span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">{filteredItems.length}/{items.length} đơn</span></div>
+        <div className="grid gap-2 sm:grid-cols-[1fr_220px]">
+          <input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="Tìm mã đơn, khách hàng, mã xe..." aria-label="Tìm đơn thuê" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
+          <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Lọc trạng thái đơn thuê" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
+            <option value="ALL">Tất cả trạng thái</option><option value="PENDING">Chờ xác nhận</option><option value="CONFIRMED">Chờ giao xe</option><option value="RENTING">Đang thuê</option><option value="COMPLETED">Hoàn thành</option><option value="CANCELLED">Đã hủy</option><option value="EXPIRED">Hết hạn</option>
+          </select>
+        </div>
+      </div>
       {loading ? <p className="p-5 text-sm text-slate-500">Đang tải danh sách...</p> :
-       items.length === 0 ? <p className="p-5 text-sm text-slate-500">Chưa có đơn thuê tại điểm được phân công.</p> :
-       <div className="divide-y">{items.map(item => <article key={item.id} className="space-y-4 p-5 transition hover:bg-slate-50/70">
+       items.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">Chưa có đơn thuê tại điểm được phân công.</p> :
+       filteredItems.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">Không tìm thấy đơn thuê phù hợp với bộ lọc.</p> :
+       <div className="divide-y">{filteredItems.map(item => <article key={item.id} className="space-y-4 p-5 transition hover:bg-slate-50/70">
          <div className="flex flex-wrap items-start justify-between gap-3">
            <div><p className="font-bold text-slate-950">Đơn thuê #{item.id} · {item.vehicle?.code || item.vehicle?.licensePlate || 'Xe'}</p>
              <p className="mt-1 text-sm text-slate-600">{item.vehicle?.model?.name || 'Mẫu xe'} · {item.vehicle?.station?.name || 'Điểm thuê'}</p>
              <p className="mt-1 text-sm text-slate-600">Khách: {item.customer?.fullName || item.customer?.email || '—'} {item.customer?.phone ? `· ${item.customer.phone}` : ''}</p>
            </div>
-           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{statusText[item.status] || item.status}</span>
+           <span className={'rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ' + (statusTone[item.status] || 'bg-slate-100 text-slate-600 ring-slate-200')}>{statusText[item.status] || item.status}</span>
          </div>
          <div className="grid gap-2 rounded-xl bg-slate-50 p-4 text-sm text-slate-600 sm:grid-cols-2">
            <p>Nhận xe: {new Date(item.pickupAt).toLocaleString('vi-VN')}</p>
@@ -200,7 +219,7 @@ export function StaffWorkspacePage() {
     </div>
 
     {settlementBooking && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div><h2 className="text-lg font-bold">Quyết toán đơn #{settlementBooking.id}</h2>
             <p className="text-sm text-slate-500">{settlementBooking.vehicle?.code} · {statusText[settlementBooking.status] || settlementBooking.status}</p></div>
@@ -258,7 +277,7 @@ export function StaffWorkspacePage() {
     </div>}
 
     {active && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <form onSubmit={submitHandover} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+      <form onSubmit={submitHandover} className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
         <div><h2 className="text-lg font-bold">{kind === 'pickup' ? 'Biên bản giao xe' : 'Biên bản nhận xe trả'} · Đơn #{active.id}</h2>
           <p className="mt-1 text-sm text-slate-500">Nhập số liệu thực tế tại thời điểm bàn giao.</p></div>
         <label className="block text-sm font-medium">Pin còn lại (%)

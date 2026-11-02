@@ -42,6 +42,8 @@ export function MainLayout() {
           {user?.role === 'ADMIN' && <>
             <NavLink to="/admin/dashboard" className={linkClass}>Báo cáo</NavLink>
             <NavLink to="/admin/staff" className={linkClass}>Nhân viên</NavLink>
+            <NavLink to="/admin/vehicles" className={linkClass}>Đội xe</NavLink>
+            <NavLink to="/admin/stations" className={linkClass}>Điểm thuê</NavLink>
           </>}
         </nav>
 

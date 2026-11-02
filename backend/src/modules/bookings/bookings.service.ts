@@ -72,6 +72,21 @@ export class BookingsService {
     });
   }
 
+  async operationsQueue(current: JwtUser) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    const query = this.bookingRepo.createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.vehicle', 'vehicle')
+      .leftJoinAndSelect('vehicle.station', 'station')
+      .leftJoinAndSelect('vehicle.model', 'model')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .orderBy('booking.pickupAt', 'ASC');
+    if (current.role === Role.STAFF) {
+      if (!current.stationId) throw new ForbiddenException('Tài khoản chưa được phân công điểm thuê');
+      query.andWhere('vehicle.stationId = :stationId', { stationId: current.stationId });
+    }
+    return query.getMany();
+  }
+
   myBookings(current: JwtUser) {
     return this.bookingRepo.find({ where: { customerId: current.sub }, order: { id: 'DESC' } });
   }

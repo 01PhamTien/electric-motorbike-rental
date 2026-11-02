@@ -1,4 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { api } from '../../services/api';
 
 type Station = {
@@ -7,6 +9,20 @@ type Station = {
 };
 type StationForm = { name: string; address: string; latitude: string; longitude: string; phone: string };
 const emptyForm: StationForm = { name: '', address: '', latitude: '16.0471', longitude: '108.2068', phone: '' };
+
+const DEFAULT_CENTER: [number, number] = [16.0544, 108.2022];
+
+function StationMapPicker({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({ click: event => onPick(event.latlng.lat, event.latlng.lng) });
+  return null;
+}
+
+function StationMapCenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => { map.setView(center, Math.max(map.getZoom(), 13), { animate: true }); }, [center, map]);
+  return null;
+}
+
 
 export function AdminStationsPage() {
   const [items, setItems] = useState<Station[]>([]);
@@ -72,6 +88,10 @@ export function AdminStationsPage() {
 
   const filtered = items.filter(item => (item.name + ' ' + item.address + ' ' + (item.phone || '')).toLowerCase().includes(keyword.toLowerCase()));
   const activeCount = items.filter(item => item.isActive).length;
+  const mapLat = Number(form.latitude);
+  const mapLng = Number(form.longitude);
+  const validMapPoint = Number.isFinite(mapLat) && Number.isFinite(mapLng) && mapLat >= -90 && mapLat <= 90 && mapLng >= -180 && mapLng <= 180;
+  const mapCenter: [number, number] = validMapPoint ? [mapLat, mapLng] : DEFAULT_CENTER;
 
   return <section className="space-y-6">
     <header className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-lg sm:px-8">
@@ -96,6 +116,18 @@ export function AdminStationsPage() {
         <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Địa chỉ<input required maxLength={255} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Số nhà, đường, quận, thành phố" /></label>
         <label className="text-sm font-semibold text-slate-700">Latitude<input required type="number" step="any" min="-90" max="90" value={form.latitude} onChange={e => setForm({ ...form, latitude: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
         <label className="text-sm font-semibold text-slate-700">Longitude<input required type="number" step="any" min="-180" max="180" value={form.longitude} onChange={e => setForm({ ...form, longitude: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+      </div>
+      <div className="space-y-3">
+        <div><h3 className="text-sm font-bold text-slate-800">Chọn tọa độ trực tiếp trên bản đồ</h3><p className="mt-1 text-xs text-slate-500">Bấm vào bản đồ để tự động điền vĩ độ và kinh độ. Bạn vẫn có thể chỉnh sửa hai trường tọa độ phía trên.</p></div>
+        <div className="h-64 overflow-hidden rounded-2xl border border-slate-200">
+          <MapContainer center={mapCenter} zoom={13} scrollWheelZoom className="h-full w-full">
+            <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <StationMapPicker onPick={(lat, lng) => setForm(current => ({ ...current, latitude: lat.toFixed(7), longitude: lng.toFixed(7) }))} />
+            <StationMapCenter center={mapCenter} />
+            {validMapPoint && <CircleMarker center={mapCenter} radius={9} pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.9, weight: 3 }} />}
+          </MapContainer>
+        </div>
+        <p className="text-xs text-slate-500">Tọa độ xem trước: {validMapPoint ? mapLat.toFixed(7) + ', ' + mapLng.toFixed(7) : 'Chưa hợp lệ'}</p>
       </div>
       <button disabled={saving} className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white hover:bg-blue-800 disabled:opacity-50">{saving ? 'Đang lưu...' : editing ? 'Lưu thay đổi' : 'Tạo điểm thuê'}</button>
     </form>

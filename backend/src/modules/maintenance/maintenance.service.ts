@@ -59,7 +59,7 @@ export class MaintenanceService {
       const overlappingMaintenance = await maintenanceRepo.createQueryBuilder('m')
         .where('m.vehicleId = :vehicleId', { vehicleId: vehicle.id })
         .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
-        .andWhere('(m.status = :inProgress OR (m.scheduledAt < :plannedEndAt AND m.plannedEndAt > :scheduledAt))', {
+        .andWhere('(m.status = :inProgress OR (m.plannedEndAt IS NULL OR (m.scheduledAt < :plannedEndAt AND m.plannedEndAt > :scheduledAt)))', {
           inProgress: MaintenanceStatus.IN_PROGRESS, scheduledAt, plannedEndAt,
         })
         .getOne();
@@ -108,14 +108,14 @@ export class MaintenanceService {
         }
         const nextStart = dto.scheduledAt ? new Date(dto.scheduledAt) : record.scheduledAt;
         const nextEnd = dto.plannedEndAt ? new Date(dto.plannedEndAt) : record.plannedEndAt;
-        if (!Number.isFinite(nextStart.getTime()) || !Number.isFinite(nextEnd.getTime()) || nextEnd <= nextStart) {
+        if (!Number.isFinite(nextStart.getTime()) || !nextEnd || !Number.isFinite(nextEnd.getTime()) || nextEnd <= nextStart) {
           throw new BadRequestException('Thời gian kết thúc dự kiến phải sau thời gian bắt đầu');
         }
         const overlappingMaintenance = await repo.createQueryBuilder('m')
           .where('m.vehicleId = :vehicleId', { vehicleId: vehicle.id })
           .andWhere('m.id != :id', { id: record.id })
           .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
-          .andWhere('(m.status = :inProgress OR (m.scheduledAt < :nextEnd AND m.plannedEndAt > :nextStart))', {
+          .andWhere('(m.status = :inProgress OR (m.plannedEndAt IS NULL OR (m.scheduledAt < :nextEnd AND m.plannedEndAt > :nextStart)))', {
             inProgress: MaintenanceStatus.IN_PROGRESS, nextStart, nextEnd,
           }).getOne();
         if (overlappingMaintenance) throw new BadRequestException('Khung giờ bị trùng với phiếu bảo dưỡng khác');

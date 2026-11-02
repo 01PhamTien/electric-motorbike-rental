@@ -6,6 +6,8 @@ export type CurrentUser = {
   id: number;
   fullName: string;
   email: string;
+  phone: string | null;
+  avatarUrl: string | null;
   role: AppRole;
   stationId: number | null;
   status: 'ACTIVE' | 'LOCKED';

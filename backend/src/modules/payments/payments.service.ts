@@ -4,6 +4,7 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Role } from '../../common/enums/role.enum';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { Booking } from '../bookings/booking.entity';
+import { BookingCharge } from '../bookings/booking-charge.entity';
 import { CreatePaymentDto } from './dto';
 import { PaymentPurpose, PaymentTransaction } from './payment.entity';
 
@@ -56,7 +57,9 @@ export class PaymentsService {
       }
 
       if (dto.purpose === PaymentPurpose.REFUND) {
-        const refundable = Math.round((total(PaymentPurpose.DEPOSIT) - total(PaymentPurpose.REFUND)) * 100) / 100;
+        const depositDeductions = (await em.getRepository(BookingCharge).findBy({ bookingId, applyToDeposit: true }))
+          .reduce((sum, charge) => sum + Number(charge.amount), 0);
+        const refundable = Math.round((total(PaymentPurpose.DEPOSIT) - depositDeductions - total(PaymentPurpose.REFUND)) * 100) / 100;
         if (booking.status !== BookingStatus.COMPLETED) {
           throw new BadRequestException('Chỉ hoàn tiền cọc sau khi đã nhận xe trả và hoàn thành đơn');
         }

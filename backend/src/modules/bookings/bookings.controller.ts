@@ -24,6 +24,10 @@ export class BookingsController {
   @Roles(Role.CUSTOMER)
   my(@CurrentUser() user: JwtUser) { return this.service.myBookings(user); }
 
+  @Get('operations')
+  @Roles(Role.ADMIN, Role.STAFF)
+  operations(@CurrentUser() user: JwtUser) { return this.service.operationsQueue(user); }
+
   @Get(':id')
   findOne(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) { return this.service.findOne(user, id); }
 

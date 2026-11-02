@@ -84,22 +84,26 @@ export class UsersService {
     return { success: true, message: 'Đổi mật khẩu thành công' };
   }
 
-  async updateAvatar(id: number, file: { mimetype: string; buffer: Buffer }) {
-    if (!file?.buffer?.length) throw new BadRequestException('Vui lòng chọn ảnh đại diện');
-    const extensions: Record<string, string> = {
-      'image/jpeg': '.jpg',
-      'image/png': '.png',
-      'image/webp': '.webp',
-    };
-    const extension = extensions[file.mimetype];
-    if (!extension) throw new BadRequestException('Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP');
+  async updateAvatar(id: number, avatarDataUrl: string) {
+    const match = /^data:(image\\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(avatarDataUrl || '');
+    if (!match) throw new BadRequestException('Ảnh phải ở định dạng JPG, PNG hoặc WEBP');
+    const mimeType = match[1];
+    const buffer = Buffer.from(match[2], 'base64');
+    if (!buffer.length || buffer.length > 3 * 1024 * 1024) {
+      throw new BadRequestException('Ảnh đại diện không được vượt quá 3 MB');
+    }
+    const isJpeg = mimeType === 'image/jpeg' && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    const isPng = mimeType === 'image/png' && buffer.subarray(0, 8).toString('hex') === '89504e470d0a1a0a';
+    const isWebp = mimeType === 'image/webp' && buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP';
+    if (!isJpeg && !isPng && !isWebp) throw new BadRequestException('Nội dung tệp không phải ảnh hợp lệ');
+
     const user = await this.repo.findOneBy({ id });
     if (!user) throw new NotFoundException('Không tìm thấy tài khoản');
-
+    const extension = mimeType === 'image/jpeg' ? '.jpg' : mimeType === 'image/png' ? '.png' : '.webp';
     const directory = join(process.cwd(), 'uploads', 'users');
     await mkdir(directory, { recursive: true });
     const filename = randomUUID() + extension;
-    await writeFile(join(directory, filename), file.buffer);
+    await writeFile(join(directory, filename), buffer);
     user.avatarUrl = '/uploads/users/' + filename;
     await this.repo.save(user);
     return this.findById(id);

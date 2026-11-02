@@ -9,6 +9,7 @@ import { StationsPage } from '../features/stations/StationsPage';
 import { AdminStationsPage } from '../features/stations/AdminStationsPage';
 import { VehiclesPage } from '../features/vehicles/VehiclesPage';
 import { AdminVehiclesPage } from '../features/vehicles/AdminVehiclesPage';
+import { AdminVehicleModelsPage } from '../features/vehicles/AdminVehicleModelsPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { StaffPage } from '../features/staff/StaffPage';
 import { StaffWorkspacePage } from '../features/staff/StaffWorkspacePage';
@@ -47,6 +48,7 @@ export function App() {
         <Route path="/admin/staff" element={<StaffPage />} />
         <Route path="/admin/stations" element={<AdminStationsPage />} />
         <Route path="/admin/vehicles" element={<AdminVehiclesPage />} />
+        <Route path="/admin/vehicle-models" element={<AdminVehicleModelsPage />} />
       </Route>
 
       <Route path="*" element={<HomeRedirect />} />

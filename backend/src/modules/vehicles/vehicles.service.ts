@@ -6,14 +6,22 @@ import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { MaintenanceStatus } from '../maintenance/maintenance.entity';
 import { VehicleAvailabilityQueryDto } from './availability.dto';
 import { Vehicle } from './vehicle.entity';
+import { VehicleImage } from './vehicle-image.entity';
 import { CreateVehicleDto, UpdateVehicleDto } from './dto';
 
 @Injectable()
 export class VehiclesService {
-  constructor(@InjectRepository(Vehicle) private readonly repo: Repository<Vehicle>) {}
+  constructor(
+    @InjectRepository(Vehicle) private readonly repo: Repository<Vehicle>,
+    @InjectRepository(VehicleImage) private readonly imageRepo: Repository<VehicleImage>,
+  ) {}
 
   findAll(stationId?: number) {
-    return this.repo.find({ where: stationId ? { stationId, isActive: true } : { isActive: true }, order: { id: 'DESC' } });
+    return this.repo.find({
+      where: stationId ? { stationId, isActive: true } : { isActive: true },
+      relations: { images: true },
+      order: { id: 'DESC' },
+    });
   }
 
   async findAvailable(query: VehicleAvailabilityQueryDto) {
@@ -36,6 +44,7 @@ export class VehiclesService {
     const qb = this.repo.createQueryBuilder('vehicle')
       .leftJoinAndSelect('vehicle.model', 'model')
       .leftJoinAndSelect('vehicle.station', 'station')
+      .leftJoinAndSelect('vehicle.images', 'image')
       .where('vehicle.isActive = :isActive', { isActive: true })
       .andWhere('vehicle.status = :vehicleStatus', { vehicleStatus: VehicleStatus.ACTIVE })
       .andWhere(`NOT EXISTS (
@@ -95,26 +104,40 @@ export class VehiclesService {
   }
 
   async findOne(id: number) {
-    const vehicle = await this.repo.findOne({ where: { id } });
+    const vehicle = await this.repo.findOne({ where: { id }, relations: { images: true } });
     if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
     return vehicle;
   }
 
-  create(dto: CreateVehicleDto) {
-    return this.repo.save(this.repo.create({
-      ...dto,
+  async create(dto: CreateVehicleDto) {
+    const { imageUrls, ...vehicleData } = dto;
+    const vehicle = await this.repo.save(this.repo.create({
+      ...vehicleData,
       dailyRate: String(dto.dailyRate),
       depositAmount: String(dto.depositAmount),
     }));
+    if (imageUrls?.length) {
+      await this.imageRepo.save(imageUrls.map(imageUrl => this.imageRepo.create({ vehicleId: vehicle.id, imageUrl })));
+    }
+    return this.findOne(vehicle.id);
   }
 
   async update(id: number, dto: UpdateVehicleDto) {
+    const { imageUrls, ...vehicleData } = dto;
     const vehicle = await this.findOne(id);
     Object.assign(vehicle, {
-      ...dto,
+      ...vehicleData,
       ...(dto.dailyRate !== undefined ? { dailyRate: String(dto.dailyRate) } : {}),
       ...(dto.depositAmount !== undefined ? { depositAmount: String(dto.depositAmount) } : {}),
     });
-    return this.repo.save(vehicle);
+    await this.repo.save(vehicle);
+
+    if (imageUrls !== undefined) {
+      await this.imageRepo.delete({ vehicleId: id });
+      if (imageUrls.length) {
+        await this.imageRepo.save(imageUrls.map(imageUrl => this.imageRepo.create({ vehicleId: id, imageUrl })));
+      }
+    }
+    return this.findOne(id);
   }
 }

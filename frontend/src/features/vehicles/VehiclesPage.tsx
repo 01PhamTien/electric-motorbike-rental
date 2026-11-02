@@ -21,7 +21,7 @@ export function VehiclesPage() {
   const [items, setItems] = useState<AvailabilityResponse['items']>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [models, setModels] = useState<VehicleModelOption[]>([]);
-  const [stationId, setStationId] = useState('');
+  const [stationId, setStationId] = useState(() => searchParams.get('stationId') || '');
   const [modelId, setModelId] = useState('');
   const [keyword, setKeyword] = useState('');
   const [minDailyRate, setMinDailyRate] = useState('');

@@ -9,7 +9,7 @@ export enum MaintenanceStatus {
 }
 
 @Entity('maintenance_records')
-@Index(['vehicleId', 'scheduledAt'])
+@Index(['vehicleId', 'scheduledAt', 'plannedEndAt'])
 export class MaintenanceRecord {
   @PrimaryGeneratedColumn()
   id: number;
@@ -19,6 +19,9 @@ export class MaintenanceRecord {
 
   @Column({ type: 'datetime' })
   scheduledAt: Date;
+
+  @Column({ type: 'datetime' })
+  plannedEndAt: Date;
 
   @Column({ type: 'datetime', nullable: true })
   completedAt: Date | null;

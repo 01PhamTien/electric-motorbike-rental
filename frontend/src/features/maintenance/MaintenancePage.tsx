@@ -38,7 +38,7 @@ export function MaintenancePage(){
         vehicleId:Number(form.vehicleId),scheduledAt:new Date(form.scheduledAt).toISOString(),plannedEndAt:new Date(form.plannedEndAt).toISOString(),
         reason:form.reason.trim(),description:form.description.trim()||undefined,cost:Number(form.cost),
       });
-      setMessage('Đã tạo phiếu bảo dưỡng. Xe đã được chuyển sang trạng thái MAINTENANCE.');
+      setMessage('Đã tạo lịch bảo dưỡng. Xe chỉ chuyển sang MAINTENANCE khi nhân viên bắt đầu công việc.');
       setForm(current=>({...current,reason:'Bảo dưỡng định kỳ',description:'',cost:'0'}));
       await load();
     }catch(err:any){setError(err.response?.data?.message||'Không thể tạo phiếu bảo dưỡng.');}

@@ -35,6 +35,11 @@ export class BookingsController {
     return this.service.addCharge(user, id, dto);
   }
 
+  @Get(':id/history')
+  statusHistory(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.service.statusHistory(user, id);
+  }
+
   @Get(':id/charges')
   listCharges(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
     return this.service.listCharges(user, id);

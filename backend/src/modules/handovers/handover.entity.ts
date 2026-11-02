@@ -1,6 +1,7 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { User } from '../users/user.entity';
+import { HandoverImage } from './handover-image.entity';
 
 export enum HandoverKind { PICKUP = 'PICKUP', RETURN = 'RETURN' }
 @Entity('handover_records')
@@ -15,5 +16,8 @@ export class HandoverRecord {
   @Column({ type: 'varchar', length: 1000 }) conditionNote: string;
   @ManyToOne(() => User, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'staffId' }) staff: User;
   @Column({ type: 'int' }) staffId: number;
+  @OneToMany(() => HandoverImage, image => image.handover)
+  images: HandoverImage[];
+
   @CreateDateColumn() createdAt: Date;
 }

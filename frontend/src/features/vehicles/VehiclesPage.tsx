@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api } from '../../services/api';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { Station, Vehicle } from '../../types';
 
 type VehicleModelOption = { id: number; brand: string; name: string };
@@ -16,6 +17,7 @@ function localDateTime(date: Date) {
 const money = (value: string | number) => Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + ' đ';
 
 export function VehiclesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<AvailabilityResponse['items']>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [models, setModels] = useState<VehicleModelOption[]>([]);
@@ -83,6 +85,16 @@ export function VehiclesPage() {
   useEffect(() => {
     if (stations.length || models.length) void searchAvailability();
   }, [stations, models]);
+
+  useEffect(() => {
+    const requestedId = Number(searchParams.get('vehicleId'));
+    if (!requestedId || !items.length) return;
+    const matched = items.find(vehicle => vehicle.id === requestedId);
+    if (matched) {
+      setSelected(matched);
+      setSearchParams({}, { replace: true });
+    }
+  }, [items, searchParams, setSearchParams]);
 
   const visible = useMemo(() => items.filter(vehicle => {
     const haystack = `${vehicle.code} ${vehicle.licensePlate} ${vehicle.model?.brand} ${vehicle.model?.name} ${vehicle.station?.name}`.toLowerCase();
@@ -165,7 +177,10 @@ export function VehiclesPage() {
       visible.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><p className="font-semibold text-slate-800">Chưa tìm thấy xe phù hợp</p><p className="mt-2 text-sm text-slate-500">Hãy thử thay đổi thời gian, điểm thuê hoặc mức giá.</p></div> :
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {visible.map(vehicle=><article key={vehicle.id} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg">
-          <div className="flex min-h-36 items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100"><div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-white bg-white/80 text-3xl font-black text-blue-700 shadow-sm transition group-hover:scale-105">EV</div></div>
+          <div className="relative flex h-52 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100">
+            {vehicle.images?.[0]?.imageUrl ? <img src={vehicle.images[0].imageUrl} alt={vehicle.model?.brand + ' ' + vehicle.model?.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-white bg-white/80 text-3xl font-black text-blue-700 shadow-sm">EV</div>}
+            {vehicle.images && vehicle.images.length > 1 && <span className="absolute bottom-3 right-3 rounded-full bg-slate-950/75 px-2.5 py-1 text-xs font-semibold text-white">{vehicle.images.length} ảnh</span>}
+          </div>
           <div className="flex items-start justify-between gap-2 p-5 pb-0">
             <div><p className="text-xs font-semibold uppercase text-blue-700">{vehicle.model?.brand || 'Xe điện'}</p>
               <h3 className="mt-1 text-lg font-bold text-slate-900">{vehicle.model?.name || vehicle.code}</h3></div>
@@ -179,7 +194,10 @@ export function VehiclesPage() {
             <p className="text-sm font-semibold text-blue-700">Tạm tính {rentalDays} ngày: {money(vehicle.estimatedRentalAmount)}</p>
           </div>
           </div>
-          <button onClick={()=>{setSelected(vehicle);setError('');}} className="mx-5 mb-5 mt-4 rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800">Xem chi tiết & đặt xe</button>
+          <div className="mt-auto grid grid-cols-2 gap-2 px-5 pb-5 pt-4">
+            <Link to={'/vehicles/' + vehicle.id} className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">Chi tiết xe</Link>
+            <button onClick={()=>{setSelected(vehicle);setError('');}} className="rounded-xl bg-blue-700 px-3 py-3 text-sm font-bold text-white transition hover:bg-blue-800">Đặt xe</button>
+          </div>
         </article>)}
       </div>}
 

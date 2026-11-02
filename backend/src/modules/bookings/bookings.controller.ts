@@ -8,6 +8,7 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BookingsService } from './bookings.service';
 import { CancelBookingDto, CreateBookingDto } from './dto';
+import { CreateBookingChargeDto } from './booking-charge.dto';
 
 @ApiTags('Bookings')
 @ApiBearerAuth()
@@ -23,6 +24,26 @@ export class BookingsController {
   @Get('my')
   @Roles(Role.CUSTOMER)
   my(@CurrentUser() user: JwtUser) { return this.service.myBookings(user); }
+
+  @Get('operations')
+  @Roles(Role.ADMIN, Role.STAFF)
+  operations(@CurrentUser() user: JwtUser) { return this.service.operationsQueue(user); }
+
+  @Post(':id/charges')
+  @Roles(Role.ADMIN, Role.STAFF)
+  addCharge(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: CreateBookingChargeDto) {
+    return this.service.addCharge(user, id, dto);
+  }
+
+  @Get(':id/history')
+  statusHistory(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.service.statusHistory(user, id);
+  }
+
+  @Get(':id/charges')
+  listCharges(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.service.listCharges(user, id);
+  }
 
   @Get(':id')
   findOne(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) { return this.service.findOne(user, id); }

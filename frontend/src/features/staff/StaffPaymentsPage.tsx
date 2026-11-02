@@ -1,0 +1,172 @@
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { api } from '../../services/api';
+
+type Booking = {
+  id: number; status: string; rentalAmount: string; depositSnapshot: string;
+  pickupAt: string; returnAt: string;
+  customer?: { fullName?: string; email?: string };
+  vehicle?: { code?: string; licensePlate?: string; station?: { name?: string } };
+};
+type Purpose = 'RENT' | 'DEPOSIT' | 'REFUND';
+type Method = 'CASH' | 'TRANSFER';
+type Payment = {
+  id: number; bookingId: number; purpose: 'RENT' | 'DEPOSIT' | 'EXTRA' | 'REFUND';
+  method: Method; amount: string; note?: string | null; createdAt: string;
+};
+type PaymentForm = { purpose: Purpose; method: Method; amount: string; note: string };
+type Charge = { id:number; category:string; amount:string; applyToDeposit:boolean; reason:string; createdAt:string };
+
+const purposeText: Record<string,string> = { RENT: 'Thu tiền thuê', DEPOSIT: 'Thu tiền cọc', EXTRA: 'Phụ phí', REFUND: 'Hoàn tiền cọc' };
+const methodText: Record<string,string> = { CASH: 'Tiền mặt', TRANSFER: 'Chuyển khoản' };
+const statusText: Record<string,string> = { PENDING:'Chờ xác nhận', CONFIRMED:'Đã xác nhận', RENTING:'Đang thuê', COMPLETED:'Hoàn thành', CANCELLED:'Đã hủy', EXPIRED:'Hết hạn' };
+const money=(value:string|number)=>Number(value).toLocaleString('vi-VN')+' đ';
+const sum=(payments:Payment[], purpose:string)=>payments.filter(p=>p.purpose===purpose).reduce((n,p)=>n+Number(p.amount),0);
+
+export function StaffPaymentsPage() {
+  const [bookings,setBookings]=useState<Booking[]>([]);
+  const [keyword,setKeyword]=useState('');
+  const [statusFilter,setStatusFilter]=useState('ALL');
+  const [payments,setPayments]=useState<Record<number,Payment[]>>({});
+  const [charges,setCharges]=useState<Record<number,Charge[]>>({});
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState('');
+  const [message,setMessage]=useState('');
+  const [active,setActive]=useState<Booking|null>(null);
+  const [form,setForm]=useState<PaymentForm>({purpose:'RENT',method:'CASH',amount:'',note:''});
+  const [saving,setSaving]=useState(false);
+
+  const load=useCallback(async()=>{
+    setLoading(true);setError('');
+    try {
+      const response=await api.get<Booking[]>('/bookings/operations');
+      const rows=response.data;
+      setBookings(rows);
+      const ledger=await Promise.all(rows.map(async booking=>{
+        const [p,c]=await Promise.all([
+          api.get<Payment[]>('/bookings/'+booking.id+'/payments').catch(()=>({data:[]} as any)),
+          api.get<Charge[]>('/bookings/'+booking.id+'/charges').catch(()=>({data:[]} as any)),
+        ]);
+        return [booking.id,p.data,c.data] as const;
+      }));
+      setPayments(Object.fromEntries(ledger.map(([id,p])=>[id,p])));
+      setCharges(Object.fromEntries(ledger.map(([id,_p,c])=>[id,c])));
+    } catch(err:any) {
+      setError(err.response?.data?.message||'Không tải được dữ liệu thanh toán. Hãy đăng nhập bằng tài khoản STAFF hoặc ADMIN.');
+    } finally { setLoading(false); }
+  },[]);
+  useEffect(()=>{void load();},[load]);
+
+  const visibleBookings=useMemo(()=>bookings.filter(booking=>{
+    const text=[booking.id,booking.customer?.fullName,booking.customer?.email,booking.vehicle?.code,booking.vehicle?.licensePlate,booking.vehicle?.station?.name].join(' ').toLowerCase();
+    return text.includes(keyword.trim().toLowerCase())&&(statusFilter==='ALL'||booking.status===statusFilter);
+  }),[bookings,keyword,statusFilter]);
+  const statusTone:Record<string,string>={PENDING:'bg-amber-50 text-amber-700 ring-amber-200',CONFIRMED:'bg-blue-50 text-blue-700 ring-blue-200',RENTING:'bg-violet-50 text-violet-700 ring-violet-200',COMPLETED:'bg-emerald-50 text-emerald-700 ring-emerald-200',CANCELLED:'bg-rose-50 text-rose-700 ring-rose-200',EXPIRED:'bg-slate-100 text-slate-600 ring-slate-200'};
+
+  const summary=useMemo(()=>{
+    const all=Object.values(payments).flat();
+    return {rent:sum(all,'RENT'),deposit:sum(all,'DEPOSIT'),refund:sum(all,'REFUND')};
+  },[payments]);
+
+  function openForm(booking:Booking,purpose:Purpose) {
+    const list=payments[booking.id]||[];
+    const collected=sum(list,purpose==='REFUND'?'DEPOSIT':purpose);
+    const refunded=sum(list,'REFUND');
+    const ceiling=purpose==='RENT'?Number(booking.rentalAmount):purpose==='DEPOSIT'?Number(booking.depositSnapshot):collected-refunded;
+    const remaining=Math.max(0,Math.round((ceiling-(purpose==='REFUND'?refunded:collected))*100)/100);
+    setActive(booking);
+    setForm({purpose,method:'CASH',amount:remaining>0?String(remaining):'',note:''});
+    setError('');setMessage('');
+  }
+
+  async function submit(event:FormEvent) {
+    event.preventDefault();if(!active)return;
+    const amount=Number(form.amount);
+    if(!Number.isFinite(amount)||amount<=0){setError('Nhập số tiền hợp lệ lớn hơn 0.');return;}
+    setSaving(true);setError('');setMessage('');
+    try {
+      await api.post('/bookings/'+active.id+'/payments',{
+        purpose:form.purpose,method:form.method,amount,
+        idempotencyKey:crypto.randomUUID(),
+        note:form.note.trim()||undefined,
+      });
+      setMessage('Đã ghi nhận '+purposeText[form.purpose].toLowerCase()+' cho đơn #'+active.id+'.');
+      setActive(null);await load();
+    } catch(err:any) {
+      setError(err.response?.data?.message||'Không thể ghi nhận giao dịch.');
+    } finally {setSaving(false);}
+  }
+
+  return <section className="space-y-6">
+    <header className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-lg sm:px-8">
+      <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
+      <div className="relative flex flex-wrap items-end justify-between gap-4">
+        <div><div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-bold tracking-[0.15em] text-emerald-200">THU NGÂN VÀ ĐỐI SOÁT</div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Thanh toán và tiền cọc</h1>
+          <p className="mt-2 text-sm text-slate-300">Ghi nhận tiền thuê, tiền cọc và hoàn cọc theo từng đơn tại điểm thuê.</p></div>
+        <button onClick={()=>void load()} disabled={loading} className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50">{loading?'Đang tải...':'↻ Làm mới dữ liệu'}</button>
+      </div>
+    </header>
+    {error&&<div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{Array.isArray(error)?error.join(', '):error}</div>}
+    {message&&<div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{message}</div>}
+    <div className="grid gap-3 sm:grid-cols-3">
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-medium text-slate-500">Tiền thuê đã thu</p><p className="mt-2 text-2xl font-bold tracking-tight text-blue-700">{money(summary.rent)}</p><p className="mt-1 text-xs text-slate-400">Tổng giao dịch tiền thuê</p></article>
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-medium text-slate-500">Tiền cọc đã nhận</p><p className="mt-2 text-2xl font-bold tracking-tight text-violet-700">{money(summary.deposit)}</p><p className="mt-1 text-xs text-slate-400">Tổng tiền cọc đã thu</p></article>
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-medium text-slate-500">Tiền cọc đã hoàn</p><p className="mt-2 text-2xl font-bold tracking-tight text-emerald-700">{money(summary.refund)}</p><p className="mt-1 text-xs text-slate-400">Tổng tiền đã hoàn khách</p></article>
+    </div>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="space-y-4 border-b border-slate-100 p-5">
+  <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold text-slate-900">Danh sách đơn thuê</h2><p className="mt-1 text-xs text-slate-500">Theo dõi số đã thu, còn phải thu và số tiền cọc có thể hoàn.</p></div><span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">{visibleBookings.length}/{bookings.length} đơn</span></div>
+  <div className="grid gap-2 sm:grid-cols-[1fr_220px]">
+    <input value={keyword} onChange={event=>setKeyword(event.target.value)} placeholder="Tìm mã đơn, khách hàng, mã xe..." aria-label="Tìm đơn thanh toán" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"/>
+    <select value={statusFilter} onChange={event=>setStatusFilter(event.target.value)} aria-label="Lọc trạng thái đơn thanh toán" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
+      <option value="ALL">Tất cả trạng thái</option><option value="PENDING">Chờ xác nhận</option><option value="CONFIRMED">Đã xác nhận</option><option value="RENTING">Đang thuê</option><option value="COMPLETED">Hoàn thành</option><option value="CANCELLED">Đã hủy</option><option value="EXPIRED">Hết hạn</option>
+    </select>
+  </div>
+</div>
+      {loading?<p className="p-5 text-sm text-slate-500">Đang tải dữ liệu...</p>:
+      bookings.length===0?<p className="p-8 text-center text-sm text-slate-500">Không có đơn thuê tại điểm được phân công.</p>:
+      visibleBookings.length===0?<p className="p-8 text-center text-sm text-slate-500">Không tìm thấy đơn thuê phù hợp với bộ lọc.</p>:
+      <div className="divide-y">{visibleBookings.map(booking=>{
+        const list=payments[booking.id]||[];
+        const rent=sum(list,'RENT'),deposit=sum(list,'DEPOSIT'),refund=sum(list,'REFUND');
+        const rentLeft=Math.max(0,Number(booking.rentalAmount)-rent);
+        const depositLeft=Math.max(0,Number(booking.depositSnapshot)-deposit);
+        const chargeList=charges[booking.id]||[];
+        const depositDeductions=chargeList.filter(c=>c.applyToDeposit).reduce((n,c)=>n+Number(c.amount),0);
+        const refundable=Math.max(0,deposit-depositDeductions-refund);
+        const blocked=['CANCELLED','EXPIRED'].includes(booking.status);
+        return <article key={booking.id} className="space-y-4 p-5 transition hover:bg-slate-50/70">
+          <div className="flex flex-wrap justify-between gap-2"><div><h3 className="font-semibold">Đơn #{booking.id} · {booking.vehicle?.code||booking.vehicle?.licensePlate||'Xe'}</h3>
+            <p className="text-sm text-slate-500">{booking.customer?.fullName||booking.customer?.email||'Khách hàng'} · {booking.vehicle?.station?.name||'Điểm thuê'}</p></div>
+            <span className={'h-fit rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset '+(statusTone[booking.status]||'bg-slate-100 text-slate-600 ring-slate-200')}>{statusText[booking.status]||booking.status}</span></div>
+          <div className="grid gap-2 rounded-xl bg-slate-50 p-3 text-sm sm:grid-cols-3">
+            <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Tiền thuê</p><p className="font-semibold">{money(rent)} / {money(booking.rentalAmount)}</p><p className="text-xs text-slate-500">Còn: {money(rentLeft)}</p></div>
+            <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Tiền cọc</p><p className="font-semibold">{money(deposit)} / {money(booking.depositSnapshot)}</p><p className="text-xs text-slate-500">Còn phải thu: {money(depositLeft)}</p></div>
+            <div className="rounded-lg bg-slate-50 p-3"><p className="text-slate-500">Cọc đã hoàn</p><p className="font-semibold">{money(refund)}</p><p className="text-xs text-slate-500">Khấu trừ: {money(depositDeductions)} · Còn hoàn: {money(refundable)}</p></div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {!blocked&&rentLeft>0.009&&<button onClick={()=>openForm(booking,'RENT')} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white">Thu tiền thuê</button>}
+            {!blocked&&depositLeft>0.009&&<button onClick={()=>openForm(booking,'DEPOSIT')} className="rounded-lg bg-indigo-700 px-3 py-2 text-sm font-semibold text-white">Thu tiền cọc</button>}
+            {booking.status==='COMPLETED'&&<button onClick={async()=>{const amount=window.prompt('Số tiền phụ phí / khấu trừ (VNĐ):');if(!amount)return;const reason=window.prompt('Lý do và căn cứ:');if(!reason)return;try{await api.post('/bookings/'+booking.id+'/charges',{category:'DAMAGE_OR_EXTRA',amount:Number(amount),applyToDeposit:true,reason});setMessage('Đã ghi nhận khoản khấu trừ cho đơn #'+booking.id);await load();}catch(err:any){setError(err.response?.data?.message||'Không thể ghi nhận khoản khấu trừ.');}}} className="rounded-lg border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-800">Ghi nhận khấu trừ cọc</button>}
+            {booking.status==='COMPLETED'&&refundable>0.009&&<button onClick={()=>openForm(booking,'REFUND')} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white">Hoàn tiền cọc</button>}
+          </div>
+          {list.length>0&&<details className="text-sm"><summary className="cursor-pointer font-medium text-slate-700">Lịch sử giao dịch ({list.length})</summary>
+            <div className="mt-2 divide-y rounded-lg border">{list.map(payment=><div key={payment.id} className="flex flex-wrap justify-between gap-2 p-3">
+              <div><p className="font-medium">{purposeText[payment.purpose]||payment.purpose} · {methodText[payment.method]}</p><p className="text-xs text-slate-500">{new Date(payment.createdAt).toLocaleString('vi-VN')} {payment.note?'· '+payment.note:''}</p></div>
+              <strong>{money(payment.amount)}</strong>
+            </div>)}</div>
+          </details>}
+        </article>;
+      })}</div>}
+    </div>
+    {active&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+      <form onSubmit={submit} className="w-full max-w-md space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
+        <div><h2 className="text-lg font-bold">{purposeText[form.purpose]} · Đơn #{active.id}</h2><p className="mt-1 text-sm text-slate-500">Ghi nhận giao dịch thực tế do nhân viên xác nhận.</p></div>
+        <label className="block text-sm font-medium">Số tiền (VNĐ)<input required type="number" min="0.01" step="0.01" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})} className="mt-1 w-full rounded-lg border px-3 py-2"/></label>
+        <label className="block text-sm font-medium">Phương thức<select value={form.method} onChange={e=>setForm({...form,method:e.target.value as Method})} className="mt-1 w-full rounded-lg border bg-white px-3 py-2"><option value="CASH">Tiền mặt</option><option value="TRANSFER">Chuyển khoản</option></select></label>
+        <label className="block text-sm font-medium">Ghi chú (không bắt buộc)<textarea maxLength={255} rows={2} value={form.note} onChange={e=>setForm({...form,note:e.target.value})} className="mt-1 w-full rounded-lg border px-3 py-2"/></label>
+        <div className="flex justify-end gap-2"><button type="button" onClick={()=>setActive(null)} className="rounded-lg border px-4 py-2 text-sm">Đóng</button><button disabled={saving} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving?'Đang lưu...':'Xác nhận giao dịch'}</button></div>
+      </form>
+    </div>}
+  </section>;
+}

@@ -5,12 +5,16 @@ import { Role } from '../../common/enums/role.enum';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateVehicleDto, UpdateVehicleDto } from './dto';
+import { VehicleAvailabilityQueryDto } from './availability.dto';
 import { VehiclesService } from './vehicles.service';
 
 @ApiTags('Vehicles')
 @Controller('vehicles')
 export class VehiclesController {
   constructor(private readonly service: VehiclesService) {}
+
+  @Get('availability')
+  findAvailable(@Query() query: VehicleAvailabilityQueryDto) { return this.service.findAvailable(query); }
 
   @Get()
   findAll(@Query('stationId') stationId?: string) {

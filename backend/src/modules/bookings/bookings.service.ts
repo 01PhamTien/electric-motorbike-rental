@@ -1,13 +1,16 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { Role } from '../../common/enums/role.enum';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
+import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 import { BookingStatusHistory } from './booking-status-history.entity';
+import { BookingCharge } from './booking-charge.entity';
+import { CreateBookingChargeDto } from './booking-charge.dto';
 import { Booking } from './booking.entity';
 import { CancelBookingDto, CreateBookingDto } from './dto';
 
@@ -33,11 +36,29 @@ export class BookingsService {
       if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
       if (vehicle.status !== VehicleStatus.ACTIVE) throw new BadRequestException('Xe hiện không thể đặt');
 
+      // A scheduled maintenance record blocks only its planned time window.
+      // Once maintenance is IN_PROGRESS, it blocks new bookings until completed/cancelled.
+      const maintenanceConflict = await manager.getRepository(MaintenanceRecord).createQueryBuilder('m')
+        .where('m.vehicleId = :vehicleId', { vehicleId: vehicle.id })
+        .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
+        .andWhere('(m.status = :inProgress OR (m.plannedEndAt IS NULL OR (m.scheduledAt < :returnAt AND m.plannedEndAt > :pickupAt)))', {
+          inProgress: MaintenanceStatus.IN_PROGRESS, pickupAt, returnAt,
+        })
+        .getOne();
+      if (maintenanceConflict) {
+        throw new BadRequestException('Xe có lịch bảo dưỡng trùng với thời gian thuê hoặc đang được bảo dưỡng');
+      }
+
       const overlapping = await bookingRepo
         .createQueryBuilder('b')
         .setLock('pessimistic_write')
         .where('b.vehicleId = :vehicleId', { vehicleId: dto.vehicleId })
         .andWhere('b.status IN (:...statuses)', { statuses: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.RENTING] })
+        // A PENDING booking stops blocking the vehicle once its configured hold expires.
+        .andWhere('(b.status != :pendingStatus OR b.holdExpiresAt IS NULL OR b.holdExpiresAt > :now)', {
+          pendingStatus: BookingStatus.PENDING,
+          now: new Date(),
+        })
         .andWhere('b.pickupAt < :returnAt AND b.returnAt > :pickupAt', { pickupAt, returnAt })
         .getOne();
       if (overlapping) throw new BadRequestException('Xe đã có lịch trong khoảng thời gian này');
@@ -72,6 +93,47 @@ export class BookingsService {
     });
   }
 
+  async addCharge(current: JwtUser, id: number, dto: CreateBookingChargeDto) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    return this.dataSource.transaction(async manager => {
+      const booking = await manager.getRepository(Booking).findOne({
+        where: { id }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+      this.assertAccess(current, booking);
+      if (booking.status !== BookingStatus.COMPLETED) {
+        throw new BadRequestException('Chỉ được quyết toán phụ phí sau khi đã nhận xe trả');
+      }
+      return manager.getRepository(BookingCharge).save(manager.getRepository(BookingCharge).create({
+        bookingId: id, category: dto.category.trim().toUpperCase(),
+        amount: (Math.round(dto.amount * 100) / 100).toFixed(2),
+        applyToDeposit: dto.applyToDeposit, reason: dto.reason.trim(), createdById: current.sub,
+      }));
+    });
+  }
+
+  async listCharges(current: JwtUser, id: number) {
+    const booking = await this.bookingRepo.findOne({ where: { id } });
+    if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+    this.assertAccess(current, booking);
+    return this.dataSource.getRepository(BookingCharge).find({ where: { bookingId: id }, order: { id: 'ASC' } });
+  }
+
+  async operationsQueue(current: JwtUser) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    const query = this.bookingRepo.createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.vehicle', 'vehicle')
+      .leftJoinAndSelect('vehicle.station', 'station')
+      .leftJoinAndSelect('vehicle.model', 'model')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .orderBy('booking.pickupAt', 'ASC');
+    if (current.role === Role.STAFF) {
+      if (!current.stationId) throw new ForbiddenException('Tài khoản chưa được phân công điểm thuê');
+      query.andWhere('vehicle.stationId = :stationId', { stationId: current.stationId });
+    }
+    return query.getMany();
+  }
+
   myBookings(current: JwtUser) {
     return this.bookingRepo.find({ where: { customerId: current.sub }, order: { id: 'DESC' } });
   }
@@ -88,49 +150,97 @@ export class BookingsService {
   }
 
   async cancel(current: JwtUser, id: number, dto: CancelBookingDto) {
-    const booking = await this.findOne(current, id);
-    if (![BookingStatus.PENDING, BookingStatus.CONFIRMED].includes(booking.status)) {
-      throw new BadRequestException('Trạng thái hiện tại không thể hủy');
-    }
-    if (current.role === Role.STAFF && current.stationId !== booking.vehicle.stationId) {
-      throw new ForbiddenException('Không được xử lý đơn ngoài điểm được phân công');
-    }
-    const fromStatus = booking.status;
-    booking.status = BookingStatus.CANCELLED;
-    booking.cancelReason = dto.reason || null;
-    const saved = await this.bookingRepo.save(booking);
-    await this.dataSource.getRepository(BookingStatusHistory).save({
-      bookingId: id,
-      fromStatus,
-      toStatus: BookingStatus.CANCELLED,
-      performedById: current.sub,
-      reason: dto.reason || 'Hủy đơn',
+    if (![Role.ADMIN, Role.STAFF, Role.CUSTOMER].includes(current.role)) throw new ForbiddenException();
+    const result = await this.dataSource.transaction(async manager => {
+      const bookingRepo = manager.getRepository(Booking);
+      const historyRepo = manager.getRepository(BookingStatusHistory);
+      const booking = await bookingRepo.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+      this.assertAccess(current, booking);
+      if (current.role === Role.STAFF && current.stationId !== booking.vehicle.stationId) {
+        throw new ForbiddenException('Không được xử lý đơn ngoài điểm được phân công');
+      }
+      if (![BookingStatus.PENDING, BookingStatus.CONFIRMED].includes(booking.status)) {
+        throw new BadRequestException('Chỉ được hủy đơn đang chờ hoặc đã xác nhận');
+      }
+
+      const fromStatus = booking.status;
+      booking.status = BookingStatus.CANCELLED;
+      booking.cancelReason = dto.reason?.trim() || null;
+      const saved = await bookingRepo.save(booking);
+      await historyRepo.save(historyRepo.create({
+        bookingId: id,
+        fromStatus,
+        toStatus: BookingStatus.CANCELLED,
+        performedById: current.sub,
+        reason: dto.reason?.trim() || 'Hủy đơn',
+      }));
+      return saved;
     });
-    return saved;
+    return result;
+  }
+
+  async statusHistory(current: JwtUser, id: number) {
+    const booking = await this.bookingRepo.findOne({ where: { id } });
+    if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+    this.assertAccess(current, booking);
+    return this.dataSource.getRepository(BookingStatusHistory).find({
+      where: { bookingId: id },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
   }
 
   private async changeStatus(current: JwtUser, id: number, expected: BookingStatus, next: BookingStatus, reason: string) {
-    const booking = await this.findOne(current, id);
     if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
-    if (current.role === Role.STAFF && current.stationId !== booking.vehicle.stationId) {
-      throw new ForbiddenException('Không được xử lý đơn ngoài điểm được phân công');
-    }
-    if (booking.status !== expected) throw new BadRequestException(`Đơn phải ở trạng thái ${expected}`);
-    if (booking.status === BookingStatus.PENDING && booking.holdExpiresAt && booking.holdExpiresAt < new Date()) {
-      booking.status = BookingStatus.EXPIRED;
-      await this.bookingRepo.save(booking);
-      throw new BadRequestException('Đơn đã hết thời hạn giữ chỗ');
-    }
-    booking.status = next;
-    const saved = await this.bookingRepo.save(booking);
-    await this.dataSource.getRepository(BookingStatusHistory).save({
-      bookingId: id,
-      fromStatus: expected,
-      toStatus: next,
-      performedById: current.sub,
-      reason,
+    const result = await this.dataSource.transaction(async manager => {
+      const bookingRepo = manager.getRepository(Booking);
+      const historyRepo = manager.getRepository(BookingStatusHistory);
+      const booking = await bookingRepo.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+      this.assertAccess(current, booking);
+      if (current.role === Role.STAFF && current.stationId !== booking.vehicle.stationId) {
+        throw new ForbiddenException('Không được xử lý đơn ngoài điểm được phân công');
+      }
+      if (booking.status !== expected) {
+        throw new BadRequestException(`Đơn phải ở trạng thái ${expected}`);
+      }
+
+      if (booking.status === BookingStatus.PENDING && booking.holdExpiresAt && booking.holdExpiresAt <= new Date()) {
+        booking.status = BookingStatus.EXPIRED;
+        await bookingRepo.save(booking);
+        await historyRepo.save(historyRepo.create({
+          bookingId: id,
+          fromStatus: BookingStatus.PENDING,
+          toStatus: BookingStatus.EXPIRED,
+          performedById: current.sub,
+          reason: 'Hết thời hạn giữ chỗ trước khi xác nhận',
+        }));
+        return { expired: true as const };
+      }
+
+      const fromStatus = booking.status;
+      booking.status = next;
+      const saved = await bookingRepo.save(booking);
+      await historyRepo.save(historyRepo.create({
+        bookingId: id,
+        fromStatus,
+        toStatus: next,
+        performedById: current.sub,
+        reason,
+      }));
+      return { expired: false as const, booking: saved };
     });
-    return saved;
+
+    if (result.expired) {
+      throw new BadRequestException('Đơn đã hết thời hạn giữ chỗ và được chuyển sang EXPIRED');
+    }
+    return result.booking;
   }
 
   private assertAccess(current: JwtUser, booking: Booking) {

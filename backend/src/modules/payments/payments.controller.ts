@@ -13,5 +13,6 @@ export class PaymentsController {
   constructor(private readonly service: PaymentsService) {}
   @Post() @Roles(Role.ADMIN, Role.STAFF)
   create(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: CreatePaymentDto) { return this.service.create(user, id, dto); }
+  @Get('summary') summary(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) { return this.service.settlementSummary(user, id); }
   @Get() list(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) { return this.service.list(user, id); }
 }

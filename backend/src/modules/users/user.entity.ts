@@ -19,6 +19,9 @@ export class User {
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone: string | null;
 
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  avatarUrl: string | null;
+
   @Column({ select: false })
   passwordHash: string;
 

@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 
 export enum MaintenanceStatus {
   SCHEDULED = 'SCHEDULED',
@@ -8,7 +9,7 @@ export enum MaintenanceStatus {
 }
 
 @Entity('maintenance_records')
-@Index(['vehicleId', 'scheduledAt'])
+@Index(['vehicleId', 'scheduledAt', 'plannedEndAt'])
 export class MaintenanceRecord {
   @PrimaryGeneratedColumn()
   id: number;
@@ -18,6 +19,9 @@ export class MaintenanceRecord {
 
   @Column({ type: 'datetime' })
   scheduledAt: Date;
+
+  @Column({ type: 'datetime', nullable: true })
+  plannedEndAt: Date | null;
 
   @Column({ type: 'datetime', nullable: true })
   completedAt: Date | null;
@@ -33,6 +37,9 @@ export class MaintenanceRecord {
 
   @Column({ type: 'enum', enum: MaintenanceStatus, default: MaintenanceStatus.SCHEDULED })
   status: MaintenanceStatus;
+
+  @Column({ type: 'enum', enum: VehicleStatus, nullable: true })
+  previousVehicleStatus: VehicleStatus | null;
 
   @Column({ type: 'int' })
   createdById: number;

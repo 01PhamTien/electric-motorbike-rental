@@ -7,7 +7,10 @@ export interface Station {
   latitude: string;
   longitude: string;
   phone?: string | null;
+  isActive?: boolean;
 }
+
+export interface VehicleImage { id: number; imageUrl: string; createdAt?: string; }
 
 export interface Vehicle {
   id: number;
@@ -16,6 +19,8 @@ export interface Vehicle {
   dailyRate: string;
   depositAmount: string;
   status: 'ACTIVE' | 'CHARGING' | 'MAINTENANCE' | 'INACTIVE';
+  isActive?: boolean;
   station: Station;
-  model: { id: number; brand: string; name: string };
+  model: { id: number; brand: string; name: string; specifications?: string | null };
+  images?: VehicleImage[];
 }

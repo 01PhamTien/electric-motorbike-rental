@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { api } from '../../services/api';
 import type { Vehicle } from '../../types';
 
@@ -11,6 +13,25 @@ type LocationRecord = {
   createdAt: string;
 };
 
+const DEFAULT_CENTER: [number, number] = [16.0544, 108.2022];
+
+function MapClickPicker({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(event) {
+      onPick(event.latlng.lat, event.latlng.lng);
+    },
+  });
+  return null;
+}
+
+function MapCenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom(), { animate: true });
+  }, [center, map]);
+  return null;
+}
+
 export function LocationsPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleId, setVehicleId] = useState('');
@@ -19,6 +40,7 @@ export function LocationsPage() {
   const [latest, setLatest] = useState<LocationRecord | null>(null);
   const [history, setHistory] = useState<LocationRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -26,6 +48,13 @@ export function LocationsPage() {
     () => vehicles.find((vehicle) => String(vehicle.id) === vehicleId),
     [vehicles, vehicleId],
   );
+
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  const validCoordinates =
+    Number.isFinite(lat) && Number.isFinite(lng) &&
+    lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  const mapCenter: [number, number] = validCoordinates ? [lat, lng] : DEFAULT_CENTER;
 
   async function loadLocationData(id: string) {
     if (!id) return;
@@ -35,8 +64,13 @@ export function LocationsPage() {
         api.get(`/vehicles/${id}/locations/latest`),
         api.get(`/vehicles/${id}/locations`),
       ]);
-      setLatest(latestResponse.data ?? null);
+      const latestRecord = latestResponse.data ?? null;
+      setLatest(latestRecord);
       setHistory(Array.isArray(historyResponse.data) ? historyResponse.data : []);
+      if (latestRecord) {
+        setLatitude(String(latestRecord.latitude));
+        setLongitude(String(latestRecord.longitude));
+      }
     } catch (err: any) {
       setLatest(null);
       setHistory([]);
@@ -51,19 +85,22 @@ export function LocationsPage() {
         setVehicles(data);
         if (data.length) setVehicleId(String(data[0].id));
       })
-      .catch((err) => setError(err.response?.data?.message || 'Không tải được danh sách xe.'));
+      .catch((err) => setError(err.response?.data?.message || 'Không tải được danh sách xe.'))
+      .finally(() => setPageLoading(false));
   }, []);
 
   useEffect(() => {
-    if (vehicleId) loadLocationData(vehicleId);
+    if (vehicleId) void loadLocationData(vehicleId);
+    else { setLatest(null); setHistory([]); }
   }, [vehicleId]);
 
-  const lat = Number(latitude);
-  const lng = Number(longitude);
-  const validCoordinates = Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-  const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(`${latitude},${longitude}`)}`;
+  function pickCoordinates(nextLat: number, nextLng: number) {
+    setLatitude(nextLat.toFixed(7));
+    setLongitude(nextLng.toFixed(7));
+    setMessage('');
+  }
 
-  async function saveLocation(event: React.FormEvent) {
+  async function saveLocation(event: FormEvent) {
     event.preventDefault();
     setMessage('');
     setError('');
@@ -87,13 +124,13 @@ export function LocationsPage() {
     <section className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Vị trí mô phỏng xe</h1>
-        <p className="mt-1 text-sm text-slate-600">Chọn xe, nhập tọa độ, xem trước trên Google Maps rồi lưu lịch sử vị trí.</p>
+        <p className="mt-1 text-sm text-slate-600">Chọn xe, bấm trực tiếp trên bản đồ hoặc nhập tọa độ, xem trước rồi lưu lịch sử vị trí.</p>
       </div>
 
       {message && <div className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{message}</div>}
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{String(error)}</div>}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <form onSubmit={saveLocation} className="space-y-4 rounded-xl bg-white p-5 shadow-sm">
           <h2 className="font-semibold">Cập nhật vị trí</h2>
           <label className="block text-sm font-medium">Xe
@@ -111,38 +148,48 @@ export function LocationsPage() {
             </label>
           </div>
           <div className="rounded-lg bg-slate-50 p-3 text-sm">
-            <p className="font-medium">Xem trước tọa độ</p>
+            <p className="font-medium">Tọa độ đang chọn</p>
             <p className="mt-1 text-slate-600">{validCoordinates ? `${lat.toFixed(7)}, ${lng.toFixed(7)}` : 'Tọa độ không hợp lệ'}</p>
-            <a className="mt-2 inline-block text-blue-700 underline" href={mapUrl} target="_blank" rel="noreferrer">Mở vị trí trên Google Maps</a>
+            <a className="mt-2 inline-block text-blue-700 underline" href={`https://www.google.com/maps?q=${encodeURIComponent(`${latitude},${longitude}`)}`} target="_blank" rel="noreferrer">Mở vị trí trên Google Maps</a>
           </div>
           <button disabled={loading || !vehicleId || !validCoordinates} className="w-full rounded-lg bg-blue-700 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
             {loading ? 'Đang lưu...' : 'Cập nhật vị trí mô phỏng'}
           </button>
-          <p className="text-xs text-slate-500">Đây là vị trí mô phỏng nhập thủ công, không phải GPS phần cứng.</p>
+          <p className="text-xs text-slate-500">Đây là vị trí mô phỏng nhập thủ công hoặc chọn trên bản đồ, không phải GPS phần cứng.</p>
         </form>
 
         <div className="space-y-4 rounded-xl bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="font-semibold">Vị trí gần nhất</h2>
-            <button type="button" onClick={() => loadLocationData(vehicleId)} className="text-sm text-blue-700 underline">Làm mới</button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div><h2 className="font-semibold">Bản đồ chọn vị trí</h2><p className="text-xs text-slate-500">Bấm vào bản đồ để chọn tọa độ mới.</p></div>
+            <button type="button" onClick={() => void loadLocationData(vehicleId)} disabled={!vehicleId} className="text-sm text-blue-700 underline disabled:opacity-40">Làm mới</button>
+          </div>
+          <div className="h-[360px] overflow-hidden rounded-lg border">
+            <MapContainer center={mapCenter} zoom={13} scrollWheelZoom className="h-full w-full">
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MapClickPicker onPick={pickCoordinates} />
+              <MapCenter center={mapCenter} />
+              {validCoordinates && <CircleMarker center={mapCenter} radius={9} pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.8 }} />}
+            </MapContainer>
           </div>
           {latest ? <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Vị trí mô phỏng</p>
-            <p className="mt-1 font-semibold">{latest.latitude}, {latest.longitude}</p>
+            <p className="text-sm font-semibold">Vị trí đã lưu gần nhất</p>
+            <p className="mt-1 text-sm">{latest.latitude}, {latest.longitude}</p>
             <p className="mt-1 text-xs text-slate-500">Cập nhật: {new Date(latest.createdAt).toLocaleString('vi-VN')}</p>
-            <a className="mt-2 inline-block text-sm text-blue-700 underline" href={`https://www.google.com/maps?q=${latest.latitude},${latest.longitude}`} target="_blank" rel="noreferrer">Xem trên Google Maps</a>
-          </div> : <p className="text-sm text-slate-500">{vehicleId ? 'Xe chưa có lịch sử vị trí.' : 'Chọn xe để xem vị trí.'}</p>}
-          <div>
-            <h3 className="mb-2 text-sm font-semibold">Lịch sử cập nhật (tối đa 200 bản ghi)</h3>
-            <div className="max-h-72 overflow-auto rounded-lg border">
-              {history.length ? history.map((item) => <div key={item.id} className="border-b p-3 text-sm last:border-0">
-                <p className="font-medium">{item.latitude}, {item.longitude}</p>
-                <p className="mt-1 text-xs text-slate-500">{new Date(item.createdAt).toLocaleString('vi-VN')} · {item.source === 'MANUAL_SIMULATION' ? 'Vị trí mô phỏng' : item.source}</p>
-              </div>) : <p className="p-3 text-sm text-slate-500">Chưa có dữ liệu lịch sử.</p>}
-            </div>
-          </div>
+          </div> : <p className="text-sm text-slate-500">Xe chưa có lịch sử vị trí.</p>}
           {selectedVehicle && <p className="text-xs text-slate-500">Đang xem: {selectedVehicle.code} · {selectedVehicle.station?.name}</p>}
         </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+        <div className="border-b p-4"><h2 className="font-semibold">Lịch sử vị trí (tối đa 200 bản ghi)</h2><p className="mt-1 text-xs text-slate-500">Mỗi lần lưu tạo một bản ghi mới, không ghi đè lịch sử cũ.</p></div>
+        {pageLoading ? <p className="p-4 text-sm text-slate-500">Đang tải danh sách xe...</p> :
+          history.length ? <div className="divide-y">{history.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+            <div><p className="font-medium">{item.latitude}, {item.longitude}</p><p className="mt-1 text-xs text-slate-500">{new Date(item.createdAt).toLocaleString('vi-VN')} · {item.source === 'MANUAL_SIMULATION' ? 'Vị trí mô phỏng' : item.source}</p></div>
+            <button type="button" onClick={() => pickCoordinates(Number(item.latitude), Number(item.longitude))} className="text-blue-700 underline">Xem trên bản đồ</button>
+          </div>)}</div> : <p className="p-4 text-sm text-slate-500">Chưa có dữ liệu lịch sử.</p>}
       </div>
     </section>
   );

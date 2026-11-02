@@ -110,16 +110,19 @@ export function VehiclesPage() {
   }
 
   return <section className="space-y-6">
-    <div>
-      <p className="text-sm font-semibold text-blue-700">THUÊ XE ĐIỆN</p>
-      <h1 className="mt-1 text-2xl font-bold text-slate-900">Tìm xe và đặt thuê</h1>
-      <p className="mt-1 text-sm text-slate-600">Kết quả chỉ hiển thị xe còn trống trong toàn bộ khoảng thời gian nhận và trả.</p>
-    </div>
+    <header className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-8 text-white shadow-lg sm:px-9 sm:py-10">
+      <div className="pointer-events-none absolute -right-12 -top-24 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-8rem] right-1/3 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
+      <div className="relative max-w-2xl"><span className="inline-flex rounded-full border border-blue-300/20 bg-blue-300/10 px-3 py-1 text-[11px] font-bold tracking-[0.16em] text-blue-200">ELECTRIC MOBILITY · ĐÀ NẴNG</span>
+        <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Tự do di chuyển,<br/><span className="text-blue-300">theo cách xanh hơn.</span></h1>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">Tìm xe máy điện phù hợp, chọn thời gian thuê và đặt xe trực tuyến. Hệ thống kiểm tra tình trạng trống theo toàn bộ lịch nhận và trả.</p>
+      </div>
+    </header>
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{Array.isArray(error) ? error.join(', ') : error}</div>}
     {message && <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{message} <a className="ml-2 font-semibold underline" href="/bookings/my">Xem đơn thuê</a></div>}
 
-    <form onSubmit={searchAvailability} className="space-y-4 rounded-xl border bg-white p-5 shadow-sm">
-      <h2 className="font-semibold text-slate-900">Điều kiện tìm kiếm</h2>
+    <form onSubmit={searchAvailability} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div><h2 className="text-lg font-bold text-slate-900">Tìm chuyến đi của bạn</h2><p className="mt-1 text-sm text-slate-500">Chọn thời gian và bộ lọc để xem xe phù hợp.</p></div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-700">Thời gian nhận xe
           <input type="datetime-local" value={pickupAt} min={localDateTime(new Date())} onChange={e=>setPickupAt(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2"/>
@@ -149,32 +152,34 @@ export function VehiclesPage() {
       <label className="block text-sm font-medium text-slate-700">Tìm theo tên xe, mã xe hoặc biển số
         <input value={keyword} onChange={e=>setKeyword(e.target.value)} placeholder="Ví dụ: VinFast, EV001..." className="mt-1 w-full rounded-lg border px-3 py-2"/>
       </label>
-      <button type="submit" disabled={searching} className="w-full rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">
+      <button type="submit" disabled={searching} className="w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:opacity-50">
         {searching ? 'Đang tìm xe...' : 'Tìm xe còn trống'}
       </button>
     </form>
 
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <h2 className="font-semibold text-slate-900">Kết quả tìm kiếm</h2>
+    <div className="flex flex-wrap items-end justify-between gap-2">
+      <div><p className="text-xs font-bold tracking-[0.12em] text-blue-700">DANH SÁCH PHƯƠNG TIỆN</p><h2 className="mt-1 text-xl font-bold text-slate-950">Xe dành cho bạn</h2></div>
       {!loading && <p className="text-sm text-slate-500">{visible.length} xe phù hợp · {rentalDays} ngày tính phí</p>}
     </div>
     {loading || searching ? <p className="py-8 text-center text-sm text-slate-500">Đang tải dữ liệu...</p> :
-      visible.length === 0 ? <div className="rounded-xl border bg-white p-8 text-center text-sm text-slate-500">Không có xe phù hợp. Hãy đổi thời gian hoặc điều kiện tìm kiếm.</div> :
+      visible.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><p className="font-semibold text-slate-800">Chưa tìm thấy xe phù hợp</p><p className="mt-2 text-sm text-slate-500">Hãy thử thay đổi thời gian, điểm thuê hoặc mức giá.</p></div> :
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {visible.map(vehicle=><article key={vehicle.id} className="flex flex-col rounded-xl border bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-2">
+        {visible.map(vehicle=><article key={vehicle.id} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg">
+          <div className="flex min-h-36 items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100"><div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-white bg-white/80 text-3xl font-black text-blue-700 shadow-sm transition group-hover:scale-105">EV</div></div>
+          <div className="flex items-start justify-between gap-2 p-5 pb-0">
             <div><p className="text-xs font-semibold uppercase text-blue-700">{vehicle.model?.brand || 'Xe điện'}</p>
               <h3 className="mt-1 text-lg font-bold text-slate-900">{vehicle.model?.name || vehicle.code}</h3></div>
             <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">Còn trống</span>
           </div>
-          <p className="mt-2 text-sm text-slate-500">{vehicle.code} · {vehicle.licensePlate}</p>
-          <p className="mt-3 text-sm text-slate-600">{vehicle.station?.name || 'Chưa xác định điểm thuê'}</p>
-          <div className="mt-4 space-y-1 border-t pt-3">
+          <div className="px-5 pt-3"><p className="text-sm text-slate-500">{vehicle.code} · {vehicle.licensePlate}</p>
+          <p className="mt-2 text-sm text-slate-600">⌖ {vehicle.station?.name || 'Chưa xác định điểm thuê'}</p>
+          <div className="mt-4 space-y-1 border-t border-slate-100 pt-3">
             <p className="text-xl font-bold text-slate-900">{money(vehicle.dailyRate)}<span className="text-xs font-normal text-slate-500"> / 24 giờ</span></p>
             <p className="text-sm text-slate-500">Tiền cọc: {money(vehicle.depositAmount)}</p>
             <p className="text-sm font-semibold text-blue-700">Tạm tính {rentalDays} ngày: {money(vehicle.estimatedRentalAmount)}</p>
           </div>
-          <button onClick={()=>{setSelected(vehicle);setError('');}} className="mt-5 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">Đặt xe này</button>
+          </div>
+          <button onClick={()=>{setSelected(vehicle);setError('');}} className="mx-5 mb-5 mt-4 rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800">Xem chi tiết & đặt xe</button>
         </article>)}
       </div>}
 

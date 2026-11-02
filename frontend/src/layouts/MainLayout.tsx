@@ -35,7 +35,7 @@ export function MainLayout() {
           {user ? <>
             <button type="button" onClick={() => navigate('/profile')} className="flex min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-50" title="Hồ sơ cá nhân">
               {user.avatarUrl
-                ? <img src={((import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\\/api\\/?$/, '') + user.avatarUrl)} alt="" className="h-9 w-9 shrink-0 rounded-full border border-slate-200 object-cover" />
+                ? <img src={((import.meta.env.VITE_API_URL || 'http://localhost:3000/api').split('/api')[0] + user.avatarUrl)} alt="" className="h-9 w-9 shrink-0 rounded-full border border-slate-200 object-cover" />
                 : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-blue-700">{user.fullName.charAt(0).toUpperCase()}</span>}
               <span className="hidden min-w-0 text-right sm:block">
                 <span className="block max-w-48 truncate text-sm font-bold text-slate-800">{user.fullName}</span>

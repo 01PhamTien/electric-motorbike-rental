@@ -6,7 +6,9 @@ import { useAuth, roleHome } from '../features/auth/AuthContext';
 import { MyBookingsPage } from '../features/bookings/MyBookingsPage';
 import { LocationsPage } from '../features/locations/LocationsPage';
 import { StationsPage } from '../features/stations/StationsPage';
+import { AdminStationsPage } from '../features/stations/AdminStationsPage';
 import { VehiclesPage } from '../features/vehicles/VehiclesPage';
+import { AdminVehiclesPage } from '../features/vehicles/AdminVehiclesPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { StaffPage } from '../features/staff/StaffPage';
 import { StaffWorkspacePage } from '../features/staff/StaffWorkspacePage';
@@ -43,6 +45,8 @@ export function App() {
       <Route element={<RequireRole allowed={['ADMIN']} />}>
         <Route path="/admin/dashboard" element={<DashboardPage />} />
         <Route path="/admin/staff" element={<StaffPage />} />
+        <Route path="/admin/stations" element={<AdminStationsPage />} />
+        <Route path="/admin/vehicles" element={<AdminVehiclesPage />} />
       </Route>
 
       <Route path="*" element={<HomeRedirect />} />

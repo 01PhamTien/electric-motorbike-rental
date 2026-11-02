@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 const roleLabels = { CUSTOMER: 'Khách hàng', STAFF: 'Nhân viên vận hành', ADMIN: 'Quản trị viên' } as const;
 const assetUrl = (path?: string | null) => {
   if (!path) return '';
-  const base = (api.defaults.baseURL || 'http://localhost:3000/api').replace(/\\/api\\/?$/, '');
+  const base = (api.defaults.baseURL || 'http://localhost:3000/api').split('/api')[0];
   return path.startsWith('http') ? path : base + path;
 };
 

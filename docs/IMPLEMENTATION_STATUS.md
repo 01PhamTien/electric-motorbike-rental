@@ -76,3 +76,11 @@
 - Example at 150,000 VND/day: 30 minutes late = 0; 2 hours late = 150,000; 25 hours late = 150,000; 49 hours late = 300,000.
 
 - Admin overview report now includes maintenance record counts and recorded maintenance costs by status, filtered by scheduledAt.
+
+
+## Managed fleet simulated-location map
+- Added `GET /locations/latest` for the latest saved simulated location of each managed vehicle.
+- ADMIN can view the fleet-wide latest locations; STAFF results are restricted by the staff member's assigned station, and staff without a station receive an empty list.
+- Existing per-vehicle simulate/latest/history endpoints remain unchanged and continue enforcing vehicle station scope.
+- Locations page now displays all returned latest positions on the Leaflet map and a selectable list; selecting a vehicle marker/list entry loads that vehicle's saved location and history.
+- Every manual update remains append-only in `vehicle_locations`; no hardware GPS tracking is implied.

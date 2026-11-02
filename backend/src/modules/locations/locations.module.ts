@@ -4,12 +4,13 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuthModule } from '../auth/auth.module';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { LocationsController } from './locations.controller';
+import { ManagedLocationsController } from './managed-locations.controller';
 import { LocationsService } from './locations.service';
 import { VehicleLocation } from './vehicle-location.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([VehicleLocation, Vehicle]), AuthModule],
-  controllers: [LocationsController],
+  controllers: [LocationsController, ManagedLocationsController],
   providers: [LocationsService, RolesGuard],
 })
 export class LocationsModule {}

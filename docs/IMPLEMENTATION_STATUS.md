@@ -74,3 +74,5 @@
 - Late-return policy: 60-minute grace period; after grace, charge one daily-rate snapshot for each started 24-hour block. Formula: ceil(max(0, actualReturnAt - scheduledReturnAt - 60 minutes) / 24 hours) × booking.dailyRateSnapshot.
 - Late-return charge is recorded automatically as a LATE_RETURN charge after the return handover, billed separately by default (applyToDeposit=false); staff may later choose to deduct it from deposit through the settlement workflow.
 - Example at 150,000 VND/day: 30 minutes late = 0; 2 hours late = 150,000; 25 hours late = 150,000; 49 hours late = 300,000.
+
+- Admin overview report now includes maintenance record counts and recorded maintenance costs by status, filtered by scheduledAt.

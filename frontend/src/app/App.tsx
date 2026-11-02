@@ -4,6 +4,7 @@ import { RegisterPage } from '../features/auth/RegisterPage';
 import { RequireRole } from '../features/auth/RequireRole';
 import { useAuth, roleHome } from '../features/auth/AuthContext';
 import { MyBookingsPage } from '../features/bookings/MyBookingsPage';
+import { AdminBookingsPage } from '../features/bookings/AdminBookingsPage';
 import { LocationsPage } from '../features/locations/LocationsPage';
 import { StationsPage } from '../features/stations/StationsPage';
 import { AdminStationsPage } from '../features/stations/AdminStationsPage';
@@ -49,6 +50,7 @@ export function App() {
         <Route path="/admin/stations" element={<AdminStationsPage />} />
         <Route path="/admin/vehicles" element={<AdminVehiclesPage />} />
         <Route path="/admin/vehicle-models" element={<AdminVehicleModelsPage />} />
+        <Route path="/admin/bookings" element={<AdminBookingsPage />} />
       </Route>
 
       <Route path="*" element={<HomeRedirect />} />

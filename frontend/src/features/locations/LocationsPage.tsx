@@ -39,6 +39,7 @@ export function LocationsPage() {
   const [longitude, setLongitude] = useState('108.2022');
   const [latest, setLatest] = useState<LocationRecord | null>(null);
   const [history, setHistory] = useState<LocationRecord[]>([]);
+  const [fleetLocations, setFleetLocations] = useState<Array<LocationRecord & { vehicle: Vehicle }>>([]);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -55,6 +56,16 @@ export function LocationsPage() {
     Number.isFinite(lat) && Number.isFinite(lng) &&
     lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
   const mapCenter: [number, number] = validCoordinates ? [lat, lng] : DEFAULT_CENTER;
+
+  async function loadFleetLocations() {
+    try {
+      const response = await api.get('/locations/latest');
+      setFleetLocations(Array.isArray(response.data) ? response.data : []);
+    } catch (err: any) {
+      setFleetLocations([]);
+      setError(err.response?.data?.message || 'Không tải được bản đồ vị trí toàn đội xe.');
+    }
+  }
 
   async function loadLocationData(id: string) {
     if (!id) return;
@@ -79,6 +90,7 @@ export function LocationsPage() {
   }
 
   useEffect(() => {
+    void loadFleetLocations();
     api.get('/vehicles')
       .then((response) => {
         const data = Array.isArray(response.data) ? response.data : response.data?.items ?? [];
@@ -112,7 +124,7 @@ export function LocationsPage() {
     try {
       await api.post(`/vehicles/${vehicleId}/locations/simulate`, { latitude: lat, longitude: lng });
       setMessage('Đã lưu vị trí mô phỏng. Một bản ghi lịch sử mới đã được tạo.');
-      await loadLocationData(vehicleId);
+      await Promise.all([loadLocationData(vehicleId), loadFleetLocations()]);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Không lưu được vị trí. Chỉ ADMIN hoặc STAFF đúng điểm thuê mới được cập nhật.');
     } finally {
@@ -171,7 +183,27 @@ export function LocationsPage() {
               />
               <MapClickPicker onPick={pickCoordinates} />
               <MapCenter center={mapCenter} />
-              {validCoordinates && <CircleMarker center={mapCenter} radius={9} pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.8 }} />}
+              {fleetLocations.map((item) => (
+                <CircleMarker
+                  key={item.id}
+                  center={[Number(item.latitude), Number(item.longitude)]}
+                  radius={String(item.vehicleId) === vehicleId ? 10 : 7}
+                  pathOptions={{
+                    color: String(item.vehicleId) === vehicleId ? '#1d4ed8' : '#15803d',
+                    fillColor: String(item.vehicleId) === vehicleId ? '#3b82f6' : '#22c55e',
+                    fillOpacity: 0.85,
+                  }}
+                  eventHandlers={{
+                    click: () => {
+                      setVehicleId(String(item.vehicleId));
+                      setLatitude(String(item.latitude));
+                      setLongitude(String(item.longitude));
+                      setMessage(item.vehicle.code + ' · vị trí mô phỏng gần nhất');
+                    },
+                  }}
+                />
+              ))}
+              {validCoordinates && <CircleMarker center={mapCenter} radius={5} pathOptions={{ color: '#b45309', fillColor: '#f59e0b', fillOpacity: 0.9 }} />}
             </MapContainer>
           </div>
           {latest ? <div className="rounded-lg bg-slate-50 p-4">
@@ -179,6 +211,25 @@ export function LocationsPage() {
             <p className="mt-1 text-sm">{latest.latitude}, {latest.longitude}</p>
             <p className="mt-1 text-xs text-slate-500">Cập nhật: {new Date(latest.createdAt).toLocaleString('vi-VN')}</p>
           </div> : <p className="text-sm text-slate-500">Xe chưa có lịch sử vị trí.</p>}
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold">Bản đồ toàn đội xe</p>
+              <span className="text-xs text-slate-500">{fleetLocations.length} xe có vị trí đã lưu</span>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">Chấm xanh là vị trí gần nhất đã lưu. Bấm vào chấm để chọn xe.</p>
+            {fleetLocations.length > 0 && <div className="mt-2 max-h-36 space-y-1 overflow-y-auto">
+              {fleetLocations.map((item) => (
+                <button key={item.id} type="button" onClick={() => {
+                  setVehicleId(String(item.vehicleId));
+                  setLatitude(String(item.latitude));
+                  setLongitude(String(item.longitude));
+                }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs hover:bg-slate-50 ${String(item.vehicleId) === vehicleId ? 'bg-blue-50 font-semibold' : ''}`}>
+                  <span>{item.vehicle.code} · {item.vehicle.station?.name}</span>
+                  <span className="text-slate-500">{new Date(item.createdAt).toLocaleString('vi-VN')}</span>
+                </button>
+              ))}
+            </div>}
+          </div>
           {selectedVehicle && <p className="text-xs text-slate-500">Đang xem: {selectedVehicle.code} · {selectedVehicle.station?.name}</p>}
         </div>
       </div>

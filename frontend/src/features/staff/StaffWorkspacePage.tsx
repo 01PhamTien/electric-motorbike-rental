@@ -8,6 +8,14 @@ type Booking = {
   vehicle?: { code?: string; licensePlate?: string; model?: { name?: string }; station?: { name?: string } };
 };
 type HandoverKind = 'pickup' | 'return';
+type SettlementSummary = {
+  bookingId: number; status: string; currency: string;
+  rental: { amountDue: number; collected: number; outstanding: number };
+  deposit: { amountExpected: number; collected: number; deductions: number; refunded: number; refundable: number; deductionExceedsCollected: boolean };
+  extras: { separatelyBillable: number; collected: number; outstanding: number; deductedFromDeposit: number };
+  cashFlow: { totalCollected: number; totalRefunded: number; net: number };
+  canRefundDeposit: boolean;
+};
 type HandoverForm = { batteryPercent: string; odometerKm: string; conditionNote: string; imageUrls: string };
 
 const statusText: Record<string,string> = {
@@ -24,6 +32,14 @@ export function StaffWorkspacePage() {
   const [kind, setKind] = useState<HandoverKind>('pickup');
   const [form, setForm] = useState<HandoverForm>({ batteryPercent: '90', odometerKm: '', conditionNote: '', imageUrls: '' });
   const [saving, setSaving] = useState(false);
+  const [settlementBooking, setSettlementBooking] = useState<Booking | null>(null);
+  const [settlement, setSettlement] = useState<SettlementSummary | null>(null);
+  const [settlementLoading, setSettlementLoading] = useState(false);
+  const [paymentPurpose, setPaymentPurpose] = useState<'RENT'|'DEPOSIT'|'EXTRA'|'REFUND'>('RENT');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH'|'TRANSFER'>('CASH');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
+  const [paymentSaving, setPaymentSaving] = useState(false);
 
   async function load() {
     setLoading(true); setError('');
@@ -41,6 +57,48 @@ export function StaffWorkspacePage() {
     setError(''); setMessage('');
     try { await api.patch(`/bookings/${item.id}/confirm`); setMessage(`Đã xác nhận đơn #${item.id}.`); await load(); }
     catch (err: any) { setError(err.response?.data?.message || 'Không thể xác nhận đơn.'); }
+  }
+
+  async function openSettlement(item: Booking) {
+    setSettlementBooking(item); setSettlement(null); setSettlementLoading(true);
+    setPaymentPurpose('RENT'); setPaymentAmount(''); setPaymentNote('');
+    setError(''); setMessage('');
+    try {
+      const response = await api.get<SettlementSummary>(`/bookings/${item.id}/payments/summary`);
+      setSettlement(response.data);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Không tải được bảng quyết toán.');
+      setSettlementBooking(null);
+    } finally { setSettlementLoading(false); }
+  }
+
+  async function recordPayment(event: FormEvent) {
+    event.preventDefault();
+    if (!settlementBooking || !paymentAmount || Number(paymentAmount) <= 0) return;
+    setPaymentSaving(true); setError(''); setMessage('');
+    try {
+      await api.post(`/bookings/${settlementBooking.id}/payments`, {
+        purpose: paymentPurpose,
+        method: paymentMethod,
+        amount: Number(paymentAmount),
+        idempotencyKey: crypto.randomUUID(),
+        note: paymentNote.trim() || undefined,
+      });
+      const response = await api.get<SettlementSummary>(`/bookings/${settlementBooking.id}/payments/summary`);
+      setSettlement(response.data);
+      setPaymentAmount(''); setPaymentNote('');
+      setMessage('Đã ghi nhận giao dịch và cập nhật quyết toán.');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Không thể ghi nhận giao dịch.');
+    } finally { setPaymentSaving(false); }
+  }
+
+  function suggestedAmount(purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND') {
+    if (!settlement) return 0;
+    if (purpose === 'RENT') return settlement.rental.outstanding;
+    if (purpose === 'DEPOSIT') return Math.max(0, settlement.deposit.amountExpected - settlement.deposit.collected);
+    if (purpose === 'EXTRA') return settlement.extras.outstanding;
+    return settlement.deposit.refundable;
   }
 
   function openHandover(item: Booking, action: HandoverKind) {
@@ -105,9 +163,50 @@ export function StaffWorkspacePage() {
            {item.status === 'PENDING' && <button onClick={() => void confirmBooking(item)} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Xác nhận đơn</button>}
            {item.status === 'CONFIRMED' && <button onClick={() => openHandover(item,'pickup')} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white">Lập biên bản giao xe</button>}
            {item.status === 'RENTING' && <button onClick={() => openHandover(item,'return')} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white">Lập biên bản nhận xe trả</button>}
+           <button onClick={() => void openSettlement(item)} className="rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-800">Quyết toán / thanh toán</button>
          </div>
        </article>)}</div>}
     </div>
+
+    {settlementBooking && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+        <div className="flex items-start justify-between gap-3">
+          <div><h2 className="text-lg font-bold">Quyết toán đơn #{settlementBooking.id}</h2>
+            <p className="text-sm text-slate-500">{settlementBooking.vehicle?.code} · {statusText[settlementBooking.status] || settlementBooking.status}</p></div>
+          <button type="button" onClick={()=>setSettlementBooking(null)} className="rounded-lg border px-3 py-1.5 text-sm">Đóng</button>
+        </div>
+        {settlementLoading ? <p className="py-8 text-center text-sm text-slate-500">Đang tải quyết toán...</p> : settlement && <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border p-4"><p className="text-sm text-slate-500">Tiền thuê</p><p className="mt-1 text-lg font-bold">{settlement.rental.amountDue.toLocaleString('vi-VN')} đ</p><p className="text-xs text-slate-500">Đã thu {settlement.rental.collected.toLocaleString('vi-VN')} đ · Còn {settlement.rental.outstanding.toLocaleString('vi-VN')} đ</p></div>
+            <div className="rounded-xl border p-4"><p className="text-sm text-slate-500">Tiền cọc</p><p className="mt-1 text-lg font-bold">{settlement.deposit.collected.toLocaleString('vi-VN')} đ</p><p className="text-xs text-slate-500">Khấu trừ {settlement.deposit.deductions.toLocaleString('vi-VN')} đ · Đã hoàn {settlement.deposit.refunded.toLocaleString('vi-VN')} đ</p><p className="text-xs font-semibold text-green-700">Có thể hoàn {settlement.deposit.refundable.toLocaleString('vi-VN')} đ</p></div>
+            <div className="rounded-xl border p-4"><p className="text-sm text-slate-500">Phụ phí thu riêng</p><p className="mt-1 text-lg font-bold">{settlement.extras.separatelyBillable.toLocaleString('vi-VN')} đ</p><p className="text-xs text-slate-500">Đã thu {settlement.extras.collected.toLocaleString('vi-VN')} đ · Còn {settlement.extras.outstanding.toLocaleString('vi-VN')} đ</p></div>
+            <div className="rounded-xl border p-4"><p className="text-sm text-slate-500">Dòng tiền ròng</p><p className="mt-1 text-lg font-bold">{settlement.cashFlow.net.toLocaleString('vi-VN')} đ</p><p className="text-xs text-slate-500">Tổng thu {settlement.cashFlow.totalCollected.toLocaleString('vi-VN')} đ · Hoàn {settlement.cashFlow.totalRefunded.toLocaleString('vi-VN')} đ</p></div>
+          </div>
+          {settlement.deposit.deductionExceedsCollected && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Khoản khấu trừ đang lớn hơn tiền cọc đã thu. Cần kiểm tra trước khi hoàn tiền.</p>}
+          <form onSubmit={recordPayment} className="space-y-3 rounded-xl border bg-slate-50 p-4">
+            <h3 className="font-semibold">Ghi nhận giao dịch</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-medium">Loại giao dịch
+                <select value={paymentPurpose} onChange={e=>{const p=e.target.value as typeof paymentPurpose;setPaymentPurpose(p);setPaymentAmount(String(suggestedAmount(p)||''));}} className="mt-1 w-full rounded-lg border bg-white px-3 py-2">
+                  <option value="RENT">Thu tiền thuê</option><option value="DEPOSIT">Thu tiền cọc</option><option value="EXTRA">Thu phụ phí</option><option value="REFUND">Hoàn tiền cọc</option>
+                </select>
+              </label>
+              <label className="text-sm font-medium">Phương thức
+                <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value as typeof paymentMethod)} className="mt-1 w-full rounded-lg border bg-white px-3 py-2"><option value="CASH">Tiền mặt</option><option value="TRANSFER">Chuyển khoản</option></select>
+              </label>
+            </div>
+            <label className="block text-sm font-medium">Số tiền (VND)
+              <input required type="number" min="0.01" step="0.01" value={paymentAmount} onChange={e=>setPaymentAmount(e.target.value)} className="mt-1 w-full rounded-lg border bg-white px-3 py-2"/>
+            </label>
+            <label className="block text-sm font-medium">Ghi chú
+              <input value={paymentNote} onChange={e=>setPaymentNote(e.target.value)} maxLength={255} className="mt-1 w-full rounded-lg border bg-white px-3 py-2" placeholder="Mã giao dịch hoặc ghi chú"/>
+            </label>
+            <p className="text-xs text-slate-500">Phụ phí được khấu trừ vào cọc không thu lại ở mục phụ phí. Hoàn cọc chỉ thực hiện sau khi đơn hoàn thành.</p>
+            <button disabled={paymentSaving || Number(paymentAmount)<=0} className="w-full rounded-lg bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{paymentSaving?'Đang ghi nhận...':'Ghi nhận giao dịch'}</button>
+          </form>
+        </>}
+      </div>
+    </div>}
 
     {active && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
       <form onSubmit={submitHandover} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">

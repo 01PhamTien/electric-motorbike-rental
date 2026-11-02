@@ -152,12 +152,15 @@ export function StaffWorkspacePage() {
   const renting = items.filter(x => x.status === 'RENTING').length;
 
   return <section className="space-y-6">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><p className="text-sm font-semibold text-blue-700">KHU VỰC NHÂN VIÊN</p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-900">Bàn làm việc vận hành</h1>
-        <p className="mt-1 text-sm text-slate-600">Danh sách đơn tại điểm thuê được phân công.</p></div>
-      <button onClick={() => void load()} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50">Làm mới</button>
-    </div>
+    <header className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-lg sm:px-8">
+      <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
+      <div className="relative flex flex-wrap items-end justify-between gap-4">
+        <div><div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-bold tracking-[0.15em] text-cyan-200">TRUNG TÂM VẬN HÀNH</div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bàn làm việc nhân viên</h1>
+          <p className="mt-2 text-sm text-slate-300">Xử lý đơn thuê, giao nhận xe và quyết toán tại điểm thuê được phân công.</p></div>
+        <button onClick={() => void load()} disabled={loading} className="rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50">{loading ? 'Đang tải...' : '↻ Làm mới dữ liệu'}</button>
+      </div>
+    </header>
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{Array.isArray(error) ? error.join(', ') : error}</div>}
     {message && <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{message}</div>}
 
@@ -166,19 +169,19 @@ export function StaffWorkspacePage() {
         <div key={label} className="rounded-xl border bg-white p-4 shadow-sm"><p className="text-sm text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>)}
     </div>
 
-    <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-      <div className="border-b p-5"><h2 className="font-semibold">Đơn thuê cần xử lý ({items.length})</h2></div>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5"><div><h2 className="font-bold text-slate-900">Đơn thuê cần xử lý</h2><p className="mt-1 text-xs text-slate-500">Danh sách công việc theo phạm vi điểm thuê của tài khoản</p></div><span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">{items.length} đơn</span></div>
       {loading ? <p className="p-5 text-sm text-slate-500">Đang tải danh sách...</p> :
        items.length === 0 ? <p className="p-5 text-sm text-slate-500">Chưa có đơn thuê tại điểm được phân công.</p> :
-       <div className="divide-y">{items.map(item => <article key={item.id} className="space-y-3 p-5">
+       <div className="divide-y">{items.map(item => <article key={item.id} className="space-y-4 p-5 transition hover:bg-slate-50/70">
          <div className="flex flex-wrap items-start justify-between gap-3">
-           <div><p className="font-semibold text-slate-900">Đơn thuê #{item.id} · {item.vehicle?.code || item.vehicle?.licensePlate || 'Xe'}</p>
+           <div><p className="font-bold text-slate-950">Đơn thuê #{item.id} · {item.vehicle?.code || item.vehicle?.licensePlate || 'Xe'}</p>
              <p className="mt-1 text-sm text-slate-600">{item.vehicle?.model?.name || 'Mẫu xe'} · {item.vehicle?.station?.name || 'Điểm thuê'}</p>
              <p className="mt-1 text-sm text-slate-600">Khách: {item.customer?.fullName || item.customer?.email || '—'} {item.customer?.phone ? `· ${item.customer.phone}` : ''}</p>
            </div>
            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{statusText[item.status] || item.status}</span>
          </div>
-         <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+         <div className="grid gap-2 rounded-xl bg-slate-50 p-4 text-sm text-slate-600 sm:grid-cols-2">
            <p>Nhận xe: {new Date(item.pickupAt).toLocaleString('vi-VN')}</p>
            <p>Trả dự kiến: {new Date(item.returnAt).toLocaleString('vi-VN')}</p>
            <p>Tiền thuê: {Number(item.rentalAmount).toLocaleString('vi-VN')} đ</p>

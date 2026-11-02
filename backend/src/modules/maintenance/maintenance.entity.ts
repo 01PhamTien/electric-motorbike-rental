@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 
 export enum MaintenanceStatus {
   SCHEDULED = 'SCHEDULED',
@@ -33,6 +34,9 @@ export class MaintenanceRecord {
 
   @Column({ type: 'enum', enum: MaintenanceStatus, default: MaintenanceStatus.SCHEDULED })
   status: MaintenanceStatus;
+
+  @Column({ type: 'enum', enum: VehicleStatus, nullable: true })
+  previousVehicleStatus: VehicleStatus | null;
 
   @Column({ type: 'int' })
   createdById: number;

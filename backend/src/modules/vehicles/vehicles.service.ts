@@ -52,14 +52,19 @@ export class VehiclesService {
         pickupAt,
         returnAt,
       })
-      // The current maintenance schema has no planned end timestamp.
-      // Therefore any SCHEDULED/IN_PROGRESS maintenance record blocks availability.
+      // Scheduled maintenance blocks only overlapping search windows.
+      // IN_PROGRESS maintenance blocks all searches until the vehicle is released.
       .andWhere(`NOT EXISTS (
         SELECT 1 FROM maintenance_records maintenance
         WHERE maintenance.vehicleId = vehicle.id
           AND maintenance.status IN (:...maintenanceStatuses)
+          AND (maintenance.status = :inProgress OR
+               (maintenance.scheduledAt < :returnAt AND maintenance.plannedEndAt > :pickupAt))
       )`, {
         maintenanceStatuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS],
+        inProgress: MaintenanceStatus.IN_PROGRESS,
+        pickupAt,
+        returnAt,
       });
 
     if (query.stationId) qb.andWhere('vehicle.stationId = :stationId', { stationId: query.stationId });

@@ -84,3 +84,5 @@
 - Existing per-vehicle simulate/latest/history endpoints remain unchanged and continue enforcing vehicle station scope.
 - Locations page now displays all returned latest positions on the Leaflet map and a selectable list; selecting a vehicle marker/list entry loads that vehicle's saved location and history.
 - Every manual update remains append-only in `vehicle_locations`; no hardware GPS tracking is implied.
+
+- Production schema note: run `backend/src/database/migrations/202611020001_add_maintenance_planned_end_at.sql` once before deploying the maintenance scheduling change because TypeORM synchronize is disabled in production.

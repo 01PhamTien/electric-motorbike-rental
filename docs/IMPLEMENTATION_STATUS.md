@@ -86,3 +86,14 @@
 - Every manual update remains append-only in `vehicle_locations`; no hardware GPS tracking is implied.
 
 - Production schema note: run `backend/src/database/migrations/202611020001_add_maintenance_planned_end_at.sql` once before deploying the maintenance scheduling change because TypeORM synchronize is disabled in production.
+
+
+## Frontend role-based page access
+- Added an AuthContext that loads the current account from `GET /users/me`; role is not trusted from browser-stored profile data.
+- Added a route guard for CUSTOMER, STAFF and ADMIN; direct navigation to a restricted URL redirects the user to their role home.
+- CUSTOMER: vehicle/station catalogue and own bookings.
+- STAFF: operations queue, payment settlement, maintenance and simulated vehicle locations; backend services restrict records to the assigned station.
+- ADMIN: dashboard, staff administration and all staff operational pages.
+- Main navigation is rendered according to the authenticated role; login redirects to the appropriate role home.
+- Public vehicle/station catalogue remains accessible for pre-login discovery; write operations remain protected by backend ADMIN guards.
+- See `docs/ROLE_ACCESS_MATRIX.md` for the route matrix and security rules.

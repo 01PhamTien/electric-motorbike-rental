@@ -1,5 +1,7 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export const typeOrmConfig = (): TypeOrmModuleOptions => ({
   type: 'mysql',
   host: process.env.DB_HOST || '127.0.0.1',
@@ -8,7 +10,9 @@ export const typeOrmConfig = (): TypeOrmModuleOptions => ({
   password: process.env.DB_PASSWORD || 'emr123456',
   database: process.env.DB_DATABASE || 'electric_motorbike_rental',
   autoLoadEntities: true,
-  synchronize: true,
+  // Never let TypeORM alter a production schema automatically.
+  // Development keeps the existing synchronize behavior.
+  synchronize: !isProduction,
   timezone: '+07:00',
-  logging: false,
+  logging: !isProduction && process.env.DB_LOGGING === 'true',
 });

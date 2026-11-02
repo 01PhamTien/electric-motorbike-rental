@@ -3,7 +3,7 @@ import { api } from '../../services/api';
 import type { Vehicle } from '../../types';
 
 type MaintenanceStatus='SCHEDULED'|'IN_PROGRESS'|'COMPLETED'|'CANCELLED';
-type RecordItem={id:number;vehicleId:number;scheduledAt:string;plannedEndAt:string;completedAt:string|null;reason:string;description:string|null;cost:string;status:MaintenanceStatus;createdAt:string};
+type RecordItem={id:number;vehicleId:number;scheduledAt:string;plannedEndAt:string|null;completedAt:string|null;reason:string;description:string|null;cost:string;status:MaintenanceStatus;createdAt:string};
 type FormState={vehicleId:string;scheduledAt:string;plannedEndAt:string;reason:string;description:string;cost:string};
 const labels:Record<MaintenanceStatus,string>={SCHEDULED:'Đã lên lịch',IN_PROGRESS:'Đang bảo dưỡng',COMPLETED:'Hoàn thành',CANCELLED:'Đã hủy'};
 const money=(value:string|number)=>Number(value).toLocaleString('vi-VN')+' đ';
@@ -116,7 +116,7 @@ export function MaintenancePage(){
         <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-semibold">Phiếu #{record.id} · {vehicleName(record.vehicleId)}</h3><p className="mt-1 text-sm text-slate-600">{record.reason}</p></div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{labels[record.status]}</span></div>
         {record.description&&<p className="text-sm text-slate-600">{record.description}</p>}
-        <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-3"><p>Bắt đầu: {new Date(record.scheduledAt).toLocaleString('vi-VN')}</p><p>Dự kiến xong: {new Date(record.plannedEndAt).toLocaleString('vi-VN')}</p><p>Chi phí: <strong>{money(record.cost)}</strong></p><p>Hoàn thành: {record.completedAt?new Date(record.completedAt).toLocaleString('vi-VN'):'Chưa hoàn thành'}</p></div>
+        <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-3"><p>Bắt đầu: {new Date(record.scheduledAt).toLocaleString('vi-VN')}</p><p>Dự kiến xong: {record.plannedEndAt?new Date(record.plannedEndAt).toLocaleString('vi-VN'):'Chưa cập nhật'}</p><p>Chi phí: <strong>{money(record.cost)}</strong></p><p>Hoàn thành: {record.completedAt?new Date(record.completedAt).toLocaleString('vi-VN'):'Chưa hoàn thành'}</p></div>
         {record.status==='SCHEDULED'&&<button onClick={()=>void changeStatus(record,'IN_PROGRESS')} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white">Bắt đầu bảo dưỡng</button>}
         {record.status==='IN_PROGRESS'&&<div className="flex flex-wrap gap-2"><button onClick={()=>void changeStatus(record,'COMPLETED')} className="rounded-lg bg-green-700 px-3 py-2 text-sm font-semibold text-white">Hoàn thành bảo dưỡng</button><button onClick={()=>void changeStatus(record,'CANCELLED')} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">Hủy phiếu</button></div>}
        </article>)}</div>}

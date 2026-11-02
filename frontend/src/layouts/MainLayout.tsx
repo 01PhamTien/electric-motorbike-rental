@@ -33,10 +33,15 @@ export function MainLayout() {
 
         <div className="flex min-w-0 items-center gap-3">
           {user ? <>
-            <div className="hidden min-w-0 text-right sm:block">
-              <p className="max-w-48 truncate text-sm font-bold text-slate-800">{user.fullName}</p>
-              <p className="mt-0.5 text-[11px] font-medium text-slate-500">{roleLabels[user.role]}{user.role === 'STAFF' && user.station?.name ? ` · ${user.station.name}` : ''}</p>
-            </div>
+            <button type="button" onClick={() => navigate('/profile')} className="flex min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-50" title="Hồ sơ cá nhân">
+              {user.avatarUrl
+                ? <img src={((import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\\/api\\/?$/, '') + user.avatarUrl)} alt="" className="h-9 w-9 shrink-0 rounded-full border border-slate-200 object-cover" />
+                : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-blue-700">{user.fullName.charAt(0).toUpperCase()}</span>}
+              <span className="hidden min-w-0 text-right sm:block">
+                <span className="block max-w-48 truncate text-sm font-bold text-slate-800">{user.fullName}</span>
+                <span className="mt-0.5 block text-[11px] font-medium text-slate-500">{roleLabels[user.role]}{user.role === 'STAFF' && user.station?.name ? ` · ${user.station.name}` : ''}</span>
+              </span>
+            </button>
             <span className="hidden h-9 w-px bg-slate-200 sm:block" />
             <button onClick={signOut} className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700">Đăng xuất</button>
           </> : <>

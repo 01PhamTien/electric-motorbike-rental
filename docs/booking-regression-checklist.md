@@ -24,3 +24,11 @@ This branch needs a running MySQL test database and backend to validate transact
 - Add proactive scheduled expiry job (the current cleanup is on-demand during booking).
 - Review all booking writers to ensure they follow the same vehicle-lock ordering.
 - Move schema management to migrations; do not use TypeORM synchronize in production.
+
+## Scheduled expiry sweep (new)
+- By default, the NestJS backend checks up to 100 expired PENDING holds every 60 seconds.
+- `BOOKING_EXPIRY_ENABLED=false` disables the sweep; `BOOKING_EXPIRY_INTERVAL_MS=60000` controls the interval (minimum 1000 ms).
+- The sweep is local to each backend process. Concurrent workers re-check the booking under database locks; only one worker should write the EXPIRED transition/history.
+- Test with an expired hold and **no incoming booking requests**: verify status and a single history row after a sweep.
+- Test concurrent sweeps and staff confirmation against the same expired hold, as well as server shutdown/restart.
+- This is not yet a durable external job queue. For large deployments, replace or augment it with a dedicated worker and observability.

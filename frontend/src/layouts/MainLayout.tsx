@@ -24,7 +24,7 @@ export function MainLayout() {
       <div className="container-page flex h-[80px] items-center justify-between gap-4">
         <Brand />
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Điều hướng chính">
-          {visibleNav.map(item => <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => 'text-sm font-bold transition hover:text-emerald-700 ' + (isActive ? 'text-emerald-700' : 'text-slate-600')}>{item.label}</NavLink>)}
+          {visibleNav.map(item => <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => 'text-sm font-bold transition hover:text-emerald-700 ' + (isActive ? 'text-emerald-700' : 'text-slate-600')}>{item.label}</NavLink>)}
         </nav>
         <div className="hidden items-center gap-3 lg:flex">
           {loggedIn && <Link to="/profile" className="text-xs font-bold text-slate-600 hover:text-emerald-700">Tài khoản</Link>}

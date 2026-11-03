@@ -1,3 +1,5 @@
+uploads/
+backend/uploads/
 node_modules/
 dist/
 build/

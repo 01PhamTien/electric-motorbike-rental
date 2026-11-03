@@ -1,3 +1,41 @@
+# Cập nhật: Admin tải ảnh trực tiếp và bản đồ không dùng iframe
+
+## Admin chọn và thay ảnh xe
+
+Sau khi cập nhật code mới, vào **Trung tâm quản trị → Dòng xe** (\`/admin/models\`), nhấn **Chỉnh sửa** và chọn ảnh trực tiếp từ máy qua ô **Tải ảnh từ máy**. Hỗ trợ JPEG/PNG/WEBP tối đa **5 MB**. Ảnh có xem trước, nhấn **Lưu dòng xe** là tải lên backend và đổi ảnh cho tất cả xe cùng mẫu. Cũng có thể chọn ảnh ngay khi tạo dòng xe mới.
+
+- API \`POST /api/vehicle-models/:id/image\` là **ADMIN only**, nhận \`multipart/form-data\` với trường \`image\`.
+- File được lưu tại \`backend/uploads/vehicle-models/\` khi khởi chạy backend trong thư mục \`backend/\`. Có thể cấu hình thư mục qua \`VOLTGO_UPLOAD_DIR\` (đường dẫn tuyệt đối được khuyến nghị).
+- SQL Server chỉ lưu \`/api/vehicle-models/images/<random-uuid>.<ext>\`; ảnh được cung cấp qua backend, không cần chép vào frontend.
+- **Cần sao lưu cả thư mục \`uploads\` lẫn SQL Server**. Git bỏ qua thư mục uploads và \`git pull\` không đồng bộ ảnh lên máy khác.
+- Không dùng ảnh có bản quyền khi chưa được phép. Môi trường production nên dùng object storage/CDN và kiểm soát tài nguyên riêng.
+- Các URL ảnh cũ và ảnh lưu trong \`frontend/public/images/vehicle-models/\` vẫn được hỗ trợ.
+
+## Sửa lỗi OpenStreetMap từ chối kết nối
+
+Lỗi \`www.openstreetmap.org đã từ chối kết nối\` là do OpenStreetMap chặn hiển thị toàn bộ website bên trong iframe ở một số trình duyệt/cấu hình.
+
+VoltGo nay không nhúng \`www.openstreetmap.org\` bằng iframe nữa. Thay vào đó, frontend tải **raster tiles** qua \`https://tile.openstreetmap.org\` và vẽ bản đồ/ghim trạm ngay trong React. Bản đồ lớn có kéo, phóng to/thu nhỏ, trở về vị trí trạm. Các card trạm có ảnh bản đồ nhỏ.
+
+Cần kết nối Internet để tải tile. Nếu mạng, extension hoặc firewall chặn \`tile.openstreetmap.org\`, hãy kiểm tra truy cập miền đó; với môi trường khai thác thương mại cần tile provider phù hợp và tuân thủ OpenStreetMap Tile Usage Policy. Không cần API key trong bản demo local.
+
+## Cập nhật
+
+\`\`\`powershell
+cd D:\electric-motorbike-rental
+git switch main
+git pull origin main
+cd backend
+npm run migration:check:mssql
+npm run start:dev
+\`\`\`
+
+Mở một PowerShell khác: \`cd D:\electric-motorbike-rental\frontend; npm run dev\`.
+
+**Không cần migration mới cho thay đổi này**: cột \`imageUrl\` đã được thêm ở PR trước. Nếu bạn chưa từng chạy migration cột ảnh, trước hết chạy \`npm run migration:run:mssql\`.
+
+---
+
 # VoltGo — Hình ảnh dòng xe và bản đồ điểm nhận
 
 ## 1. Chạy migration sau khi git pull

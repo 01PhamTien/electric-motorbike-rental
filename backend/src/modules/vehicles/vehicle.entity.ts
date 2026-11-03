@@ -38,7 +38,7 @@ export class Vehicle {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   depositAmount: string;
 
-  @Column({ type: 'enum', enum: VehicleStatus, default: VehicleStatus.ACTIVE })
+  @Column({ type: 'simple-enum', enum: VehicleStatus, default: VehicleStatus.ACTIVE })
   status: VehicleStatus;
 
   @Column({ default: true })

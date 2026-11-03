@@ -83,3 +83,4 @@ jobs:
       - run: npm run migration:run
       - run: npm run build
       - run: npm run migration:run:prod
+

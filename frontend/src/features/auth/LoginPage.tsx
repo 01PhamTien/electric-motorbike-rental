@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Brand } from '../../components/Brand';
 import { api } from '../../services/api';
+import { useAuth } from './AuthContext';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { refresh } = useAuth();
   const [params] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,6 +19,7 @@ export function LoginPage() {
       const { data } = await api.post('/auth/login', { email, password });
       if (!data?.accessToken) throw new Error('Missing access token');
       localStorage.setItem('accessToken', data.accessToken);
+      await refresh();
       const requested = params.get('redirect');
       navigate(requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/bookings/my', { replace: true });
     } catch (err: unknown) {

@@ -41,12 +41,13 @@ export function AdminModelsPage(){
   async function submit(e:FormEvent){
     e.preventDefault();setSaving(true);setError('');
     try{
+      const isNew = editing === null;
       const payload={brand:form.brand.trim(),name:form.name.trim(),specifications:form.specifications.trim(),imageUrl:form.imageUrl.trim()||null};
       const result=editing===null?await api.post<{id:number}>('/vehicle-models',payload):await api.patch<{id:number}>('/vehicle-models/'+editing,payload);
       const id=editing??result.data.id;
       if(editing===null)setEditing(id);
       if(imageFile){const data=new FormData();data.append('image',imageFile);await api.post('/vehicle-models/'+id+'/image',data);}
-      clearPicked();setOpen(false);setNotice(editing===null?'Đã thêm dòng xe.':'Đã cập nhật dòng xe.');await load();
+      clearPicked();setOpen(false);setNotice(isNew?'Đã thêm dòng xe.':'Đã cập nhật dòng xe.');await load();
     }catch(e){setError(errorMessage(e));}finally{setSaving(false);}
   }
   return <section className="container-page space-y-7 py-12 sm:py-16">

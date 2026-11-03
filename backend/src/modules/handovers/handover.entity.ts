@@ -7,13 +7,13 @@ export enum HandoverKind { PICKUP = 'PICKUP', RETURN = 'RETURN' }
 @Index(['bookingId', 'kind'], { unique: true })
 export class HandoverRecord {
   @PrimaryGeneratedColumn() id: number;
-  @ManyToOne(() => Booking, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'bookingId' }) booking: Booking;
+  @ManyToOne(() => Booking, { onDelete: process.env.DB_TYPE === 'mssql' ? 'NO ACTION' : 'RESTRICT' }) @JoinColumn({ name: 'bookingId' }) booking: Booking;
   @Column({ type: 'int' }) bookingId: number;
   @Column({ type: 'simple-enum', enum: HandoverKind }) kind: HandoverKind;
   @Column({ type: 'int' }) batteryPercent: number;
   @Column({ type: 'decimal', precision: 12, scale: 1 }) odometerKm: string;
   @Column({ type: 'varchar', length: 1000 }) conditionNote: string;
-  @ManyToOne(() => User, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'staffId' }) staff: User;
+  @ManyToOne(() => User, { onDelete: process.env.DB_TYPE === 'mssql' ? 'NO ACTION' : 'RESTRICT' }) @JoinColumn({ name: 'staffId' }) staff: User;
   @Column({ type: 'int' }) staffId: number;
   @CreateDateColumn() createdAt: Date;
 }

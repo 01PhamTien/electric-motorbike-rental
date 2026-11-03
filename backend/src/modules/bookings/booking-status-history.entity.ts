@@ -15,10 +15,10 @@ export class BookingStatusHistory {
   @Column()
   bookingId: number;
 
-  @Column({ type: 'enum', enum: BookingStatus })
+  @Column({ type: 'simple-enum', enum: BookingStatus })
   fromStatus: BookingStatus;
 
-  @Column({ type: 'enum', enum: BookingStatus })
+  @Column({ type: 'simple-enum', enum: BookingStatus })
   toStatus: BookingStatus;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })

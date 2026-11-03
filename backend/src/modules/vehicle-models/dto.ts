@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, MaxLength, Matches } from 'class-validator';
 
 export class CreateVehicleModelDto {
   @IsString()
@@ -10,6 +10,10 @@ export class CreateVehicleModelDto {
   @IsOptional()
   @IsString()
   specifications?: string;
+
+  @IsOptional() @IsString() @MaxLength(500)
+  @Matches(/^(\/images\/vehicle-models\/[a-zA-Z0-9_./-]+\.(?:webp|png|jpe?g)|https:\/\/[^\s]+)$/i, { message: 'Đường dẫn ảnh phải là /images/vehicle-models/... hoặc HTTPS' })
+  imageUrl?: string | null;
 }
 
 export class UpdateVehicleModelDto {

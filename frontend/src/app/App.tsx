@@ -1,7 +1,7 @@
 import { Link, Route, Routes } from 'react-router-dom';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
-import { MyBookingsPage } from '../features/bookings/MyBookingsPage';
+import { CustomerBookingsRoute } from './CustomerBookingsRoute';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { HomePage } from '../features/home/HomePage';
 import { PaymentsPage } from '../features/payments/PaymentsPage';
@@ -28,7 +28,7 @@ export function App() {
       <Route index element={<HomePage />} />
       <Route path="/stations" element={<StationsPage />} />
       <Route path="/vehicles" element={<VehiclesPage />} />
-      <Route path="/bookings/my" element={<MyBookingsPage />} />
+      <Route path="/bookings/my" element={<CustomerBookingsRoute />} />
       <Route path="/locations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><LocationsPage /></RoleRoute>} />
       <Route path="/bookings/:id/payments" element={<PaymentsPage />} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import 'reflect-metadata';
 import { join } from 'node:path';
 import { DataSource, DataSourceOptions } from 'typeorm';

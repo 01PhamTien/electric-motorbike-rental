@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';

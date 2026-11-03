@@ -105,7 +105,19 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
     assert.notEqual(second?.id, first.id);
 
     // End-to-end lifecycle using the real services and MySQL transactions.
-    const staffForHandover: JwtUser = { sub: 2001, email: 'staff-handover@example.test', role: Role.STAFF, stationId: station.id };
+    const staffRecord = await dataSource.getRepository(User).save({
+      fullName: 'Staff integration tester',
+      email: 'staff-handover@example.test',
+      passwordHash: 'test-only',
+      role: Role.STAFF,
+      stationId: station.id,
+    });
+    const staffForHandover: JwtUser = {
+      sub: staffRecord.id,
+      email: staffRecord.email,
+      role: Role.STAFF,
+      stationId: station.id,
+    };
     const otherStaff: JwtUser = { ...staffForHandover, stationId: station.id + 999 };
     const handovers = new HandoversService(dataSource);
     const payments = new PaymentsService(dataSource);

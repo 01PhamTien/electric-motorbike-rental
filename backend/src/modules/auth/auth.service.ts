@@ -2,6 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { Role } from '../../common/enums/role.enum';
+import { UserStatus } from '../../common/enums/user-status.enum';
 import { UsersService } from '../users/users.service';
 import { LoginDto, RegisterDto } from './dto';
 
@@ -28,6 +29,7 @@ export class AuthService {
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
+    if (user.status !== UserStatus.ACTIVE) throw new UnauthorizedException('Tài khoản đã bị khóa hoặc chưa được kích hoạt');
     return this.issueToken(user.id, user.email, user.role, user.stationId);
   }
 

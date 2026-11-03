@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Brand } from '../../components/Brand';
 import { api } from '../../services/api';
+import { useAuth } from './AuthContext';
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const { refresh } = useAuth();
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -12,7 +14,7 @@ export function RegisterPage() {
     e.preventDefault(); setBusy(true); setError('');
     try {
       const { data } = await api.post('/auth/register', form);
-      if (data?.accessToken) { localStorage.setItem('accessToken', data.accessToken); navigate('/vehicles'); }
+      if (data?.accessToken) { localStorage.setItem('accessToken', data.accessToken); await refresh(); navigate('/vehicles'); }
       else navigate('/login');
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;

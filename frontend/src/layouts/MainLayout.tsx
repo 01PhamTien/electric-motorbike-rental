@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Brand } from '../components/Brand';
-import { getSessionRole } from '../services/session';
+import { useAuth } from '../features/auth/AuthContext';
 
 const nav = [
   { to: '/', label: 'Trang chủ', end: true },
@@ -12,10 +12,11 @@ const nav = [
 export function MainLayout() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const loggedIn = Boolean(localStorage.getItem('accessToken'));
-  const role = getSessionRole();
+  const { user, loading, logout: endSession } = useAuth();
+  const loggedIn = Boolean(user);
+  const role = user?.role;
   const staff = role === 'ADMIN' || role === 'STAFF';
-  const logout = () => { localStorage.removeItem('accessToken'); setMenuOpen(false); navigate('/login'); };
+  const logout = () => { endSession(); setMenuOpen(false); navigate('/login'); };
   return <div className="flex min-h-screen flex-col">
     <div className="bg-[#09292d] px-4 py-2 text-center text-[11px] font-semibold tracking-wide text-emerald-100">🌿 Khám phá Đà Nẵng theo cách xanh hơn · Thuê xe điện linh hoạt theo ngày</div>
     <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
@@ -25,11 +26,11 @@ export function MainLayout() {
           {nav.map(item => <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => 'text-sm font-bold transition hover:text-emerald-700 ' + (isActive ? 'text-emerald-700' : 'text-slate-600')}>{item.label}</NavLink>)}
         </nav>
         <div className="hidden items-center gap-3 lg:flex">
-          {loggedIn ? <>{staff && <Link to="/operations" className="text-xs font-bold text-slate-600 hover:text-emerald-700">Vận hành</Link>}{role === 'ADMIN' && <Link to="/admin/dashboard" className="text-xs font-bold text-slate-500 hover:text-emerald-700">Báo cáo</Link>}<button onClick={logout} className="btn-outline">Đăng xuất</button></> : <><Link to="/login" className="px-3 text-sm font-bold text-slate-700">Đăng nhập</Link><Link to="/register" className="btn-dark">Đăng ký ngay <span aria-hidden="true">↗</span></Link></>}
+          {loading ? <span className="text-xs text-slate-400">Đang tải...</span> : loggedIn ? <>{staff && <Link to="/operations" className="text-xs font-bold text-slate-600 hover:text-emerald-700">Vận hành</Link>}{role === 'ADMIN' && <Link to="/admin/dashboard" className="text-xs font-bold text-slate-500 hover:text-emerald-700">Báo cáo</Link>}<button onClick={logout} className="btn-outline">Đăng xuất</button></> : <><Link to="/login" className="px-3 text-sm font-bold text-slate-700">Đăng nhập</Link><Link to="/register" className="btn-dark">Đăng ký ngay <span aria-hidden="true">↗</span></Link></>}
         </div>
         <button className="rounded-xl border border-slate-200 p-3 text-xl lg:hidden" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? '✕' : '☰'}</button>
       </div>
-      {menuOpen && <div className="border-t border-slate-100 bg-white px-5 py-4 lg:hidden"><nav aria-label="Điều hướng di động" className="container-page flex flex-col gap-1">{nav.map(item => <NavLink key={item.to} to={item.to} onClick={() => setMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50">{item.label}</NavLink>)}{staff && <Link to="/operations" onClick={() => setMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm text-slate-700">Vận hành</Link>}{role === 'ADMIN' && <Link to="/admin/dashboard" onClick={() => setMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm text-slate-700">Báo cáo</Link>}{loggedIn ? <button onClick={logout} className="btn-outline mt-2">Đăng xuất</button> : <Link to="/login" onClick={() => setMenuOpen(false)} className="btn-primary mt-2">Đăng nhập</Link>}</nav></div>}
+      {menuOpen && <div className="border-t border-slate-100 bg-white px-5 py-4 lg:hidden"><nav aria-label="Điều hướng di động" className="container-page flex flex-col gap-1">{nav.map(item => <NavLink key={item.to} to={item.to} onClick={() => setMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50">{item.label}</NavLink>)}{staff && <Link to="/operations" onClick={() => setMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm text-slate-700">Vận hành</Link>}{role === 'ADMIN' && <Link to="/admin/dashboard" onClick={() => setMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm text-slate-700">Báo cáo</Link>}{loading ? <span className="p-3 text-xs text-slate-400">Đang tải...</span> : loggedIn ? <button onClick={logout} className="btn-outline mt-2">Đăng xuất</button> : <Link to="/login" onClick={() => setMenuOpen(false)} className="btn-primary mt-2">Đăng nhập</Link>}</nav></div>}
     </header>
     <main className="flex-1"><Outlet /></main>
     <footer className="mt-16 bg-[#0b252a] py-14 text-white">

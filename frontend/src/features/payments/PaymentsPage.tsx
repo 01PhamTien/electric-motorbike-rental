@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
-import { getSessionRole } from '../../services/session';
+import { useAuth } from '../auth/AuthContext';
 import { api } from '../../services/api';
 
 type Payment = { id: number; purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND'; method: 'CASH'|'TRANSFER'; amount: string; note: string|null; createdAt: string };
@@ -20,7 +20,8 @@ export function PaymentsPage() {
   const [notice,setNotice] = useState('');
   const [busy,setBusy] = useState(false);
   const [form,setForm] = useState<{purpose:Payment['purpose']; method:Payment['method']; amount:string;note:string;key:string}>({purpose:'RENT',method:'CASH',amount:'',note:'',key:newKey()});
-  const staff = ['ADMIN','STAFF'].includes(getSessionRole() || '');
+  const { user } = useAuth();
+  const staff = user?.role === 'ADMIN' || user?.role === 'STAFF';
   const load = useCallback(async() => {
     if (!id) return;
     setLoading(true);

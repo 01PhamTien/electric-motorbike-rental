@@ -4,6 +4,7 @@ import { RegisterPage } from '../features/auth/RegisterPage';
 import { MyBookingsPage } from '../features/bookings/MyBookingsPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { HomePage } from '../features/home/HomePage';
+import { PaymentsPage } from '../features/payments/PaymentsPage';
 import { MaintenancePage } from '../features/maintenance/MaintenancePage';
 import { OperationsPage } from '../features/operations/OperationsPage';
 import { LocationsPage } from '../features/locations/LocationsPage';
@@ -22,6 +23,7 @@ export function App() {
       <Route path="/vehicles" element={<VehiclesPage />} />
       <Route path="/bookings/my" element={<MyBookingsPage />} />
       <Route path="/locations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><LocationsPage /></RoleRoute>} />
+      <Route path="/bookings/:id/payments" element={<PaymentsPage />} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
       <Route path="/operations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
       <Route path="/admin/dashboard" element={<RoleRoute allowed={['ADMIN']}><DashboardPage /></RoleRoute>} />

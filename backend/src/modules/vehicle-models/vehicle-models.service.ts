@@ -19,7 +19,7 @@ export class VehicleModelsService {
   }
 
   create(dto: CreateVehicleModelDto) {
-    return this.repo.save(this.repo.create({ ...dto, specifications: dto.specifications || null }));
+    return this.repo.save(this.repo.create({ ...dto, specifications: dto.specifications || null, imageUrl: dto.imageUrl || null }));
   }
 
   async update(id: number, dto: UpdateVehicleModelDto) {

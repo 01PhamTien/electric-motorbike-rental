@@ -7,6 +7,7 @@ export interface Station {
   latitude: string;
   longitude: string;
   phone?: string | null;
+  isActive?: boolean;
 }
 
 export interface Vehicle {
@@ -17,5 +18,5 @@ export interface Vehicle {
   depositAmount: string;
   status: 'ACTIVE' | 'CHARGING' | 'MAINTENANCE' | 'INACTIVE';
   station: Station;
-  model: { id: number; brand: string; name: string };
+  model: { id: number; brand: string; name: string; imageUrl?: string | null };
 }

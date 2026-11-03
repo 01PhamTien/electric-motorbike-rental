@@ -15,6 +15,9 @@ export class VehicleModel {
   @Column({ type: 'text', nullable: true })
   specifications: string | null;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  imageUrl: string | null;
+
   @OneToMany(() => Vehicle, (vehicle) => vehicle.model)
   vehicles: Vehicle[];
 

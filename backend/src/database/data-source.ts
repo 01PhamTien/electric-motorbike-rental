@@ -26,4 +26,3 @@ export const migrationDataSource = new DataSource({
   entities: [join(__dirname, '../modules/**/*.entity.{js,ts}')],
   migrations: [join(__dirname, 'migrations/*.{js,ts}')],
 });
-export default migrationDataSource;

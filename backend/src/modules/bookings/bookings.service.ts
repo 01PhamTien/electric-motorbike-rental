@@ -94,6 +94,16 @@ export class BookingsService {
     });
   }
 
+  async listForOperations(current: JwtUser) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    if (current.role === Role.STAFF && current.stationId == null) throw new ForbiddenException('Nhân viên chưa được phân công trạm');
+    return this.bookingRepo.find({
+      where: current.role === Role.STAFF ? { vehicle: { stationId: current.stationId! } } : {},
+      order: { id: 'DESC' },
+      take: 100,
+    });
+  }
+
   myBookings(current: JwtUser) {
     return this.bookingRepo.find({ where: { customerId: current.sub }, order: { id: 'DESC' } });
   }

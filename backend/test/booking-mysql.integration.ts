@@ -10,6 +10,10 @@ import { JwtUser } from '../src/common/interfaces/jwt-user.interface';
 import { BookingExpiryService } from '../src/modules/bookings/booking-expiry.service';
 import { Booking } from '../src/modules/bookings/booking.entity';
 import { BookingStatusHistory } from '../src/modules/bookings/booking-status-history.entity';
+import { HandoversService } from '../src/modules/handovers/handovers.service';
+import { HandoverKind, HandoverRecord } from '../src/modules/handovers/handover.entity';
+import { PaymentsService } from '../src/modules/payments/payments.service';
+import { PaymentMethod, PaymentPurpose, PaymentTransaction } from '../src/modules/payments/payment.entity';
 import { BookingsService } from '../src/modules/bookings/bookings.service';
 import { Station } from '../src/modules/stations/station.entity';
 import { User } from '../src/modules/users/user.entity';
@@ -99,6 +103,63 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
     const second = await bookingService.create(user(customers[1].id), dto);
     assert.equal(second?.status, BookingStatus.PENDING);
     assert.notEqual(second?.id, first.id);
+
+    // End-to-end lifecycle using the real services and MySQL transactions.
+    const staffRecord = await dataSource.getRepository(User).save({
+      fullName: 'Staff integration tester',
+      email: 'staff-handover@example.test',
+      passwordHash: 'test-only',
+      role: Role.STAFF,
+      stationId: station.id,
+    });
+    const staffForHandover: JwtUser = {
+      sub: staffRecord.id,
+      email: staffRecord.email,
+      role: Role.STAFF,
+      stationId: station.id,
+    };
+    const otherStaff: JwtUser = { ...staffForHandover, stationId: station.id + 999 };
+    const handovers = new HandoversService(dataSource);
+    const payments = new PaymentsService(dataSource);
+    await assert.rejects(() => handovers.process(otherStaff, second!.id, HandoverKind.PICKUP, {
+      batteryPercent: 90, odometerKm: 120, conditionNote: 'Kiểm tra phân quyền',
+    }));
+    await bookingService.confirm(staffForHandover, second!.id);
+    const pickupRecord = await handovers.process(staffForHandover, second!.id, HandoverKind.PICKUP, {
+      batteryPercent: 90, odometerKm: 120, conditionNote: 'Xe tốt khi giao',
+    });
+    assert.equal(pickupRecord.status, BookingStatus.RENTING);
+    await assert.rejects(() => handovers.process(staffForHandover, second!.id, HandoverKind.RETURN, {
+      batteryPercent: 45, odometerKm: 119, conditionNote: 'Đồng hồ km giảm bất thường',
+    }));
+    const returnRecord = await handovers.process(staffForHandover, second!.id, HandoverKind.RETURN, {
+      batteryPercent: 45, odometerKm: 156, conditionNote: 'Xe tốt khi nhận',
+    });
+    assert.equal(returnRecord.status, BookingStatus.COMPLETED);
+    assert.equal(await dataSource.getRepository(HandoverRecord).countBy({ bookingId: second!.id }), 2);
+    await assert.rejects(() => handovers.process(staffForHandover, second!.id, HandoverKind.RETURN, {
+      batteryPercent: 45, odometerKm: 157, conditionNote: 'Không cho nhận xe hai lần',
+    }));
+
+    const deposit = { purpose: PaymentPurpose.DEPOSIT, method: PaymentMethod.CASH,
+      amount: 1000000, idempotencyKey: 'test-deposit-' + second!.id };
+    const firstPayment = await payments.create(staffForHandover, second!.id, deposit);
+    const repeated = await payments.create(staffForHandover, second!.id, deposit);
+    assert.equal(firstPayment.id, repeated.id);
+    await assert.rejects(() => payments.create(otherStaff, second!.id, {
+      ...deposit, idempotencyKey: 'test-foreign-' + second!.id,
+    }));
+    await assert.rejects(() => payments.create(staffForHandover, second!.id, {
+      purpose: PaymentPurpose.REFUND, method: PaymentMethod.CASH,
+      amount: 1000001, idempotencyKey: 'test-excess-refund-' + second!.id,
+    }));
+    await payments.create(staffForHandover, second!.id, {
+      purpose: PaymentPurpose.REFUND, method: PaymentMethod.CASH,
+      amount: 1000000, idempotencyKey: 'test-refund-' + second!.id,
+    });
+    assert.equal(await dataSource.getRepository(PaymentTransaction).countBy({ bookingId: second!.id }), 2);
+    assert.equal((await dataSource.getRepository(Booking).findOneByOrFail({id:second!.id})).status,
+      BookingStatus.COMPLETED);
 
     // Operational queue must respect station boundaries and reject customers.
     const admin: JwtUser = { sub: 1001, email: 'admin@example.test', role: Role.ADMIN, stationId: null };

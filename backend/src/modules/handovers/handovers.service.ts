@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
+import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from '../bookings/booking-status-history.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { Role } from '../../common/enums/role.enum';
@@ -13,10 +14,26 @@ export class HandoversService {
   constructor(private readonly dataSource: DataSource) {}
   async process(current: JwtUser, bookingId: number, kind: HandoverKind, dto: HandoverDto) {
     if (current.role !== Role.ADMIN && current.role !== Role.STAFF) throw new ForbiddenException();
+    // Match the vehicle -> booking lock order used by BookingsService.
+    // Avoid competing lock orders when pickup/return overlaps confirmation or cancellation.
+    const candidate = await this.dataSource.getRepository(Booking).findOne({
+      where: { id: bookingId },
+      select: { id: true, vehicleId: true },
+    });
+    if (!candidate) throw new NotFoundException('Không tìm thấy đơn');
     return this.dataSource.transaction(async manager => {
-      const booking = await manager.getRepository(Booking).findOne({ where: { id: bookingId }, lock: { mode: 'pessimistic_write' } });
+      const vehicle = await manager.getRepository(Vehicle).findOne({
+        where: { id: candidate.vehicleId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!vehicle) throw new NotFoundException('Không tìm thấy xe của đơn');
+      const booking = await manager.getRepository(Booking).findOne({
+        where: { id: bookingId },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (!booking) throw new NotFoundException('Không tìm thấy đơn');
-      if (current.role === Role.STAFF && current.stationId !== booking.vehicle.stationId)
+      if (booking.vehicleId !== vehicle.id) throw new BadRequestException('Xe của đơn đã thay đổi, vui lòng thử lại');
+      if (current.role === Role.STAFF && current.stationId !== vehicle.stationId)
         throw new ForbiddenException('Đơn ngoài điểm thuê được phân công');
       const expected = kind === HandoverKind.PICKUP ? BookingStatus.CONFIRMED : BookingStatus.RENTING;
       const next = kind === HandoverKind.PICKUP ? BookingStatus.RENTING : BookingStatus.COMPLETED;

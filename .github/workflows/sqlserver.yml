@@ -22,7 +22,7 @@ jobs:
       DB_PORT: 1433
       DB_USERNAME: sa
       DB_PASSWORD: CI-Test-Only-SQL-Passw0rd!
-      DB_DATABASE: master
+      DB_DATABASE: VoltGo_ci_test
       DB_ENCRYPT: 'false'
       DB_TRUST_SERVER_CERTIFICATE: 'true'
     defaults:
@@ -43,4 +43,8 @@ jobs:
             if node -e 'const sql=require("mssql");sql.connect({server:"127.0.0.1",port:1433,user:"sa",password:process.env.DB_PASSWORD,database:"master",options:{encrypt:false,trustServerCertificate:true}}).then(()=>sql.close()).then(()=>process.exit(0)).catch(()=>process.exit(1))'; then break; fi
             sleep 3
           done
-      - run: node -r ts-node/register src/database/print-mssql-schema.ts
+      - run: node -r ts-node/register src/database/create-mssql-test-database.ts
+      - run: npm run migration:run:mssql
+      - run: npm run migration:check:mssql
+      - run: npm run test:mssql
+      - run: npm run migration:run:prod

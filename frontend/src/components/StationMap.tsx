@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Map, Marker, NavigationControl, setWorkerUrl } from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
-/**
- * OpenStreetMap raster tiles, rendered directly in React.
- * The OSM website blocks iframe embedding in some browsers (frame headers).
- * Map tiles are image resources, so they do not require iframe permission.
- */
+setWorkerUrl(workerUrl);
+
+/** Maps are loaded from OpenFreeMap vector tiles instead of the blocked OSM raster domain. */
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+
 export function coordinatesValid(latitude: string | number, longitude: string | number): boolean {
   const lat = Number(latitude), lon = Number(longitude);
   return latitude !== '' && longitude !== '' && Number.isFinite(lat) && Number.isFinite(lon)
@@ -14,89 +16,91 @@ export function coordinatesValid(latitude: string | number, longitude: string | 
 export function stationDirections(latitude: string | number, longitude: string | number): string {
   return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(Number(latitude) + ',' + Number(longitude));
 }
-const TILE = 256;
-const clampLat = (lat: number) => Math.max(-85.0511, Math.min(85.0511, lat));
-function toWorld(lat: number, lng: number, zoom: number) {
-  const world = TILE * 2 ** zoom;
-  const rad = clampLat(lat) * Math.PI / 180;
-  return {
-    x: (lng + 180) / 360 * world,
-    y: (1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * world,
-  };
-}
-function fromWorld(x: number, y: number, zoom: number) {
-  const world = TILE * 2 ** zoom;
-  const lng = ((x % world + world) % world) / world * 360 - 180;
-  const n = Math.PI * (1 - 2 * Math.max(0, Math.min(world, y)) / world);
-  const lat = 180 / Math.PI * Math.atan(Math.sinh(n));
-  return { lat, lng };
-}
+
 export function StationMap({ latitude, longitude, name, compact = false }: {
   latitude: string | number; longitude: string | number; name: string; compact?: boolean;
 }) {
+  const host = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(!compact);
+  const [unavailable, setUnavailable] = useState(false);
   const lat = Number(latitude), lng = Number(longitude);
-  const [zoom, setZoom] = useState(compact ? 15 : 14);
-  const [center, setCenter] = useState({ lat, lng });
-  const pointer = useRef<{ x: number; y: number } | null>(null);
-  useEffect(() => { setCenter({ lat, lng }); }, [lat, lng]);
-  const tiles = useMemo(() => {
-    const p = toWorld(center.lat, center.lng, zoom);
-    const x0 = Math.floor(p.x / TILE), y0 = Math.floor(p.y / TILE);
-    const n = 2 ** zoom;
-    const radius = compact ? 1 : 2;
-    const output: { x: number; y: number; left: number; top: number; key: string }[] = [];
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        const x = x0 + dx, y = y0 + dy;
-        if (y < 0 || y >= n) continue;
-        output.push({
-          x: (x % n + n) % n, y,
-          left: x * TILE - p.x, top: y * TILE - p.y,
-          key: x + ':' + y,
-        });
-      }
+  const valid = coordinatesValid(latitude, longitude);
+
+  // Only instantiate preview maps when near the viewport: avoid dozens of WebGL
+  // contexts and unnecessary tile downloads on long station lists.
+  useEffect(() => {
+    if (!compact || !host.current) return;
+    const el = host.current;
+    if (!('IntersectionObserver' in window)) { setVisible(true); return; }
+    const observer = new IntersectionObserver(entries => {
+      setVisible(entries.some(entry => entry.isIntersecting));
+    }, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [compact]);
+
+  useEffect(() => {
+    if (!valid || !visible || !host.current) return;
+    const container = host.current;
+    let map: Map | null = null;
+    let marker: Marker | null = null;
+    let failures = 0;
+    let didRender = false;
+    setUnavailable(false);
+    const timeout = window.setTimeout(() => { if (!didRender) setUnavailable(true); }, 14000);
+    try {
+      map = new Map({
+        container,
+        style: STYLE_URL,
+        center: [lng, lat],
+        zoom: compact ? 14 : 14.5,
+        attributionControl: { compact: true },
+        interactive: !compact,
+        pitchWithRotate: false,
+        dragRotate: false,
+        maxZoom: 18,
+        minZoom: 9,
+      });
+      const pin = document.createElement('div');
+      pin.className = 'flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-white bg-emerald-700 text-xl text-white shadow-xl';
+      pin.textContent = '⌖';
+      pin.title = name;
+      marker = new Marker({ element: pin, anchor: 'bottom' }).setLngLat([lng, lat]).addTo(map);
+      if (!compact) map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+      map.on('idle', () => { didRender = true; window.clearTimeout(timeout); });
+      map.on('error', () => {
+        failures++;
+        if (failures >= 3) {
+          window.clearTimeout(timeout);
+          setUnavailable(true);
+        }
+      });
+    } catch {
+      window.clearTimeout(timeout);
+      setUnavailable(true);
     }
-    return output;
-  }, [center, zoom, compact]);
-  if (!coordinatesValid(latitude, longitude)) {
+    return () => {
+      window.clearTimeout(timeout);
+      marker?.remove();
+      map?.remove();
+    };
+  }, [valid, visible, compact, lat, lng, name]);
+
+  if (!valid) {
     return <div className="flex h-full w-full items-center justify-center bg-slate-100 p-5 text-center text-sm text-slate-500">Điểm thuê chưa có tọa độ hợp lệ.</div>;
   }
-  const anchor = toWorld(lat, lng, zoom), mapCenter = toWorld(center.lat, center.lng, zoom);
-  function endDrag(e: PointerEvent<HTMLDivElement>) {
-    if (!pointer.current || compact) return;
-    const dx = e.clientX - pointer.current.x, dy = e.clientY - pointer.current.y;
-    pointer.current = null;
-    if (Math.abs(dx) + Math.abs(dy) > 3) setCenter(fromWorld(mapCenter.x - dx, mapCenter.y - dy, zoom));
-  }
-  return <div
-    role="region"
-    aria-label={'Bản đồ ' + name}
-    className={'relative h-full w-full overflow-hidden bg-[#e3eee9] ' + (compact ? '' : 'cursor-grab touch-none active:cursor-grabbing')}
-    onPointerDown={compact ? undefined : e => { if (e.button !== 0) return; pointer.current = { x: e.clientX, y: e.clientY }; e.currentTarget.setPointerCapture(e.pointerId); }}
-    onPointerUp={endDrag}
-    onPointerCancel={() => { pointer.current = null; }}
-  >
-    {tiles.map(tile => <img
-      key={zoom + ':' + tile.key}
-      src={'https://tile.openstreetmap.org/' + zoom + '/' + tile.x + '/' + tile.y + '.png'}
-      alt=""
-      draggable={false}
-      loading="lazy"
-      decoding="async"
-      className="pointer-events-none absolute h-64 w-64 max-w-none select-none"
-      style={{ left: 'calc(50% + ' + tile.left + 'px)', top: 'calc(50% + ' + tile.top + 'px)' }}
-    />)}
-    <div className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full drop-shadow-lg" style={{ left: 'calc(50% + ' + (anchor.x - mapCenter.x) + 'px)', top: 'calc(50% + ' + (anchor.y - mapCenter.y) + 'px)' }}>
-      <div className="flex h-11 w-9 items-center justify-center rounded-t-full rounded-bl-full rounded-br-md bg-emerald-700 text-2xl text-white ring-2 ring-white">⌖</div>
-      <div className="mx-auto h-2 w-2 rounded-full bg-emerald-800/50" />
-    </div>
-    {!compact && <div className="absolute right-4 top-4 z-20 flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-      <button type="button" aria-label="Phóng to bản đồ" className="px-4 py-2.5 text-xl font-bold text-slate-800 hover:bg-slate-50" onPointerDown={e=>e.stopPropagation()} onClick={() => setZoom(z => Math.min(18, z+1))}>+</button>
-      <button type="button" aria-label="Thu nhỏ bản đồ" className="border-t px-4 py-2.5 text-xl font-bold text-slate-800 hover:bg-slate-50" onPointerDown={e=>e.stopPropagation()} onClick={() => setZoom(z => Math.max(11, z-1))}>−</button>
-      <button type="button" aria-label="Về vị trí trạm" className="border-t px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-slate-50" onPointerDown={e=>e.stopPropagation()} onClick={() => setCenter({lat,lng})}>⌖</button>
+
+  return <div className="relative h-full w-full overflow-hidden bg-[#e1eee8]">
+    <div ref={host} className="absolute inset-0" aria-label={'Bản đồ ' + name} role="region" />
+    {!visible && <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-emerald-50 to-sky-100 text-center text-sm text-emerald-800">
+      <span>📍 {name}</span>
     </div>}
-    <div className="absolute bottom-1 right-1 z-20 rounded bg-white/90 px-2 py-0.5 text-[10px] text-slate-700">
-      © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a> contributors
-    </div>
+    {unavailable && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-emerald-50 via-white to-sky-100 px-4 text-center">
+      <span className="text-4xl" aria-hidden="true">📍</span>
+      <strong className="text-sm font-extrabold text-emerald-900">{name}</strong>
+      <p className="max-w-xs text-xs leading-5 text-slate-600">Mạng hiện không tải được bản đồ trực tuyến. Vị trí trạm vẫn được lưu chính xác theo tọa độ bên dưới.</p>
+      <span className="rounded-lg bg-white px-3 py-2 font-mono text-xs text-slate-700 shadow-sm">{lat.toFixed(5)}, {lng.toFixed(5)}</span>
+      <a href={stationDirections(lat, lng)} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-emerald-800 px-4 py-2 text-xs font-bold text-white">Mở trên Google Maps ↗</a>
+    </div>}
   </div>;
 }

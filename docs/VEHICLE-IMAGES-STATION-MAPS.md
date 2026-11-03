@@ -1,3 +1,30 @@
+# Sửa bản đồ trắng và lỗi ERR_CONNECTION_REFUSED (2026-11-03)
+
+Khi trình duyệt từ chối kết nối đến `tile.openstreetmap.org`, các ô bản đồ cũ hiển thị biểu tượng ảnh bị hỏng. Đây là lỗi truy cập nguồn bản đồ qua mạng, **không phải lỗi tọa độ trạm hay SQL Server**.
+
+Trang `/stations` đã chuyển sang **OpenFreeMap vector maps** (`https://tiles.openfreemap.org/styles/liberty`) sử dụng MapLibre GL JS; không còn tải ảnh từ `tile.openstreetmap.org`. Bản đồ thu nhỏ chỉ khởi tạo khi nằm trong vùng đang xem để giảm tài nguyên trình duyệt.
+
+Nếu trình duyệt cũng chặn mạng tới OpenFreeMap, giao diện sẽ **không hiển thị ô ảnh hỏng**. Thay vào đó, người dùng thấy tên trạm, tọa độ và nút **Mở trên Google Maps**. Không có dịch vụ trực tuyến nào đảm bảo hoạt động khi máy tính không có Internet hoặc firewall chặn mọi nguồn bản đồ.
+
+### Cách cập nhật trên Windows
+
+```powershell
+cd D:\electric-motorbike-rental
+git switch main
+git pull origin main
+cd frontend
+npm ci
+npm run dev
+```
+
+Nếu backend vẫn đang chạy thì không cần thay đổi. **Không cần migration hoặc seed.**
+
+Nếu bản đồ dự phòng xuất hiện, thử mở `https://tiles.openfreemap.org/styles/liberty` trên chính trình duyệt đó để kiểm tra đường truyền. Ngoài ra có thể nhấn nút Google Maps trên trạm để xem đường đi. Nếu Google Maps cũng bị chặn, kiểm tra proxy/firewall/DNS hoặc kết nối Internet.
+
+Nguồn bản đồ: OpenFreeMap (https://openfreemap.org/) trên dữ liệu OpenStreetMap. Các trạm seed demo có tọa độ minh họa, cần xác minh địa chỉ trước khi phục vụ khách thật.
+
+---
+
 # Cập nhật: Admin tải ảnh trực tiếp và bản đồ không dùng iframe
 
 ## Admin chọn và thay ảnh xe

@@ -23,6 +23,7 @@ export class BookingsService {
     const pickupAt = new Date(dto.pickupAt);
     const returnAt = new Date(dto.returnAt);
     if (!(returnAt > pickupAt)) throw new BadRequestException('Thời gian trả phải sau thời gian nhận');
+    if (pickupAt <= new Date()) throw new BadRequestException('Thời gian nhận xe phải ở tương lai');
 
     return this.dataSource.transaction(async (manager) => {
       const vehicleRepo = manager.getRepository(Vehicle);

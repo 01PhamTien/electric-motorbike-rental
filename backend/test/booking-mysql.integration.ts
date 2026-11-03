@@ -77,6 +77,13 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
     const pickupAt = new Date(Date.now() + 3 * 86_400_000).toISOString();
     const returnAt = new Date(Date.now() + 4 * 86_400_000).toISOString();
     const dto = { vehicleId: vehicle.id, pickupAt, returnAt };
+    await assert.rejects(
+      () => bookingService.create(user(customers[0].id), {
+        ...dto,
+        pickupAt: new Date(Date.now() - 86_400_000).toISOString(),
+      }),
+      /Thời gian nhận xe phải ở tương lai/,
+    );
 
     // Both requests must use the same database and contend on the vehicle row lock.
     const attempts = await Promise.allSettled([

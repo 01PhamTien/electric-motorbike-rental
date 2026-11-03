@@ -9,6 +9,9 @@ import { VehicleModel } from '../modules/vehicle-models/vehicle-model.entity';
 import { Vehicle } from '../modules/vehicles/vehicle.entity';
 
 async function seed() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Demo seeding is disabled in production: never create sample accounts or credentials');
+  }
   const app = await NestFactory.createApplicationContext(AppModule);
   const dataSource = app.get(DataSource);
   const stationRepo = dataSource.getRepository(Station);

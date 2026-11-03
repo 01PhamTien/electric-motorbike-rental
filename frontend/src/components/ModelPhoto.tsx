@@ -12,7 +12,9 @@ export function ModelPhoto({ url, alt, className = '' }: {
 }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => { setFailed(false); }, [url]);
-  const valid = Boolean(url && (/^\/images\/vehicle-models\/[\w./-]+\.(?:webp|png|jpe?g)$/i.test(url) || /^https:\/\/[^\s]+$/i.test(url)));
+  const uploaded = Boolean(url && /^\/api\/vehicle-models\/images\/[0-9a-f-]+\.(?:png|jpg|webp)$/i.test(url));
+  const valid = Boolean(url && (uploaded || /^\/images\/vehicle-models\/[\w./-]+\.(?:webp|png|jpe?g)$/i.test(url) || /^https:\/\/[^\s]+$/i.test(url)));
+  const src = uploaded ? (api.defaults.baseURL || 'http://localhost:3000/api').replace(/\/api\/?$/, '') + url : url;
   if (!valid || failed) {
     return <div className={'flex h-full w-full items-center justify-center ' + className} role="img" aria-label={'Hình minh họa cho ' + alt}>
       <ScooterArt />

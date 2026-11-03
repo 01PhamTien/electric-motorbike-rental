@@ -28,4 +28,8 @@ export class UpdateVehicleModelDto {
   @IsOptional()
   @IsString()
   specifications?: string;
+  @IsOptional() @IsString() @MaxLength(500)
+  @Matches(/^(\/api\/vehicle-models\/images\/[a-f0-9-]+\.(?:png|jpe?g|webp)|\/images\/vehicle-models\/[a-zA-Z0-9_./-]+\.(?:webp|png|jpe?g)|https:\/\/[^\s]+)$/i, { message: 'Đường dẫn ảnh không hợp lệ' })
+  imageUrl?: string | null;
+
 }

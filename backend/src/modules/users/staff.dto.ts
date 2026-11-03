@@ -18,3 +18,11 @@ export class UpdateStaffDto {
 export class UpdateStaffStatusDto {
   @IsEnum(UserStatus) status: UserStatus;
 }
+
+export class ChangeMyPasswordDto {
+  @IsString() currentPassword: string;
+  @IsString() @MinLength(8) @MaxLength(72) newPassword: string;
+}
+export class ResetStaffPasswordDto {
+  @IsString() @MinLength(12) @MaxLength(72) newPassword: string;
+}

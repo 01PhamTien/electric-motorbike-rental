@@ -43,9 +43,9 @@ export class InitialVoltGoSqlServer1793664000001 implements MigrationInterface {
     await queryRunner.query("ALTER TABLE \"vehicle_locations\" ADD CONSTRAINT \"FK_bbbc7b224482777cb987108e78f\" FOREIGN KEY (\"updatedById\") REFERENCES \"users\"(\"id\") ON DELETE SET NULL ON UPDATE NO ACTION");
     await queryRunner.query("ALTER TABLE \"vehicles\" ADD CONSTRAINT \"FK_5fe3e38b9bf4649e65fdfb04bdf\" FOREIGN KEY (\"modelId\") REFERENCES \"vehicle_models\"(\"id\") ON DELETE NO ACTION ON UPDATE NO ACTION");
     await queryRunner.query("ALTER TABLE \"vehicles\" ADD CONSTRAINT \"FK_203683541105ef9807708f0622d\" FOREIGN KEY (\"stationId\") REFERENCES \"stations\"(\"id\") ON DELETE NO ACTION ON UPDATE NO ACTION");
-    await queryRunner.query("ALTER TABLE \"payment_transactions\" ADD CONSTRAINT \"FK_d3621540be4bed2af9119106971\" FOREIGN KEY (\"bookingId\") REFERENCES \"bookings\"(\"id\") ON DELETE RESTRICT ON UPDATE NO ACTION");
-    await queryRunner.query("ALTER TABLE \"handover_records\" ADD CONSTRAINT \"FK_a16ec680355bca9984e110e4e62\" FOREIGN KEY (\"bookingId\") REFERENCES \"bookings\"(\"id\") ON DELETE RESTRICT ON UPDATE NO ACTION");
-    await queryRunner.query("ALTER TABLE \"handover_records\" ADD CONSTRAINT \"FK_61b43a3a5dca0dc3e318b715652\" FOREIGN KEY (\"staffId\") REFERENCES \"users\"(\"id\") ON DELETE RESTRICT ON UPDATE NO ACTION");
+    await queryRunner.query("ALTER TABLE \"payment_transactions\" ADD CONSTRAINT \"FK_d3621540be4bed2af9119106971\" FOREIGN KEY (\"bookingId\") REFERENCES \"bookings\"(\"id\") ON DELETE NO ACTION ON UPDATE NO ACTION");
+    await queryRunner.query("ALTER TABLE \"handover_records\" ADD CONSTRAINT \"FK_a16ec680355bca9984e110e4e62\" FOREIGN KEY (\"bookingId\") REFERENCES \"bookings\"(\"id\") ON DELETE NO ACTION ON UPDATE NO ACTION");
+    await queryRunner.query("ALTER TABLE \"handover_records\" ADD CONSTRAINT \"FK_61b43a3a5dca0dc3e318b715652\" FOREIGN KEY (\"staffId\") REFERENCES \"users\"(\"id\") ON DELETE NO ACTION ON UPDATE NO ACTION");
     await queryRunner.query("ALTER TABLE \"booking_status_histories\" ADD CONSTRAINT \"FK_155c38b6ca77812ee21996415d5\" FOREIGN KEY (\"bookingId\") REFERENCES \"bookings\"(\"id\") ON DELETE CASCADE ON UPDATE NO ACTION");
     await queryRunner.query("ALTER TABLE \"booking_status_histories\" ADD CONSTRAINT \"FK_d2686169cdb07deb95c6bdbf163\" FOREIGN KEY (\"performedById\") REFERENCES \"users\"(\"id\") ON DELETE SET NULL ON UPDATE NO ACTION");
   }

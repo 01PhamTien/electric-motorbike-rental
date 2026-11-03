@@ -140,7 +140,16 @@ export class BookingsService {
     if (booking.status !== expected) throw new BadRequestException(`Đơn phải ở trạng thái ${expected}`);
     if (booking.status === BookingStatus.PENDING && booking.holdExpiresAt && booking.holdExpiresAt < new Date()) {
       booking.status = BookingStatus.EXPIRED;
-      await this.bookingRepo.save(booking);
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(Booking).save(booking);
+        await manager.getRepository(BookingStatusHistory).save({
+          bookingId: id,
+          fromStatus: BookingStatus.PENDING,
+          toStatus: BookingStatus.EXPIRED,
+          performedById: current.sub,
+          reason: 'Hết thời hạn giữ chỗ khi xác nhận đơn',
+        });
+      });
       throw new BadRequestException('Đơn đã hết thời hạn giữ chỗ');
     }
     booking.status = next;

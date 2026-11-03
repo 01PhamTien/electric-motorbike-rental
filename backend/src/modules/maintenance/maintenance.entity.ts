@@ -31,7 +31,7 @@ export class MaintenanceRecord {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   cost: string;
 
-  @Column({ type: 'enum', enum: MaintenanceStatus, default: MaintenanceStatus.SCHEDULED })
+  @Column({ type: 'simple-enum', enum: MaintenanceStatus, default: MaintenanceStatus.SCHEDULED })
   status: MaintenanceStatus;
 
   @Column({ type: 'int' })

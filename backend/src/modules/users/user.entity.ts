@@ -15,17 +15,17 @@ export class User {
   @Column({ length: 160 })
   email: string;
 
-  @Index({ unique: true })
+  @Index({ unique: true, where: process.env.DB_TYPE === 'mssql' ? '[phone] IS NOT NULL' : undefined })
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone: string | null;
 
   @Column({ select: false })
   passwordHash: string;
 
-  @Column({ type: 'enum', enum: Role, default: Role.CUSTOMER })
+  @Column({ type: 'simple-enum', enum: Role, default: Role.CUSTOMER })
   role: Role;
 
-  @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
+  @Column({ type: 'simple-enum', enum: UserStatus, default: UserStatus.ACTIVE })
   status: UserStatus;
 
   @ManyToOne(() => Station, (station) => station.staff, { nullable: true, onDelete: 'SET NULL' })

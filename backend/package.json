@@ -17,7 +17,10 @@
     "migration:generate-baseline": "node -r ts-node/register src/database/print-initial-schema.ts",
     "migration:run:prod": "node ./node_modules/typeorm/cli.js -d dist/database/data-source.js migration:run --transaction each",
     "migration:baseline": "node -r ts-node/register src/database/baseline-existing.ts",
-    "migration:check": "node -r ts-node/register src/database/check-schema.ts"
+    "migration:check": "node -r ts-node/register src/database/check-schema.ts",
+    "migration:run:mssql": "node -r ts-node/register ./node_modules/typeorm/cli.js -d src/database/data-source.ts migration:run --transaction each",
+    "test:mssql": "node -r ts-node/register --test test/*.mssql.ts",
+    "migration:check:mssql": "node -r ts-node/register src/database/check-schema.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",
@@ -36,7 +39,9 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
+    "typeorm": "^0.3.20",
+    "mssql": "^11.0.1",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.5",

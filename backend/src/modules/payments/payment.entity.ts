@@ -5,10 +5,10 @@ export enum PaymentMethod { CASH = 'CASH', TRANSFER = 'TRANSFER' }
 @Entity('payment_transactions')
 export class PaymentTransaction {
   @PrimaryGeneratedColumn() id: number;
-  @ManyToOne(() => Booking, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'bookingId' }) booking: Booking;
+  @ManyToOne(() => Booking, { onDelete: process.env.DB_TYPE === 'mssql' ? 'NO ACTION' : 'RESTRICT' }) @JoinColumn({ name: 'bookingId' }) booking: Booking;
   @Index() @Column({ type: 'int' }) bookingId: number;
-  @Column({ type: 'enum', enum: PaymentPurpose }) purpose: PaymentPurpose;
-  @Column({ type: 'enum', enum: PaymentMethod }) method: PaymentMethod;
+  @Column({ type: 'simple-enum', enum: PaymentPurpose }) purpose: PaymentPurpose;
+  @Column({ type: 'simple-enum', enum: PaymentMethod }) method: PaymentMethod;
   @Column({ type: 'decimal', precision: 12, scale: 2 }) amount: string;
   @Column({ type: 'varchar', length: 255, nullable: true }) note: string | null;
   @Index({ unique: true }) @Column({ type: 'varchar', length: 100 }) idempotencyKey: string;

@@ -14,14 +14,16 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Electric Motorbike Rental API')
-    .setDescription('API quản lý và cho thuê xe máy điện tại Đà Nẵng')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
+    const config = new DocumentBuilder()
+      .setTitle('Electric Motorbike Rental API')
+      .setDescription('API quản lý và cho thuê xe máy điện tại Đà Nẵng')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   await app.listen(Number(process.env.PORT || 3000));
 }

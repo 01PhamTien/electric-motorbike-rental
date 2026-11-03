@@ -45,9 +45,9 @@ export function StationMap({ latitude, longitude, name, compact = false }: {
     let map: Map | null = null;
     let marker: Marker | null = null;
     let failures = 0;
-    let didLoad = false;
+    let didRender = false;
     setUnavailable(false);
-    const timeout = window.setTimeout(() => { if (!didLoad) setUnavailable(true); }, 14000);
+    const timeout = window.setTimeout(() => { if (!didRender) setUnavailable(true); }, 14000);
     try {
       map = new Map({
         container,
@@ -67,10 +67,10 @@ export function StationMap({ latitude, longitude, name, compact = false }: {
       pin.title = name;
       marker = new Marker({ element: pin, anchor: 'bottom' }).setLngLat([lng, lat]).addTo(map);
       if (!compact) map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
-      map.on('load', () => { didLoad = true; window.clearTimeout(timeout); });
+      map.on('idle', () => { didRender = true; window.clearTimeout(timeout); });
       map.on('error', () => {
         failures++;
-        if (failures >= 3 && !didLoad) {
+        if (failures >= 3) {
           window.clearTimeout(timeout);
           setUnavailable(true);
         }

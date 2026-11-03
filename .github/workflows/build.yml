@@ -83,3 +83,63 @@ jobs:
       - run: npm run migration:run
       - run: npm run build
       - run: npm run migration:run:prod
+
+  mssql:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: CI-Test-Only-SQL-Passw0rd!
+          MSSQL_PID: Express
+        ports:
+          - 1433:1433
+    env:
+      NODE_ENV: test
+      DB_TYPE: mssql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 1433
+      DB_USERNAME: sa
+      DB_PASSWORD: CI-Test-Only-SQL-Passw0rd!
+      DB_DATABASE: VoltGo_ci_test
+      DB_ENCRYPT: 'false'
+      DB_TRUST_SERVER_CERTIFICATE: 'true'
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Wait for SQL Server TCP and authentication
+        run: |
+          for i in $(seq 1 45); do
+            if node -e 'const sql=require("mssql");sql.connect({server:"127.0.0.1",port:1433,user:"sa",password:process.env.DB_PASSWORD,database:"master",options:{encrypt:false,trustServerCertificate:true}}).then(()=>sql.close()).then(()=>process.exit(0)).catch(()=>process.exit(1))'; then break; fi
+            sleep 3
+          done
+      - run: node -r ts-node/register src/database/create-mssql-test-database.ts
+      - run: npm run migration:run:mssql
+      - run: npm run migration:check:mssql
+      - run: npm run test:mssql
+      - run: npm run migration:run:prod
+      - name: Seed realistic synthetic demo data
+        env:
+          DEMO_SEED_CONFIRM: I_UNDERSTAND_THIS_IS_FAKE_DATA
+        run: npm run seed:rich-demo
+      - name: Verify rich demo records
+        run: node -r ts-node/register src/database/verify-rich-demo.ts
+      - name: Verify repeated seed creates zero rows
+        env:
+          DEMO_SEED_CONFIRM: I_UNDERSTAND_THIS_IS_FAKE_DATA
+        run: |
+          npm run seed:rich-demo | tee /tmp/rich-demo-second-run.log
+          grep -q '^{}
+ /tmp/rich-demo-second-run.log
+      - name: Verify demo record totals are unchanged
+        run: node -r ts-node/register src/database/verify-rich-demo.ts

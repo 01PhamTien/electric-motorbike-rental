@@ -11,11 +11,13 @@
     "lint": "eslint \"src/**/*.ts\"",
     "test": "node -r ts-node/register --test test/*.spec.ts",
     "test:integration": "node -r ts-node/register --test test/*.integration.ts",
-    "migration:run": "node -r ts-node/register ./node_modules/typeorm/cli.js -d src/database/data-source.ts migration:run",
+    "migration:run": "node -r ts-node/register ./node_modules/typeorm/cli.js -d src/database/data-source.ts migration:run --transaction each",
     "migration:show": "node -r ts-node/register ./node_modules/typeorm/cli.js -d src/database/data-source.ts migration:show",
     "migration:revert": "node -r ts-node/register ./node_modules/typeorm/cli.js -d src/database/data-source.ts migration:revert",
     "migration:generate-baseline": "node -r ts-node/register src/database/print-initial-schema.ts",
-    "migration:run:prod": "node ./node_modules/typeorm/cli.js -d dist/database/data-source.js migration:run"
+    "migration:run:prod": "node ./node_modules/typeorm/cli.js -d dist/database/data-source.js migration:run --transaction each",
+    "migration:baseline": "node -r ts-node/register src/database/baseline-existing.ts",
+    "migration:check": "node -r ts-node/register src/database/check-schema.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",

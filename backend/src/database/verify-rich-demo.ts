@@ -28,8 +28,8 @@ async function verify() {
     const bookingIds = bookings.map(b => b.id);
     const userCount = await ds.getRepository(User).countBy({ email: Like('%@demo.voltgo.invalid') });
     assert.equal(userCount, 64);
-    assert.equal(await ds.getRepository(Station).count(), 8);
-    assert.equal(await ds.getRepository(VehicleModel).count(), 12);
+    assert.equal(await ds.getRepository(Station).countBy({ name: Like('Trạm VoltGo %') }), 8);
+    assert.equal(await ds.getRepository(VehicleModel).countBy({ brand: In(['VinFast', 'Yadea', 'Dat Bike', 'Pega']) }), 12);
     assert.equal(await ds.getRepository(HandoverRecord).countBy({ bookingId: In(bookingIds) }), 240);
     assert.equal(await ds.getRepository(PaymentTransaction).countBy({ bookingId: In(bookingIds) }), 360);
     assert.equal(await ds.getRepository(VehicleLocation).countBy({ vehicleId: In(ids), source: 'DEMO_SIMULATION' }), 120);

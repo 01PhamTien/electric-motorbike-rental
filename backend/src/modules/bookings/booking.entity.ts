@@ -41,7 +41,7 @@ export class Booking {
   @Column({ type: 'datetime', nullable: true })
   holdExpiresAt: Date | null;
 
-  @Column({ type: 'enum', enum: BookingStatus, default: BookingStatus.PENDING })
+  @Column({ type: 'simple-enum', enum: BookingStatus, default: BookingStatus.PENDING })
   status: BookingStatus;
 
   @Column({ type: 'varchar', length: 255, nullable: true })

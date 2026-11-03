@@ -245,7 +245,7 @@ async function main() {
     for (let i = 0; i < 40; i++) {
       const vehicle = vehicles[i * 3];
       const reason = '[DEMO] ' + maintenanceReasons[i % maintenanceReasons.length];
-      if (!(await maintenanceRepo.findOneBy({ vehicleId: vehicle.id, reason }))) {
+      if (!(await maintenanceRepo.findOneBy({ vehicleId: vehicle.id }))) {
         const scheduledAt = afterDays(-30 - i % 15);
         await maintenanceRepo.save(maintenanceRepo.create({
           vehicleId: vehicle.id, scheduledAt, completedAt: new Date(scheduledAt.getTime() + DAY),

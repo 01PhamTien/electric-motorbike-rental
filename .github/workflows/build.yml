@@ -75,3 +75,9 @@ jobs:
       - run: npm run migration:run
       - run: npm run migration:check
       - run: npm run test:integration
+      - run: npm run migration:baseline
+        env:
+          BASELINE_CONFIRM: I_HAVE_A_VERIFIED_BACKUP
+      - run: npm run migration:check
+      - run: npm run migration:show
+      - run: npm run migration:run

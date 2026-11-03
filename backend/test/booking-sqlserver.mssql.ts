@@ -23,6 +23,7 @@ import { Station } from '../src/modules/stations/station.entity';
 import { User } from '../src/modules/users/user.entity';
 import { VehicleModel } from '../src/modules/vehicle-models/vehicle-model.entity';
 import { Vehicle } from '../src/modules/vehicles/vehicle.entity';
+import { VehiclesService } from '../src/modules/vehicles/vehicles.service';
 
 const dbName = process.env.DB_DATABASE || '';
 // This test requires a fresh migrated database. Never point it at a development or production database.
@@ -222,6 +223,38 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
     const afterReset = (await usersService.findByEmailWithPassword('new-staff@example.test'))!;
     assert.ok(await bcrypt.compare('AdminResetPassword2026!', afterReset.passwordHash));
     assert.equal((await usersService.findStaff(createdStaff.id)).role, Role.STAFF);
+    // Admin customer management and profile editing on real SQL Server.
+    const originalCustomer = customers[0];
+    assert.equal(usersService.listCustomers() instanceof Promise, true);
+    const customerDirectory = await usersService.listCustomers();
+    assert.ok(customerDirectory.some(c => c.id === originalCustomer.id));
+    await usersService.updateCustomerStatus(originalCustomer.id, UserStatus.LOCKED);
+    assert.equal((await usersService.findById(originalCustomer.id))?.status, UserStatus.LOCKED);
+    await usersService.updateCustomerStatus(originalCustomer.id, UserStatus.ACTIVE);
+    assert.equal((await usersService.findById(originalCustomer.id))?.status, UserStatus.ACTIVE);
+    await assert.rejects(() => usersService.updateCustomerStatus(createdStaff.id, UserStatus.LOCKED));
+    const updatedProfile = await usersService.updateMyProfile(originalCustomer.id, 'Khách hàng thử nghiệm', null);
+    assert.equal(updatedProfile?.fullName, 'Khách hàng thử nghiệm');
+    await assert.rejects(() => usersService.updateMyProfile(originalCustomer.id, 'X', null));
+
+    // Admin inventory includes inactive vehicles and validates model/station references.
+    const vehicleService = new VehiclesService(
+      dataSource.getRepository(Vehicle),
+      dataSource.getRepository(VehicleModel),
+      dataSource.getRepository(Station),
+    );
+    const added = await vehicleService.create({
+      code: 'ADMIN-MSSQL-TEST', licensePlate: '43-ADMIN-TEST',
+      modelId: model.id, stationId: station.id, dailyRate: 155000, depositAmount: 750000,
+    });
+    await assert.rejects(() => vehicleService.create({
+      code: 'INVALID-MODEL', licensePlate: '43-INVALID',
+      modelId: model.id + 999, stationId: station.id, dailyRate: 155000, depositAmount: 750000,
+    }));
+    await vehicleService.update(added.id, { isActive: false, dailyRate: 165000 });
+    assert.ok((await vehicleService.findAllForAdmin()).some(v => v.id === added.id && !v.isActive));
+    assert.ok(!(await vehicleService.findAll()).some(v => v.id === added.id));
+
   } finally {
     await dataSource.destroy();
   }

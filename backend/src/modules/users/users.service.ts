@@ -30,6 +30,33 @@ export class UsersService {
   create(data: Partial<User>) {
     return this.repo.save(this.repo.create(data));
   }
+  listCustomers() {
+    return this.repo.find({ where: { role: Role.CUSTOMER }, order: { id: 'DESC' } });
+  }
+
+  async updateCustomerStatus(id: number, status: UserStatus) {
+    const customer = await this.repo.findOneBy({ id, role: Role.CUSTOMER });
+    if (!customer) throw new NotFoundException('Không tìm thấy khách hàng');
+    if (customer.status !== status) {
+      customer.status = status;
+      await this.repo.save(customer);
+    }
+    return this.repo.findOneByOrFail({ id: customer.id });
+  }
+
+  async updateMyProfile(id: number, fullName: string, phone: string | null) {
+    const user = await this.repo.findOneBy({ id });
+    if (!user) throw new NotFoundException('Không tìm thấy tài khoản');
+    const cleanName = fullName.trim();
+    if (cleanName.length < 2) throw new BadRequestException('Họ tên phải có ít nhất 2 ký tự');
+    const cleanPhone = phone?.trim() || null;
+    await this.validateUnique(user.email, cleanPhone, user.id);
+    user.fullName = cleanName;
+    user.phone = cleanPhone;
+    await this.repo.save(user);
+    return this.findById(id);
+  }
+
   listStaff() {
     return this.repo.find({ where: { role: Role.STAFF }, relations: { station: true }, order: { id: 'DESC' } });
   }

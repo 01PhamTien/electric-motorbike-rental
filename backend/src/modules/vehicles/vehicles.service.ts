@@ -1,12 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vehicle } from './vehicle.entity';
+import { VehicleModel } from '../vehicle-models/vehicle-model.entity';
+import { Station } from '../stations/station.entity';
 import { CreateVehicleDto, UpdateVehicleDto } from './dto';
 
 @Injectable()
 export class VehiclesService {
-  constructor(@InjectRepository(Vehicle) private readonly repo: Repository<Vehicle>) {}
+  constructor(
+    @InjectRepository(Vehicle) private readonly repo: Repository<Vehicle>,
+    @InjectRepository(VehicleModel) private readonly models: Repository<VehicleModel>,
+    @InjectRepository(Station) private readonly stations: Repository<Station>,
+  ) {}
+
+  findAllForAdmin() {
+    return this.repo.find({ order: { id: 'DESC' } });
+  }
+
+  private async validateReferences(modelId: number, stationId: number) {
+    if (!(await this.models.exist({ where: { id: modelId } }))) throw new BadRequestException('Dòng xe không tồn tại');
+    if (!(await this.stations.exist({ where: { id: stationId, isActive: true } }))) throw new BadRequestException('Điểm thuê không tồn tại hoặc đã ngừng hoạt động');
+  }
 
   findAll(stationId?: number) {
     return this.repo.find({ where: stationId ? { stationId, isActive: true } : { isActive: true }, order: { id: 'DESC' } });
@@ -18,7 +33,8 @@ export class VehiclesService {
     return vehicle;
   }
 
-  create(dto: CreateVehicleDto) {
+  async create(dto: CreateVehicleDto) {
+    await this.validateReferences(dto.modelId, dto.stationId);
     return this.repo.save(this.repo.create({
       ...dto,
       dailyRate: String(dto.dailyRate),
@@ -28,6 +44,7 @@ export class VehiclesService {
 
   async update(id: number, dto: UpdateVehicleDto) {
     const vehicle = await this.findOne(id);
+    await this.validateReferences(dto.modelId ?? vehicle.modelId, dto.stationId ?? vehicle.stationId);
     Object.assign(vehicle, {
       ...dto,
       ...(dto.dailyRate !== undefined ? { dailyRate: String(dto.dailyRate) } : {}),

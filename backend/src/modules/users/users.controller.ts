@@ -8,6 +8,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ChangeMyPasswordDto, CreateStaffDto, ResetStaffPasswordDto, UpdateStaffDto, UpdateStaffStatusDto } from './staff.dto';
 import { UsersService } from './users.service';
+import { UpdateMyProfileDto } from './profile.dto';
+import { UpdateStaffStatusDto as UpdateCustomerStatusDto } from './staff.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -19,6 +21,21 @@ export class UsersController {
   @Get('me')
   me(@CurrentUser() current: JwtUser) {
     return this.usersService.findById(current.sub);
+  }
+
+  @Patch('me')
+  updateMe(@CurrentUser() current: JwtUser, @Body() dto: UpdateMyProfileDto) {
+    return this.usersService.updateMyProfile(current.sub, dto.fullName, dto.phone ?? null);
+  }
+
+  @Get('customers')
+  @Roles(Role.ADMIN)
+  listCustomers() { return this.usersService.listCustomers(); }
+
+  @Patch('customers/:id/status')
+  @Roles(Role.ADMIN)
+  updateCustomerStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCustomerStatusDto) {
+    return this.usersService.updateCustomerStatus(id, dto.status);
   }
 
   @Patch('me/password')

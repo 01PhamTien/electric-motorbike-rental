@@ -5,7 +5,7 @@ export enum PaymentMethod { CASH = 'CASH', TRANSFER = 'TRANSFER' }
 @Entity('payment_transactions')
 export class PaymentTransaction {
   @PrimaryGeneratedColumn() id: number;
-  @ManyToOne(() => Booking, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'bookingId' }) booking: Booking;
+  @ManyToOne(() => Booking, { onDelete: process.env.DB_TYPE === 'mssql' ? 'NO ACTION' : 'RESTRICT' }) @JoinColumn({ name: 'bookingId' }) booking: Booking;
   @Index() @Column({ type: 'int' }) bookingId: number;
   @Column({ type: 'simple-enum', enum: PaymentPurpose }) purpose: PaymentPurpose;
   @Column({ type: 'simple-enum', enum: PaymentMethod }) method: PaymentMethod;

@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, DataSourceOptions } from 'typeorm';
 import { sqlServerConnectionOptions } from './sqlserver-options';
 
 async function main() {
@@ -6,7 +6,7 @@ async function main() {
   if (process.env.DB_TYPE !== 'mssql' || process.env.NODE_ENV === 'production' || !/^[A-Za-z0-9_]+_test$/.test(database)) {
     throw new Error('Only disposable SQL Server *_test databases may be created by CI');
   }
-  const options = sqlServerConnectionOptions();
+  const options = sqlServerConnectionOptions() as Extract<DataSourceOptions, { type: 'mssql' }>;
   const setup = new DataSource({ ...options, database: 'master', entities: [], synchronize: false });
   await setup.initialize();
   try {

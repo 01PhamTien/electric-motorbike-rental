@@ -22,10 +22,10 @@ export class User {
   @Column({ select: false })
   passwordHash: string;
 
-  @Column({ type: 'enum', enum: Role, default: Role.CUSTOMER })
+  @Column({ type: 'simple-enum', enum: Role, default: Role.CUSTOMER })
   role: Role;
 
-  @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
+  @Column({ type: 'simple-enum', enum: UserStatus, default: UserStatus.ACTIVE })
   status: UserStatus;
 
   @ManyToOne(() => Station, (station) => station.staff, { nullable: true, onDelete: 'SET NULL' })

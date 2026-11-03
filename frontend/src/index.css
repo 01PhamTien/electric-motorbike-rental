@@ -26,6 +26,6 @@ a { transition: color .2s ease; }
 .brand-mark { display: flex; align-items: center; justify-content: center; height: 42px; width: 42px; background: #44df9a; color: #0a3934; border-radius: 13px; transform: rotate(-7deg); }
 .brand-mark svg { transform: rotate(7deg); }
 .hero-mesh { background: radial-gradient(circle at 73% 30%,rgba(59,222,154,.23),transparent 32%),radial-gradient(circle at 0 85%,rgba(34,117,112,.35),transparent 35%),linear-gradient(115deg,#08282d 0%,#102f34 58%,#153b3a 100%); }
-.vehicle-art { background: radial-gradient(circle at 50% 76%,rgba(41,172,126,.16),transparent 38%),linear-gradient(150deg,#f1f7f4,#e7f3ef); }
+.vehicle-art { position: relative; isolation: isolate; overflow: hidden; background: radial-gradient(circle at 50% 76%,rgba(41,172,126,.16),transparent 38%),linear-gradient(150deg,#f1f7f4,#e7f3ef); }
 .vehicle-art::after { content: ''; display: block; position: absolute; inset: auto 12% 21% 12%; height: 12px; background: #1c544d; opacity: .12; filter: blur(13px); border-radius: 50%; }
 .stat-divider:not(:last-child)::after { content: ''; position: absolute; right: 0; top: 14px; bottom: 14px; width: 1px; background: rgba(255,255,255,.2); }

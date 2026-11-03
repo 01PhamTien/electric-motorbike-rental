@@ -5,6 +5,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { UserStatus } from '../../common/enums/user-status.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { UsersService } from '../users/users.service';
+import { resolveJwtSecret } from './jwt-secret';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -12,7 +13,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_SECRET') || 'change-me-in-production',
+      secretOrKey: resolveJwtSecret(config),
     });
   }
 

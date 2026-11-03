@@ -6,6 +6,9 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { BookingStatus } from '../src/common/enums/booking-status.enum';
 import { Role } from '../src/common/enums/role.enum';
+import { UserStatus } from '../src/common/enums/user-status.enum';
+import { UsersService } from '../src/modules/users/users.service';
+import * as bcrypt from 'bcrypt';
 import { JwtUser } from '../src/common/interfaces/jwt-user.interface';
 import { BookingExpiryService } from '../src/modules/bookings/booking-expiry.service';
 import { Booking } from '../src/modules/bookings/booking.entity';
@@ -179,6 +182,51 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
     assert.equal(stationBookings.length, 2);
     assert.equal(foreignBookings.length, 0);
     await assert.rejects(() => bookingService.listForOperations(user(customers[0].id)));
+
+    // Staff administration: unique identity, validated station, role and lock/unlock.
+    const usersService = new UsersService(dataSource.getRepository(User), dataSource.getRepository(Station));
+    const createdStaff = await usersService.createStaff({
+      fullName: 'Nhân viên thử nghiệm',
+      email: 'new-staff@example.test',
+      phone: '0901234567',
+      password: 'TestPassword!2026',
+      stationId: station.id,
+    });
+    assert.equal(createdStaff.role, Role.STAFF);
+    assert.equal(createdStaff.stationId, station.id);
+    assert.equal(createdStaff.status, UserStatus.ACTIVE);
+    assert.equal('passwordHash' in createdStaff, false);
+    const storedStaff = await usersService.findByEmailWithPassword('new-staff@example.test');
+    assert.ok(storedStaff);
+    assert.equal(await bcrypt.compare('TestPassword!2026', storedStaff.passwordHash), true);
+    await assert.rejects(() => usersService.createStaff({
+      fullName: 'Nhân viên trùng email', email: 'NEW-STAFF@example.test',
+      password: 'AnotherPassword2026', stationId: station.id,
+    }));
+    await assert.rejects(() => usersService.createStaff({
+      fullName: 'Nhân viên sai trạm', email: 'invalid-station@example.test',
+      password: 'AnotherPassword2026', stationId: station.id + 999,
+    }));
+    await usersService.updateStaff(createdStaff.id, {
+      fullName: 'Nhân viên đã cập nhật', phone: null,
+    });
+    const updatedStaff = await usersService.findStaff(createdStaff.id);
+    assert.equal(updatedStaff.fullName, 'Nhân viên đã cập nhật');
+    assert.equal(updatedStaff.phone, null);
+    await usersService.updateStaffStatus(createdStaff.id, UserStatus.LOCKED);
+    assert.equal((await usersService.findStaff(createdStaff.id)).status, UserStatus.LOCKED);
+    await usersService.updateStaffStatus(createdStaff.id, UserStatus.ACTIVE);
+    assert.equal((await usersService.findStaff(createdStaff.id)).status, UserStatus.ACTIVE);
+    await assert.rejects(() => usersService.changeMyPassword(createdStaff.id, 'wrong-password', 'NewPassword2026!'));
+    const oldHash = (await usersService.findByEmailWithPassword('new-staff@example.test'))!.passwordHash;
+    await usersService.changeMyPassword(createdStaff.id, 'TestPassword!2026', 'NewPassword2026!');
+    const selfChanged = (await usersService.findByEmailWithPassword('new-staff@example.test'))!;
+    assert.notEqual(selfChanged.passwordHash, oldHash);
+    assert.ok(await bcrypt.compare('NewPassword2026!', selfChanged.passwordHash));
+    await usersService.resetStaffPassword(createdStaff.id, 'AdminResetPassword2026!');
+    const afterReset = (await usersService.findByEmailWithPassword('new-staff@example.test'))!;
+    assert.ok(await bcrypt.compare('AdminResetPassword2026!', afterReset.passwordHash));
+    assert.equal((await usersService.findStaff(createdStaff.id)).role, Role.STAFF);
   } finally {
     await dataSource.destroy();
   }

@@ -1,13 +1,17 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role } from '../../common/enums/role.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ChangeMyPasswordDto, CreateStaffDto, ResetStaffPasswordDto, UpdateStaffDto, UpdateStaffStatusDto } from './staff.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -15,5 +19,40 @@ export class UsersController {
   @Get('me')
   me(@CurrentUser() current: JwtUser) {
     return this.usersService.findById(current.sub);
+  }
+
+  @Patch('me/password')
+  changeMyPassword(@CurrentUser() current: JwtUser, @Body() dto: ChangeMyPasswordDto) {
+    return this.usersService.changeMyPassword(current.sub, dto.currentPassword, dto.newPassword);
+  }
+
+  @Get('staff')
+  @Roles(Role.ADMIN)
+  listStaff() { return this.usersService.listStaff(); }
+
+  @Post('staff')
+  @Roles(Role.ADMIN)
+  createStaff(@Body() dto: CreateStaffDto) { return this.usersService.createStaff(dto); }
+
+  @Get('staff/:id')
+  @Roles(Role.ADMIN)
+  getStaff(@Param('id', ParseIntPipe) id: number) { return this.usersService.findStaff(id); }
+
+  @Patch('staff/:id')
+  @Roles(Role.ADMIN)
+  updateStaff(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStaffDto) {
+    return this.usersService.updateStaff(id, dto);
+  }
+
+  @Patch('staff/:id/password')
+  @Roles(Role.ADMIN)
+  resetStaffPassword(@Param('id', ParseIntPipe) id: number, @Body() dto: ResetStaffPasswordDto) {
+    return this.usersService.resetStaffPassword(id, dto.newPassword);
+  }
+
+  @Patch('staff/:id/status')
+  @Roles(Role.ADMIN)
+  updateStaffStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStaffStatusDto) {
+    return this.usersService.updateStaffStatus(id, dto.status);
   }
 }

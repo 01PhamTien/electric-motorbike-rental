@@ -217,6 +217,16 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
     assert.equal((await usersService.findStaff(createdStaff.id)).status, UserStatus.LOCKED);
     await usersService.updateStaffStatus(createdStaff.id, UserStatus.ACTIVE);
     assert.equal((await usersService.findStaff(createdStaff.id)).status, UserStatus.ACTIVE);
+    await assert.rejects(() => usersService.changeMyPassword(createdStaff.id, 'wrong-password', 'NewPassword2026!'));
+    const oldHash = (await usersService.findByEmailWithPassword('new-staff@example.test'))!.passwordHash;
+    await usersService.changeMyPassword(createdStaff.id, 'TestPassword!2026', 'NewPassword2026!');
+    const selfChanged = (await usersService.findByEmailWithPassword('new-staff@example.test'))!;
+    assert.notEqual(selfChanged.passwordHash, oldHash);
+    assert.ok(await bcrypt.compare('NewPassword2026!', selfChanged.passwordHash));
+    await usersService.resetStaffPassword(createdStaff.id, 'AdminResetPassword2026!');
+    const afterReset = (await usersService.findByEmailWithPassword('new-staff@example.test'))!;
+    assert.ok(await bcrypt.compare('AdminResetPassword2026!', afterReset.passwordHash));
+    assert.equal((await usersService.findStaff(createdStaff.id)).role, Role.STAFF);
   } finally {
     await dataSource.destroy();
   }

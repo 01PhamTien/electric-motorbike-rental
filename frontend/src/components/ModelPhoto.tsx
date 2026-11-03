@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScooterArt } from './ScooterArt';
+import { api } from '../services/api';
 
 /**
  * Each model has an optional imageUrl set from /admin/models.
@@ -18,7 +19,7 @@ export function ModelPhoto({ url, alt, className = '' }: {
     </div>;
   }
   return <img
-    src={url!}
+    src={src!}
     alt={alt}
     loading="lazy"
     decoding="async"

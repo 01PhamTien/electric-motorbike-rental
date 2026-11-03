@@ -9,7 +9,7 @@ export class HandoverRecord {
   @PrimaryGeneratedColumn() id: number;
   @ManyToOne(() => Booking, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'bookingId' }) booking: Booking;
   @Column({ type: 'int' }) bookingId: number;
-  @Column({ type: 'enum', enum: HandoverKind }) kind: HandoverKind;
+  @Column({ type: 'simple-enum', enum: HandoverKind }) kind: HandoverKind;
   @Column({ type: 'int' }) batteryPercent: number;
   @Column({ type: 'decimal', precision: 12, scale: 1 }) odometerKm: string;
   @Column({ type: 'varchar', length: 1000 }) conditionNote: string;

@@ -17,6 +17,12 @@ export class VehiclesController {
     return this.service.findAll(stationId ? Number(stationId) : undefined);
   }
 
+  @Get('admin/all')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  findAllForAdmin() { return this.service.findAllForAdmin(); }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) { return this.service.findOne(id); }
 

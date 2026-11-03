@@ -163,8 +163,7 @@ async function main() {
       const operator = staff[i % staff.length];
       const historicalStart = afterDays(-50 - (i % 22));
       const historicalEnd = new Date(historicalStart.getTime() + (1 + i % 4) * DAY);
-      const historicalKey = 'VG-DEMO-HISTORY-' + vehicle.code;
-      let past = await bookingRepo.findOneBy({ cancelReason: historicalKey });
+      let past = await bookingRepo.findOneBy({ vehicleId: vehicle.id, customerId: user.id, status: BookingStatus.COMPLETED });
       if (!past) {
         const days = Math.ceil((historicalEnd.getTime() - historicalStart.getTime()) / DAY);
         past = await bookingRepo.save(bookingRepo.create({
@@ -172,7 +171,7 @@ async function main() {
           returnAt: historicalEnd, dailyRateSnapshot: vehicle.dailyRate,
           depositSnapshot: vehicle.depositAmount,
           rentalAmount: dateMoney(days * Number(vehicle.dailyRate)),
-          holdExpiresAt: null, status: BookingStatus.COMPLETED, cancelReason: historicalKey,
+          holdExpiresAt: null, status: BookingStatus.COMPLETED, cancelReason: null,
         }));
         track('historicalBookings');
       }
@@ -210,21 +209,21 @@ async function main() {
         }
       }
 
-      const futureKey = 'VG-DEMO-FUTURE-' + vehicle.code;
-      if (!(await bookingRepo.findOneBy({ cancelReason: futureKey }))) {
+      const futureCustomer = customers[(i + 11) % customers.length];
+      if (!(await bookingRepo.findOneBy({ vehicleId: vehicle.id, customerId: futureCustomer.id }))) {
         const start = afterDays(3 + (i % 20));
         const end = new Date(start.getTime() + (1 + i % 3) * DAY);
         const status = i % 9 === 0 ? BookingStatus.CANCELLED
           : i % 7 === 0 ? BookingStatus.EXPIRED
           : i % 3 === 0 ? BookingStatus.CONFIRMED : BookingStatus.PENDING;
         await bookingRepo.save(bookingRepo.create({
-          customerId: customers[(i + 11) % customers.length].id,
+          customerId: futureCustomer.id,
           vehicleId: vehicle.id, pickupAt: start, returnAt: end,
           dailyRateSnapshot: vehicle.dailyRate, depositSnapshot: vehicle.depositAmount,
           rentalAmount: dateMoney(Math.ceil((end.getTime() - start.getTime()) / DAY) * Number(vehicle.dailyRate)),
           // Pending future fixtures should not expire immediately.
           holdExpiresAt: status === BookingStatus.PENDING ? afterDays(2) : null,
-          status, cancelReason: futureKey,
+          status, cancelReason: status === BookingStatus.CANCELLED ? '[DEMO] Khách hủy lịch trải nghiệm' : null,
         }));
         track('futureBookings');
       }

@@ -1,7 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-body { @apply bg-slate-50 text-slate-900; }
-input, select { @apply rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-600; }
-button { @apply rounded-lg px-4 py-2 font-medium; }
+:root { font-family: 'DM Sans', sans-serif; color: #10232c; background: #f6f8f7; font-synthesis: none; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; }
+h1,h2,h3,h4 { font-family: 'Manrope',sans-serif; letter-spacing: -.045em; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+a { transition: color .2s ease; }
+::selection { background: #b6f7d0; color: #102a24; }
+@layer components {
+  .container-page { @apply mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10; }
+  .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-6 py-3.5 text-sm font-extrabold text-slate-950 shadow-[0_9px_22px_rgba(16,185,129,.17)] transition hover:bg-emerald-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600; }
+  .btn-dark { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-[#10262b] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#1b3c40]; }
+  .btn-outline { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-emerald-500 hover:text-emerald-700; }
+  .panel { @apply rounded-[22px] border border-slate-100 bg-white shadow-[0_14px_45px_rgba(10,39,36,.045)]; }
+  .field { @apply block w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100; }
+  .field-label { @apply mb-2 block text-xs font-extrabold uppercase tracking-wider text-slate-600; }
+  .eyebrow { @apply text-xs font-extrabold uppercase tracking-[.22em] text-emerald-600; }
+  .section-title { @apply mt-3 text-3xl font-extrabold leading-tight text-[#10262b] sm:text-4xl; }
+  .tag { @apply inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-700; }
+}
+.brand-mark { display: flex; align-items: center; justify-content: center; height: 42px; width: 42px; background: #44df9a; color: #0a3934; border-radius: 13px; transform: rotate(-7deg); }
+.brand-mark svg { transform: rotate(7deg); }
+.hero-mesh { background: radial-gradient(circle at 73% 30%,rgba(59,222,154,.23),transparent 32%),radial-gradient(circle at 0 85%,rgba(34,117,112,.35),transparent 35%),linear-gradient(115deg,#08282d 0%,#102f34 58%,#153b3a 100%); }
+.vehicle-art { background: radial-gradient(circle at 50% 76%,rgba(41,172,126,.16),transparent 38%),linear-gradient(150deg,#f1f7f4,#e7f3ef); }
+.vehicle-art::after { content: ''; display: block; position: absolute; inset: auto 12% 21% 12%; height: 12px; background: #1c544d; opacity: .12; filter: blur(13px); border-radius: 50%; }
+.stat-divider:not(:last-child)::after { content: ''; position: absolute; right: 0; top: 14px; bottom: 14px; width: 1px; background: rgba(255,255,255,.2); }

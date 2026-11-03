@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { Role } from '../../common/enums/role.enum';
 import { UserStatus } from '../../common/enums/user-status.enum';
@@ -84,6 +84,29 @@ export class UsersService {
     staff.email = email; staff.phone = phone; staff.fullName = fullName;
     await this.repo.save(staff);
     return this.findStaff(staff.id);
+  }
+
+  async changeMyPassword(id: number, currentPassword: string, newPassword: string) {
+    const user = await this.repo.createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.id = :id', { id })
+      .getOne();
+    if (!user) throw new NotFoundException('Không tìm thấy tài khoản');
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException('Mật khẩu hiện tại không đúng');
+    }
+    if (currentPassword === newPassword) throw new BadRequestException('Mật khẩu mới phải khác mật khẩu cũ');
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.repo.save(user);
+    return { success: true };
+  }
+
+  async resetStaffPassword(id: number, newPassword: string) {
+    const staff = await this.findStaff(id);
+    await this.repo.update({ id: staff.id, role: Role.STAFF }, {
+      passwordHash: await bcrypt.hash(newPassword, 12),
+    });
+    return { success: true };
   }
 
   async updateStaffStatus(id: number, status: UserStatus) {

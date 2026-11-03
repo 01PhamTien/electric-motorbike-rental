@@ -65,6 +65,6 @@ export function ProfilePage() {
         <button disabled={busy} className="btn-primary">{busy?'Đang cập nhật...':'Xác nhận đổi mật khẩu'}</button>
       </form>}
     </div>
-    <div className="flex flex-wrap gap-4 text-sm font-bold text-emerald-700">{user?.role==='ADMIN'&&<Link to="/admin">Vào trung tâm quản trị ↗</Link>}<Link to="/bookings/my">Xem đơn thuê của tôi ↗</Link></div>
+    <div className="flex flex-wrap gap-4 text-sm font-bold text-emerald-700">{user?.role==='ADMIN'&&<Link to="/admin">Vào trung tâm quản trị ↗</Link>}<Link to={user?.role === 'ADMIN' || user?.role === 'STAFF' ? '/operations' : '/bookings/my'}>{user?.role === 'ADMIN' || user?.role === 'STAFF' ? 'Quản lý đơn thuê ↗' : 'Xem đơn thuê của tôi ↗'}</Link></div>
   </section>;
 }

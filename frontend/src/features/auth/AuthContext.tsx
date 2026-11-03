@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { api } from '../../services/api';
 
 export type AuthRole = 'CUSTOMER' | 'STAFF' | 'ADMIN';
-type CurrentUser = { id: number; fullName: string; email: string; role: AuthRole; stationId: number | null };
+type CurrentUser = { id: number; fullName: string; email: string; phone: string | null; role: AuthRole; stationId: number | null };
 type AuthContextValue = {
   user: CurrentUser | null;
   loading: boolean;

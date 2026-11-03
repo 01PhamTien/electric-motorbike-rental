@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import assert = require('node:assert/strict');
+import test = require('node:test');
 import { DataSource } from 'typeorm';
 import { BookingStatus } from '../src/common/enums/booking-status.enum';
 import { BookingExpiryService } from '../src/modules/bookings/booking-expiry.service';

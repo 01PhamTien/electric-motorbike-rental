@@ -48,3 +48,18 @@ jobs:
       - run: npm run migration:check:mssql
       - run: npm run test:mssql
       - run: npm run migration:run:prod
+      - name: Seed realistic synthetic demo data
+        env:
+          DEMO_SEED_CONFIRM: I_UNDERSTAND_THIS_IS_FAKE_DATA
+        run: npm run seed:rich-demo
+      - name: Verify rich demo records
+        run: node -r ts-node/register src/database/verify-rich-demo.ts
+      - name: Verify repeated seed creates zero rows
+        env:
+          DEMO_SEED_CONFIRM: I_UNDERSTAND_THIS_IS_FAKE_DATA
+        run: |
+          npm run seed:rich-demo | tee /tmp/rich-demo-second-run.log
+          grep -q '^{}
+ /tmp/rich-demo-second-run.log
+      - name: Verify demo record totals are unchanged
+        run: node -r ts-node/register src/database/verify-rich-demo.ts

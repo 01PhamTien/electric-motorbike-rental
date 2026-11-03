@@ -15,7 +15,7 @@ export class User {
   @Column({ length: 160 })
   email: string;
 
-  @Index({ unique: true })
+  @Index({ unique: true, where: process.env.DB_TYPE === 'mssql' ? '[phone] IS NOT NULL' : undefined })
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone: string | null;
 

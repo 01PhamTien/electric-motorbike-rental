@@ -40,7 +40,7 @@ function setup(status: BookingStatus = BookingStatus.PENDING, hasCandidate = tru
   };
   const dataSource = {
     getRepository: () => bookingRepository,
-    transaction: async (fn: (manager: typeof manager) => Promise<unknown>) => {
+    transaction: async (fn: (em: typeof manager) => Promise<unknown>) => {
       transactions++;
       return fn(manager);
     },

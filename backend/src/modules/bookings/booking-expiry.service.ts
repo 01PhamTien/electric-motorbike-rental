@@ -44,7 +44,7 @@ export class BookingExpiryService implements OnModuleInit, OnModuleDestroy {
     try {
       // Bounded sweep: subsequent ticks handle backlogs without blocking requests.
       const candidates = await this.dataSource.getRepository(Booking).find({
-        select: { id: true, vehicleId: true },
+        select: { id: true, vehicleId: true, holdExpiresAt: true },
         where: {
           status: BookingStatus.PENDING,
           holdExpiresAt: LessThanOrEqual(new Date()),

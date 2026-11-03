@@ -21,6 +21,8 @@ export function StaffPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [resetId, setResetId] = useState<number | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
 
   async function load() {
     setLoading(true); setError('');
@@ -75,6 +77,20 @@ export function StaffPage() {
     } catch (err: any) { setError((err as {response?:{data?:{message?:string}}}).response?.data?.message || 'Không thể cập nhật trạng thái.'); }
   }
 
+  async function resetStaffPassword(event: FormEvent) {
+    event.preventDefault();
+    if (resetId === null) return;
+    if (!window.confirm('Đặt lại mật khẩu cho nhân viên #' + resetId + '?')) return;
+    setSaving(true); setError(''); setMessage('');
+    try {
+      await api.patch('/users/staff/' + resetId + '/password', { newPassword: resetPassword });
+      setResetId(null); setResetPassword('');
+      setMessage('Đã đặt lại mật khẩu. Hãy gửi thông tin cho nhân viên qua kênh an toàn và yêu cầu đổi mật khẩu ngay.');
+    } catch (err: unknown) {
+      setError((err as {response?:{data?:{message?:string}}}).response?.data?.message || 'Không thể đặt lại mật khẩu.');
+    } finally { setSaving(false); }
+  }
+
   return <section className="container-page space-y-7 py-12 sm:py-16">
     <header className="flex flex-wrap items-end justify-between gap-4"><SectionHeading eyebrow="QUẢN TRỊ NHÂN SỰ" title="Quản lý nhân viên" description="Tạo tài khoản, phân công điểm thuê, cập nhật hồ sơ và khóa hoặc mở khóa nhân viên." /><button onClick={() => void load()} disabled={loading} className="btn-outline">↻ Làm mới</button></header>
 
@@ -124,10 +140,18 @@ export function StaffPage() {
               <td className="px-5 py-4"><div>{item.email}</div><div className="text-xs text-slate-500">{item.phone || 'Chưa có SĐT'}</div></td>
               <td className="px-5 py-4">{item.station?.name || `Điểm thuê #${item.stationId ?? '—'}`}</td>
               <td className="px-5 py-4"><span className={item.status === 'ACTIVE' ? 'rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700' : 'rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700'}>{item.status === 'ACTIVE' ? 'Hoạt động' : 'Đã khóa'}</span></td>
-              <td className="px-5 py-4"><div className="flex gap-3"><button onClick={() => startEdit(item)} className="font-medium text-blue-700 hover:underline">Sửa</button><button onClick={() => void toggleStatus(item)} className="font-medium text-slate-700 hover:underline">{item.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa'}</button></div></td>
+              <td className="px-5 py-4"><div className="flex gap-3"><button onClick={() => { setResetId(item.id); setResetPassword(''); }} className="font-medium text-emerald-700 hover:underline">Đặt lại mật khẩu</button><button onClick={() => startEdit(item)} className="font-medium text-blue-700 hover:underline">Sửa</button><button onClick={() => void toggleStatus(item)} className="font-medium text-slate-700 hover:underline">{item.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa'}</button></div></td>
             </tr>)}
           </tbody></table></div>}
     </div>
     <p className="text-xs text-slate-500">Chỉ ADMIN được quản lý tài khoản nhân viên. Mật khẩu được băm trước khi lưu; API không trả về passwordHash.</p>
+    {resetId !== null && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" role="presentation">
+      <form onSubmit={resetStaffPassword} role="dialog" aria-modal="true" aria-labelledby="staff-reset-title" className="panel w-full max-w-md p-7">
+        <h2 id="staff-reset-title" className="text-xl font-extrabold">Đặt lại mật khẩu nhân viên #{resetId}</h2>
+        <p className="mt-3 text-sm text-slate-500">Mật khẩu mới tối thiểu 12 ký tự. Chỉ chia sẻ qua kênh an toàn và yêu cầu nhân viên tự đổi.</p>
+        <label className="mt-5 block"><span className="field-label">Mật khẩu mới</span><input className="field" type="password" minLength={12} maxLength={72} autoComplete="new-password" required value={resetPassword} onChange={e => setResetPassword(e.target.value)} /></label>
+        <div className="mt-6 flex justify-end gap-3"><button type="button" className="btn-outline" onClick={() => { setResetId(null); setResetPassword(''); }}>Hủy</button><button disabled={saving} className="btn-primary">Đặt lại</button></div>
+      </form>
+    </div>}
   </section>;
 }

@@ -72,5 +72,6 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npm run migration:generate-baseline
+      - run: npm run migration:run
+      - run: npm run migration:check
       - run: npm run test:integration

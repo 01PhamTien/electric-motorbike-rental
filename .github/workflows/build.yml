@@ -139,7 +139,6 @@ jobs:
           DEMO_SEED_CONFIRM: I_UNDERSTAND_THIS_IS_FAKE_DATA
         run: |
           npm run seed:rich-demo | tee /tmp/rich-demo-second-run.log
-          grep -q '^{}
- /tmp/rich-demo-second-run.log
+          grep -F -x '{}' /tmp/rich-demo-second-run.log
       - name: Verify demo record totals are unchanged
         run: node -r ts-node/register src/database/verify-rich-demo.ts

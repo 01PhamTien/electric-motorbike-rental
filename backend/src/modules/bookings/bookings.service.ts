@@ -33,6 +33,28 @@ export class BookingsService {
       if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
       if (vehicle.status !== VehicleStatus.ACTIVE) throw new BadRequestException('Xe hiện không thể đặt');
 
+      // Release expired holds while holding the vehicle row lock, so another
+      // booking request cannot race with the cleanup for this vehicle.
+      const now = new Date();
+      const expiredHolds = await bookingRepo
+        .createQueryBuilder('b')
+        .where('b.vehicleId = :vehicleId', { vehicleId: vehicle.id })
+        .andWhere('b.status = :status', { status: BookingStatus.PENDING })
+        .andWhere('b.holdExpiresAt IS NOT NULL AND b.holdExpiresAt <= :now', { now })
+        .getMany();
+
+      for (const hold of expiredHolds) {
+        hold.status = BookingStatus.EXPIRED;
+        await bookingRepo.save(hold);
+        await historyRepo.save(historyRepo.create({
+          bookingId: hold.id,
+          fromStatus: BookingStatus.PENDING,
+          toStatus: BookingStatus.EXPIRED,
+          performedById: null,
+          reason: 'Tự động hết hạn giữ chỗ khi kiểm tra lịch xe',
+        }));
+      }
+
       const overlapping = await bookingRepo
         .createQueryBuilder('b')
         .setLock('pessimistic_write')

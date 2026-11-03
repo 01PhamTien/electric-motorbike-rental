@@ -54,7 +54,7 @@ export function StationMap({ latitude, longitude, name, compact = false }: {
         style: STYLE_URL,
         center: [lng, lat],
         zoom: compact ? 14 : 14.5,
-        attributionControl: true,
+        attributionControl: { compact: true },
         interactive: !compact,
         pitchWithRotate: false,
         dragRotate: false,

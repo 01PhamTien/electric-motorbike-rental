@@ -1,0 +1,28 @@
+name: Refresh MapLibre Lockfile (temporary)
+on:
+  push:
+    branches: [fix/station-map-openfreemap-fallback-20261103]
+    paths: [frontend/package.json]
+permissions:
+  contents: write
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+        working-directory: frontend
+      - name: Commit frontend lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(map): lock MapLibre dependencies"
+            git push origin HEAD:fix/station-map-openfreemap-fallback-20261103
+          fi

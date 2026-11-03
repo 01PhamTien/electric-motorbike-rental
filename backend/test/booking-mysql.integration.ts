@@ -99,6 +99,18 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
     const second = await bookingService.create(user(customers[1].id), dto);
     assert.equal(second?.status, BookingStatus.PENDING);
     assert.notEqual(second?.id, first.id);
+
+    // Operational queue must respect station boundaries and reject customers.
+    const admin: JwtUser = { sub: 1001, email: 'admin@example.test', role: Role.ADMIN, stationId: null };
+    const staff: JwtUser = { sub: 1002, email: 'staff@example.test', role: Role.STAFF, stationId: station.id };
+    const otherStationStaff: JwtUser = { ...staff, stationId: station.id + 999 };
+    const adminBookings = await bookingService.listForOperations(admin);
+    const stationBookings = await bookingService.listForOperations(staff);
+    const foreignBookings = await bookingService.listForOperations(otherStationStaff);
+    assert.equal(adminBookings.length, 2);
+    assert.equal(stationBookings.length, 2);
+    assert.equal(foreignBookings.length, 0);
+    await assert.rejects(() => bookingService.listForOperations(user(customers[0].id)));
   } finally {
     await dataSource.destroy();
   }

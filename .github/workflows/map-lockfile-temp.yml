@@ -3,6 +3,8 @@ on:
   push:
     branches: [fix/station-map-openfreemap-fallback-20261103]
     paths: [frontend/package.json]
+  pull_request:
+    branches: [main]
 permissions:
   contents: write
 jobs:

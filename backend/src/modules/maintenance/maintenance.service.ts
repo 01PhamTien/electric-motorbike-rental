@@ -8,6 +8,9 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Booking } from '../bookings/booking.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { CreateMaintenanceDto, UpdateMaintenanceDto } from './dto';
+import { UpsertMaintenanceScheduleDto } from './maintenance-schedule.dto';
+import { MaintenanceSchedule } from './maintenance-schedule.entity';
+import { HandoverRecord } from '../handovers/handover.entity';
 import { MaintenanceRecord, MaintenanceStatus } from './maintenance.entity';
 import { AuditService } from '../audit/audit.service';
 
@@ -19,8 +22,17 @@ export class MaintenanceService {
     private readonly dataSource: DataSource,
     @InjectRepository(MaintenanceRecord) private readonly repo: Repository<MaintenanceRecord>,
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
+    @InjectRepository(MaintenanceSchedule) private readonly schedules: Repository<MaintenanceSchedule>,
+    @InjectRepository(HandoverRecord) private readonly handovers: Repository<HandoverRecord>,
     @Optional() private readonly audit?: AuditService,
   ) {}
+
+  private async scopedVehicle(user: JwtUser, vehicleId: number) {
+    const vehicle = await this.vehicles.findOne({ where: { id: vehicleId } });
+    if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
+    this.assertStationAccess(user, vehicle);
+    return vehicle;
+  }
 
   private assertStationAccess(user: JwtUser, vehicle: Vehicle) {
     if (user.role === Role.STAFF && user.stationId !== vehicle.stationId) {

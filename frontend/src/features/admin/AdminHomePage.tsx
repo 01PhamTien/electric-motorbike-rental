@@ -15,6 +15,7 @@ const groups = [
     { to: '/admin/models', icon: '⚙️', name: 'Dòng xe', info: 'Hãng xe, mẫu xe và thông số kỹ thuật' },
     { to: '/admin/stations', icon: '📍', name: 'Trạm xe', info: 'Địa điểm, thông tin và trạng thái hoạt động' },
     { to: '/admin/staff', icon: '👥', name: 'Nhân viên', info: 'Tài khoản, vai trò và phân công trạm' },
+    { to: '/admin/staff-schedules', icon: '🗓️', name: 'Lịch làm việc', info: 'Phân ca, theo dõi thời gian trực và điểm thuê' },
     { to: '/admin/customers', icon: '🪪', name: 'Khách hàng', info: 'Hồ sơ và trạng thái tài khoản khách thuê' },
     { to: '/admin/vouchers', icon: '🎟️', name: 'Voucher', info: 'Mã giảm giá, giới hạn và lịch sử sử dụng' },
   ] },

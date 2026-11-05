@@ -28,6 +28,42 @@ export class AuditService {
     return query.getMany();
   }
 
+
+  async staffPresence() {
+    const logs = await this.repo.createQueryBuilder('log')
+      .leftJoinAndSelect('log.actor', 'actor')
+      .leftJoinAndSelect('actor.station', 'station')
+      .where('log.targetType = :targetType', { targetType: 'SHIFT' })
+      .andWhere('log.actorId IS NOT NULL')
+      .orderBy('log.createdAt', 'DESC')
+      .addOrderBy('log.id', 'DESC')
+      .take(2000)
+      .getMany();
+
+    const latestByStaff = new Map<number, AuditLog>();
+    for (const log of logs) {
+      if (log.actorId !== null && !latestByStaff.has(log.actorId)) latestByStaff.set(log.actorId, log);
+    }
+
+    return Array.from(latestByStaff.values())
+      .filter(log => log.actor?.role === 'STAFF' && log.actor.status === 'ACTIVE')
+      .map(log => {
+        let details: Record<string, unknown> = {};
+        try { details = log.details ? JSON.parse(log.details) : {}; } catch { details = {}; }
+        return {
+          staffId: log.actorId,
+          fullName: log.actor?.fullName ?? 'Nhân viên',
+          email: log.actor?.email ?? null,
+          stationId: log.actor?.stationId ?? null,
+          stationName: log.actor?.station?.name ?? 'Chưa phân trạm',
+          active: log.action === 'SHIFT_STARTED',
+          lastAction: log.action,
+          lastActivityAt: log.createdAt,
+          handover: details,
+        };
+      });
+  }
+
   async getMyShift(actorId: number) {
     const latest = await this.repo.findOne({
       where: { actorId, targetType: 'SHIFT' },

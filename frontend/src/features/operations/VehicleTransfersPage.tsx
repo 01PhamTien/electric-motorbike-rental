@@ -41,7 +41,7 @@ export function VehicleTransfersPage() {
     finally {setLoading(false);}
   }
   useEffect(()=>{void load();},[user?.role,user?.stationId]);
-  const sourceVehicles=useMemo(()=>vehicles.filter(v=>v.isActive&&v.status==='ACTIVE'&&(user?.role==='ADMIN'||v.stationId===user?.stationId)),[vehicles,user]);
+  const sourceVehicles=useMemo(()=>vehicles.filter(v=>v.isActive&&v.status==='ACTIVE'&&(user?.role==='ADMIN'||v.stationId===user?.stationId)&&!transfers.some(t=>t.vehicleId===v.id&&['PENDING','IN_TRANSIT'].includes(t.status))),[vehicles,user,transfers]);
   const activeStations=stations.filter(s=>s.isActive);
   const visible=transfers.filter(t=>filter==='ALL'||(filter==='OPEN'&&['PENDING','IN_TRANSIT'].includes(t.status))||t.status===filter);
   async function create(e:React.FormEvent) {

@@ -35,13 +35,13 @@ export function ProfilePage() {
     try {await api.patch('/users/me/password',{currentPassword,newPassword});setCurrentPassword('');setNewPassword('');setConfirmPassword('');setSecurityOpen(false);setNotice('Đổi mật khẩu thành công.');}
     catch(err){setError(errorMessage(err));}finally{setBusy(false);}
   }
-  return <section className="container-page space-y-7 py-12 sm:py-16">
+  return <section className="container-page max-w-5xl space-y-7 py-10 sm:py-14">
     <SectionHeading eyebrow="HỒ SƠ CỦA TÔI" title="Thông tin cá nhân" description="Xem và cập nhật hồ sơ của bạn. Các tùy chọn bảo mật được đặt riêng ở cuối trang."/>
     {notice&&<p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">{notice}</p>}
     {error&&<p role="alert" className="rounded-xl bg-rose-50 p-4 text-rose-800">{error}</p>}
-    <div className="panel overflow-hidden">
-      <div className="flex flex-wrap items-center gap-5 border-b border-slate-100 p-7">
-        <div aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-2xl font-black text-emerald-800">{(user?.fullName||'V').trim().slice(0,1).toUpperCase()}</div>
+    <div className="panel overflow-hidden border-[#e7eee9] shadow-[0_18px_50px_rgba(30,90,65,.05)]">
+      <div className="flex flex-wrap items-center gap-5 border-b border-[#edf2ee] bg-gradient-to-r from-[#f0faf4] to-white p-7">
+        <div aria-hidden="true" className="flex h-20 w-20 items-center justify-center rounded-[26px] border-4 border-white bg-gradient-to-br from-[#c9f4df] to-[#eaf9f0] text-3xl font-black text-[#13865f] shadow-sm">{(user?.fullName||'V').trim().slice(0,1).toUpperCase()}</div>
         <div className="flex-1"><h2 className="text-2xl font-extrabold">{user?.fullName||'Tài khoản VoltGo'}</h2><p className="mt-1 text-sm text-slate-500">{user?.email}</p><span className="tag mt-2 inline-block">{user?.role?roleLabels[user.role]:'—'}</span></div>
         {!editing&&<button className="btn-outline" onClick={()=>{setEditing(true);setError('');setNotice('');}}>Chỉnh sửa hồ sơ</button>}
       </div>
@@ -57,7 +57,7 @@ export function ProfilePage() {
         {user?.role==='STAFF'&&<div><p className="field-label">Điểm thuê phụ trách</p><p className="mt-2 font-bold">{user.stationId?'Trạm #'+user.stationId:'Chưa phân công'}</p></div>}
       </div>}
     </div>
-    <div className="panel p-7"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-lg font-extrabold">Bảo mật tài khoản</h2><p className="mt-2 text-sm text-slate-500">Bạn có thể đổi mật khẩu khi cần. Mục này không mở mặc định.</p></div><button className="btn-outline" aria-expanded={securityOpen} onClick={()=>{setSecurityOpen(v=>!v);setError('');}}> {securityOpen?'Đóng':'Đổi mật khẩu'} </button></div>
+    <div className="panel border-[#e7eee9] p-7 shadow-[0_18px_50px_rgba(30,90,65,.05)]"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-lg font-extrabold">Bảo mật tài khoản</h2><p className="mt-2 text-sm text-slate-500">Bạn có thể đổi mật khẩu khi cần. Mục này không mở mặc định.</p></div><button className="btn-outline" aria-expanded={securityOpen} onClick={()=>{setSecurityOpen(v=>!v);setError('');}}> {securityOpen?'Đóng':'Đổi mật khẩu'} </button></div>
       {securityOpen&&<form onSubmit={changePassword} className="mt-7 max-w-lg space-y-4 border-t pt-6">
         <label className="block"><span className="field-label">Mật khẩu hiện tại</span><input className="field" type="password" autoComplete="current-password" required value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></label>
         <label className="block"><span className="field-label">Mật khẩu mới</span><input className="field" type="password" minLength={8} maxLength={72} autoComplete="new-password" required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>

@@ -98,10 +98,7 @@ export class ReportsService {
     const periodDays = utilizationPeriodMs / 86_400_000;
     const fleetCapacityMs = activeVehicles * utilizationPeriodMs;
     const totalBookedMs = [...utilizationByVehicle.values()].reduce((sum,item)=>sum+item.bookedMs,0);
-    const utilizationVehicleIds = [...utilizationByVehicle.keys()];
-    const utilizationVehicles = utilizationVehicleIds.length
-      ? await this.vehicles.find({ where: utilizationVehicleIds.map(id=>({id})) })
-      : [];
+    const utilizationVehicles = await this.vehicles.find({ where: { status: VehicleStatus.ACTIVE, isActive: true } });
     const utilizationVehicleMap = new Map(utilizationVehicles.map(vehicle=>[vehicle.id,vehicle]));
     const fleetUtilization = {
       periodStart: utilizationStart.toISOString(),

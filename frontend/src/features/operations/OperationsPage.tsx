@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 
 type CalendarEvent = { type:'BOOKING'|'MAINTENANCE'; id:number; vehicleId:number; vehicleCode:string; model:string; stationName:string; customerName:string; title:string; status:string; start:string; end:string|null };
 function localDateInput(date:Date) { const offset=date.getTimezoneOffset(); return new Date(date.getTime()-offset*60000).toISOString().slice(0,10); }
+type ShiftState = { active: boolean; latest?: { action: string; createdAt: string; details?: string | null } | null };
 type Booking = {
   id: number; status: string; pickupAt: string; returnAt: string;
   rentalAmount: string; depositSnapshot: string; cancellationFeeAmount?:string; cancellationType?:string|null;
@@ -20,6 +21,16 @@ const apiError = (e: unknown) => {
 export function OperationsPage() {
   const { user } = useAuth();
   const [items,setItems] = useState<Booking[]>([]);
+  const [shift,setShift] = useState<ShiftState>({active:false});
+  const [shiftLoading,setShiftLoading] = useState(false);
+  const [shiftSaving,setShiftSaving] = useState(false);
+  const [shiftError,setShiftError] = useState('');
+  const [shiftMessage,setShiftMessage] = useState('');
+  const [shiftSummary,setShiftSummary] = useState('');
+  const [shiftPending,setShiftPending] = useState('');
+  const [shiftVehicles,setShiftVehicles] = useState('0');
+  const [shiftBatteries,setShiftBatteries] = useState('0');
+  const [shiftChecks,setShiftChecks] = useState<string[]>([]);
   const [calendar,setCalendar] = useState<CalendarEvent[]>([]);
   const [calendarFrom,setCalendarFrom] = useState(()=>localDateInput(new Date()));
   const [calendarTo,setCalendarTo] = useState(()=>localDateInput(new Date(Date.now()+6*86_400_000)));
@@ -50,6 +61,28 @@ export function OperationsPage() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); },[load]);
+  useEffect(() => {
+    if (user?.role !== 'STAFF') return;
+    let mounted = true;
+    setShiftLoading(true);
+    api.get('/staff/shifts/me').then(({data}) => { if (mounted) setShift(data); })
+      .catch(e => { if (mounted) setShiftError(apiError(e)); })
+      .finally(() => { if (mounted) setShiftLoading(false); });
+    return () => { mounted = false; };
+  }, [user?.role]);
+  async function submitShift(event: React.FormEvent) {
+    event.preventDefault();
+    const vehicleCount=Number(shiftVehicles), batteryCount=Number(shiftBatteries);
+    if (!shiftSummary.trim() || shiftSummary.trim().length<3) { setShiftError('Vui lòng ghi nội dung bàn giao ít nhất 3 ký tự.'); return; }
+    if (!Number.isInteger(vehicleCount)||vehicleCount<0||!Number.isInteger(batteryCount)||batteryCount<0) { setShiftError('Số lượng xe và pin phải là số nguyên không âm.'); return; }
+    setShiftSaving(true); setShiftError(''); setShiftMessage('');
+    try {
+      const {data}=await api.post('/staff/shifts/'+(shift.active?'end':'start'), { summary:shiftSummary.trim(), pendingTasks:shiftPending.trim()||undefined, checklist:shiftChecks, vehicleCount, batteryCount });
+      setShift(data); setShiftMessage(shift.active?'Đã kết thúc ca và lưu biên bản bàn giao.':'Đã bắt đầu ca làm việc.');
+      setShiftSummary(''); setShiftPending(''); setShiftChecks([]); setShiftVehicles('0'); setShiftBatteries('0');
+    } catch(e) { setShiftError(apiError(e)); }
+    finally { setShiftSaving(false); }
+  }
   async function loadCalendar() {
     if (!calendarFrom || !calendarTo || calendarTo < calendarFrom) { setCalendarError('Vui lòng chọn khoảng ngày hợp lệ.'); return; }
     const span=(new Date(calendarTo+'T00:00:00').getTime()-new Date(calendarFrom+'T00:00:00').getTime())/86_400_000;

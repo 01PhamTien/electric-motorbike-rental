@@ -61,7 +61,7 @@ export class VouchersService {
     const cents = (value: number | string) => Math.round(Number(value) * 100);
     const base = cents(rentalAmount);
     let discount = voucher.discountType === VoucherDiscountType.PERCENT
-      ? Math.floor(base * Number(voucher.discountValue) / 10000)
+      ? Math.floor(base * Number(voucher.discountValue) / 100)
       : cents(voucher.discountValue);
     if (voucher.maxDiscountAmount != null) discount = Math.min(discount, cents(voucher.maxDiscountAmount));
     discount = Math.min(base, discount);

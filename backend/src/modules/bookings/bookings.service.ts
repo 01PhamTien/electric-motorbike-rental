@@ -226,7 +226,7 @@ export class BookingsService {
 
   async cancel(current: JwtUser, id: number, dto: CancelBookingDto) {
     return this.transition(current, id, [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-      BookingStatus.CANCELLED, dto.reason || 'Hủy đơn', dto.reason || null, 'CUSTOMER_CANCELLED');
+      BookingStatus.CANCELLED, dto.reason || 'Hủy đơn', dto.reason || null, current.role === Role.CUSTOMER ? 'CUSTOMER_CANCELLED' : 'STAFF_CANCELLED');
 
   async markNoShow(current: JwtUser, id: number) {
     if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
@@ -301,7 +301,7 @@ export class BookingsService {
         booking.cancelReason = cancelReason ?? null;
       }
       const saved = await bookings.save(booking);
-      if (isExpired || next === BookingStatus.CANCELLED) await this.vouchers?.release(manager, id);
+      if (isExpired || (next === BookingStatus.CANCELLED && cancellationType !== 'NO_SHOW')) await this.vouchers?.release(manager, id);
       await manager.getRepository(BookingStatusHistory).save({
         bookingId: id,
         fromStatus,

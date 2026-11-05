@@ -17,10 +17,10 @@ export class Battery {
   @Index({ unique: true })
   @Column({ type: 'varchar', length: 80 }) serialNumber: string;
   @ManyToOne(() => Station, { onDelete: 'NO ACTION' })
-  @JoinColumn({ name: 'stationId' }) station: Station;
+  @JoinColumn({ name: 'stationId', foreignKeyConstraintName: 'FK_batteries_station' }) station: Station;
   @Column({ type: 'int' }) stationId: number;
   @ManyToOne(() => Vehicle, { nullable: true, onDelete: 'NO ACTION' })
-  @JoinColumn({ name: 'vehicleId' }) vehicle: Vehicle | null;
+  @JoinColumn({ name: 'vehicleId', foreignKeyConstraintName: 'FK_batteries_vehicle' }) vehicle: Vehicle | null;
   @Column({ type: 'int', nullable: true }) vehicleId: number | null;
   @Column({ type: 'simple-enum', enum: BatteryStatus, default: BatteryStatus.FULL }) status: BatteryStatus;
   @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true }) capacityKwh: string | null;

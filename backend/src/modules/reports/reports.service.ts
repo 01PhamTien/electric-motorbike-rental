@@ -6,6 +6,7 @@ import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { PaymentPurpose, PaymentTransaction } from '../payments/payment.entity';
+import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 
 type PaymentRow = Pick<PaymentTransaction, 'purpose' | 'amount' | 'createdAt'>;
 const cents = (value: string | number) => Math.round(Number(value) * 100);

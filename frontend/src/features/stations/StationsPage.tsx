@@ -129,34 +129,34 @@ export function StationsPage() {
           {myBatteryReservations.filter(r=>r.status==='RESERVED'&&new Date(r.expiresAt)>new Date()).map(r=><div key={r.id} className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><div><strong className="text-sm">Đang giữ pin #{r.id}</strong><p className="mt-1 text-xs text-slate-600">{r.station?.name??'Trạm #'+r.stationId} · Hết hạn {new Date(r.expiresAt).toLocaleTimeString('vi-VN')}</p></div><button disabled={reservationBusy} onClick={()=>void cancelBatteryReservation(r.id)} className="text-sm font-bold text-rose-700 underline">Hủy giữ pin</button></div>)}
           {rentingBookings.length>0 ? <div className="mt-4 flex flex-wrap items-end gap-3"><label className="min-w-64 flex-1"><span className="field-label">Đơn thuê đang sử dụng tại trạm này</span><select id="battery-reservation-booking" className="field mt-2" defaultValue=""><option value="">Chọn đơn thuê</option>{rentingBookings.filter(b=>vehicles.some(v=>v.id===b.vehicleId&&v.station?.id===selected?.id)).map(b=><option key={b.id} value={b.id}>Đơn #{b.id} · {b.vehicle?.code}</option>)}</select></label><button disabled={reservationBusy||(ranked.find(x=>x.station.id===selected?.id)?.availableBatteryCount??0)<1} onClick={()=>{const select=document.getElementById('battery-reservation-booking') as HTMLSelectElement|null;if(select?.value&&selected)void reserveBattery(Number(select.value),selected.id);else setReservationMessage('Vui lòng chọn đơn thuê đang sử dụng tại trạm này.');}} className="btn-primary">Giữ pin 10 phút</button></div> : <p className="mt-4 text-sm text-slate-500">{user?.role==='CUSTOMER'?'Bạn chưa có đơn thuê đang sử dụng.':'Đăng nhập bằng tài khoản khách hàng có xe đang thuê để giữ pin.'}</p>}
         </section>}
-        <div className="panel overflow-hidden">
+        <div className="panel overflow-hidden border-[#e7eee9] shadow-[0_18px_50px_rgba(30,90,65,.06)]">
           <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="relative h-[390px] bg-slate-100 sm:h-[540px]">
+            <div className="relative h-[390px] bg-[#edf5f0] sm:h-[540px]">
               <StationMap key={location ? 'located' : 'all-stations'} points={points} userLocation={location} onMarkerClick={onMarkerClick}/>
               <div className="pointer-events-none absolute left-5 top-5 flex flex-wrap gap-2">
-                <span className="rounded-full bg-white/95 px-4 py-2 text-xs font-extrabold text-emerald-800 shadow-md">📍 {items.length} TRẠM</span>
+                <span className="rounded-full border border-[#e4eee8] bg-white/95 px-4 py-2 text-xs font-extrabold text-emerald-800 shadow-md">📍 {items.length} TRẠM</span>
                 <span className="rounded-full bg-white/95 px-4 py-2 text-xs font-extrabold text-sky-800 shadow-md">⚡ {vehicles.length} XE SẴN SÀNG</span>
                 {location && <span className="rounded-full bg-sky-50 px-4 py-2 text-xs font-extrabold text-sky-800 shadow-md">◎ VỊ TRÍ CỦA BẠN</span>}
               </div>
               
             </div>
-            <aside className="flex flex-col justify-between bg-[#103a39] p-6 text-white sm:p-8">
+            <aside className="flex flex-col justify-between bg-gradient-to-br from-[#f0faf4] via-white to-[#eaf7ef] p-6 text-[#294442] sm:p-8">
               <div>
-                <p className="text-xs font-black uppercase tracking-[.16em] text-emerald-300">{location ? 'TRẠM GẦN NHẤT' : 'ĐIỂM NHẬN ĐƯỢC CHỌN'}</p>
+                <p className="text-xs font-black uppercase tracking-[.16em] text-[#159b70]">{location ? 'TRẠM GẦN NHẤT' : 'ĐIỂM NHẬN ĐƯỢC CHỌN'}</p>
                 <h2 className="mt-4 text-2xl font-extrabold">{selected?.name ?? ranked[0]?.station.name}</h2>
-                <p className="mt-3 text-sm leading-7 text-emerald-50/85">{selected?.address}</p>
-                {selected && location && <p className="mt-3 inline-flex rounded-full bg-emerald-300/15 px-3 py-2 text-sm font-bold text-emerald-100">Cách bạn khoảng {distanceKm(location,{latitude:Number(selected.latitude),longitude:Number(selected.longitude)}).toFixed(1)} km</p>}
-                {location && ranked[0] && <p className="mt-2 text-xs text-emerald-100/80">Trạm gần nhất: {ranked[0].station.name} ({ranked[0].distance?.toFixed(1)} km)</p>}
-                <p className="mt-3 text-sm font-bold text-sky-200">⚡ {ranked.find(x => x.station.id === selected?.id)?.availableVehicles ?? 0} xe đang sẵn sàng tại trạm</p>
-                <p className="mt-2 text-sm font-bold text-emerald-200">🔋 {ranked.find(x => x.station.id === selected?.id)?.availableBatteryCount ?? 0} pin đầy có thể đổi ngay</p>
+                <p className="mt-3 text-sm leading-7 text-[#647873]">{selected?.address}</p>
+                {selected && location && <p className="mt-3 inline-flex rounded-full bg-white px-3 py-2 text-sm font-bold text-[#159b70] shadow-sm">Cách bạn khoảng {distanceKm(location,{latitude:Number(selected.latitude),longitude:Number(selected.longitude)}).toFixed(1)} km</p>}
+                {location && ranked[0] && <p className="mt-2 text-xs text-[#71847c]">Trạm gần nhất: {ranked[0].station.name} ({ranked[0].distance?.toFixed(1)} km)</p>}
+                <p className="mt-3 text-sm font-bold text-[#4d8292]">⚡ {ranked.find(x => x.station.id === selected?.id)?.availableVehicles ?? 0} xe đang sẵn sàng tại trạm</p>
+                <p className="mt-2 text-sm font-bold text-[#159b70]">🔋 {ranked.find(x => x.station.id === selected?.id)?.availableBatteryCount ?? 0} pin đầy có thể đổi ngay</p>
                 <label className="mt-7 block text-sm font-bold" htmlFor="station-map-choice">Chọn điểm nhận xe</label>
-                <select id="station-map-choice" className="mt-3 w-full rounded-xl border border-white/20 bg-white p-3 text-sm font-medium text-slate-900" value={selected?.id ?? ''} onChange={e => setSelectedId(Number(e.target.value))}>
+                <select id="station-map-choice" className="mt-3 w-full rounded-xl border border-[#dceae1] bg-white p-3 text-sm font-medium text-slate-900" value={selected?.id ?? ''} onChange={e => setSelectedId(Number(e.target.value))}>
                   {ranked.map(({station, distance, availableVehicles, availableBatteryCount}) => <option key={station.id} value={station.id}>{station.name} · {availableVehicles} xe · {availableBatteryCount} pin đổi{distance !== null ? ' · ' + distance.toFixed(1) + ' km' : ''}</option>)}
                 </select>
               </div>
               <div className="mt-7 flex flex-col gap-3">
                 {selected && coordinatesValid(selected.latitude, selected.longitude) && <a className="btn-primary justify-center text-center" href={stationDirections(selected.latitude, selected.longitude)} rel="noopener noreferrer" target="_blank">Mở chỉ đường ↗</a>}
-                <Link className="rounded-xl border border-white/25 px-5 py-3 text-center text-sm font-bold text-white hover:bg-white/10" to="/vehicles">Xem xe tại các điểm →</Link>
+                <Link className="rounded-xl border border-[#cfe6d8] bg-white px-5 py-3 text-center text-sm font-bold text-[#31544b] hover:bg-[#f7fcf8]" to="/vehicles">Xem xe tại các điểm →</Link>
               </div>
             </aside>
           </div>

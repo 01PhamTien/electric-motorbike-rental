@@ -10,7 +10,7 @@ import { Booking } from '../bookings/booking.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 import { AuditService } from '../audit/audit.service';
-import { CreateVehicleTransferDto } from './vehicle-transfer.dto';
+import { CreateVehicleTransferDto, TransferInspectionDto } from './vehicle-transfer.dto';
 import { VehicleTransfer, VehicleTransferStatus } from './vehicle-transfer.entity';
 
 const OPEN_BOOKINGS = [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.RENTING];
@@ -51,6 +51,18 @@ export class TransfersService {
       .addSelect('t.dispatchedAt', 'dispatchedAt')
       .addSelect('t.receivedAt', 'receivedAt')
       .addSelect('t.cancelledAt', 'cancelledAt')
+      .addSelect('t.dispatchBatteryPercent', 'dispatchBatteryPercent')
+      .addSelect('t.dispatchOdometerKm', 'dispatchOdometerKm')
+      .addSelect('t.dispatchConditionNote', 'dispatchConditionNote')
+      .addSelect('t.dispatchChecklist', 'dispatchChecklist')
+      .addSelect('t.dispatchDamageNotes', 'dispatchDamageNotes')
+      .addSelect('t.dispatchPhotoUrls', 'dispatchPhotoUrls')
+      .addSelect('t.receiveBatteryPercent', 'receiveBatteryPercent')
+      .addSelect('t.receiveOdometerKm', 'receiveOdometerKm')
+      .addSelect('t.receiveConditionNote', 'receiveConditionNote')
+      .addSelect('t.receiveChecklist', 'receiveChecklist')
+      .addSelect('t.receiveDamageNotes', 'receiveDamageNotes')
+      .addSelect('t.receivePhotoUrls', 'receivePhotoUrls')
       .addSelect('t.createdAt', 'createdAt')
       .addSelect('v.code', 'vehicleCode')
       .addSelect('src.name', 'sourceStationName')
@@ -115,6 +127,10 @@ export class TransfersService {
         dispatchedAt: null,
         receivedAt: null,
         cancelledAt: null,
+        dispatchBatteryPercent: null, dispatchOdometerKm: null, dispatchConditionNote: null,
+        dispatchChecklist: null, dispatchDamageNotes: null, dispatchPhotoUrls: null,
+        receiveBatteryPercent: null, receiveOdometerKm: null, receiveConditionNote: null,
+        receiveChecklist: null, receiveDamageNotes: null, receivePhotoUrls: null,
       }));
       await this.audit.record(user.sub, 'VEHICLE_TRANSFER_REQUESTED', 'VEHICLE_TRANSFER', saved.id, {
         vehicleId: vehicle.id, sourceStationId: source.id, destinationStationId: destination.id,
@@ -123,7 +139,7 @@ export class TransfersService {
     });
   }
 
-  async dispatch(user: JwtUser, id: number) {
+  async dispatch(user: JwtUser, id: number, dto: TransferInspectionDto) {
     return this.dataSource.transaction(async manager => {
       const transferRepo = manager.getRepository(VehicleTransfer);
       const vehicleRepo = manager.getRepository(Vehicle);
@@ -145,16 +161,25 @@ export class TransfersService {
       const maintenance = await maintenanceRepo.createQueryBuilder('m').where('m.vehicleId = :id', { id: vehicle.id })
         .andWhere('m.status IN (:...statuses)', { statuses: OPEN_MAINTENANCE }).getOne();
       if (maintenance) throw new BadRequestException('Xe đang có bảo dưỡng chưa hoàn tất');
+      transfer.dispatchBatteryPercent = dto.batteryPercent;
+      transfer.dispatchOdometerKm = dto.odometerKm.toFixed(1);
+      transfer.dispatchConditionNote = dto.conditionNote.trim();
+      transfer.dispatchChecklist = JSON.stringify(dto.inspectionChecklist);
+      transfer.dispatchDamageNotes = dto.damageNotes?.trim() || null;
+      transfer.dispatchPhotoUrls = dto.photoUrls?.length ? JSON.stringify(dto.photoUrls) : null;
       transfer.status = VehicleTransferStatus.IN_TRANSIT;
       transfer.dispatchedById = user.sub;
       transfer.dispatchedAt = new Date();
       const saved = await transferRepo.save(transfer);
-      await this.audit.record(user.sub, 'VEHICLE_TRANSFER_DISPATCHED', 'VEHICLE_TRANSFER', id, { vehicleId: vehicle.id });
+      await this.audit.record(user.sub, 'VEHICLE_TRANSFER_DISPATCHED', 'VEHICLE_TRANSFER', id, {
+        vehicleId: vehicle.id, batteryPercent: dto.batteryPercent, odometerKm: dto.odometerKm,
+        photoCount: dto.photoUrls?.length ?? 0,
+      });
       return saved;
     });
   }
 
-  async receive(user: JwtUser, id: number) {
+  async receive(user: JwtUser, id: number, dto: TransferInspectionDto) {
     return this.dataSource.transaction(async manager => {
       const transferRepo = manager.getRepository(VehicleTransfer);
       const vehicleRepo = manager.getRepository(Vehicle);
@@ -167,14 +192,26 @@ export class TransfersService {
       if (!vehicle || vehicle.stationId !== transfer.sourceStationId) throw new BadRequestException('Vị trí xe không khớp với lịch sử điều chuyển');
       const destination = await stationRepo.findOne({ where: { id: transfer.destinationStationId, isActive: true } });
       if (!destination) throw new BadRequestException('Trạm nhận đã ngừng hoạt động');
+      if (transfer.dispatchOdometerKm == null) throw new BadRequestException('Thiếu biên bản ODO lúc bàn giao');
+      if (dto.odometerKm < Number(transfer.dispatchOdometerKm)) {
+        throw new BadRequestException('ODO khi tiếp nhận không được thấp hơn ODO lúc bàn giao');
+      }
       vehicle.stationId = destination.id;
       await vehicleRepo.save(vehicle);
+      transfer.receiveBatteryPercent = dto.batteryPercent;
+      transfer.receiveOdometerKm = dto.odometerKm.toFixed(1);
+      transfer.receiveConditionNote = dto.conditionNote.trim();
+      transfer.receiveChecklist = JSON.stringify(dto.inspectionChecklist);
+      transfer.receiveDamageNotes = dto.damageNotes?.trim() || null;
+      transfer.receivePhotoUrls = dto.photoUrls?.length ? JSON.stringify(dto.photoUrls) : null;
       transfer.status = VehicleTransferStatus.COMPLETED;
       transfer.receivedById = user.sub;
       transfer.receivedAt = new Date();
       const saved = await transferRepo.save(transfer);
       await this.audit.record(user.sub, 'VEHICLE_TRANSFER_RECEIVED', 'VEHICLE_TRANSFER', id, {
         vehicleId: vehicle.id, destinationStationId: destination.id,
+        batteryPercent: dto.batteryPercent, odometerKm: dto.odometerKm,
+        photoCount: dto.photoUrls?.length ?? 0,
       });
       return { transfer: saved, vehicle };
     });

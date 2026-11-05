@@ -226,7 +226,13 @@ export class BookingsService {
 
   async cancel(current: JwtUser, id: number, dto: CancelBookingDto) {
     return this.transition(current, id, [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-      BookingStatus.CANCELLED, dto.reason || 'Hủy đơn', dto.reason || null);
+      BookingStatus.CANCELLED, dto.reason || 'Hủy đơn', dto.reason || null, 'CUSTOMER_CANCELLED');
+
+  async markNoShow(current: JwtUser, id: number) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    return this.transition(current, id, [BookingStatus.CONFIRMED], BookingStatus.CANCELLED,
+      'Khách không đến nhận xe (No-show)', 'Khách không đến nhận xe', 'NO_SHOW');
+  }
   }
 
   private async changeStatus(current: JwtUser, id: number, expected: BookingStatus, next: BookingStatus, reason: string) {
@@ -241,6 +247,7 @@ export class BookingsService {
     next: BookingStatus,
     reason: string,
     cancelReason?: string | null,
+    cancellationType?: 'CUSTOMER_CANCELLED' | 'STAFF_CANCELLED' | 'NO_SHOW',
   ) {
     // All booking writers acquire the vehicle lock first, matching create().
     // This serializes booking transitions with expiry cleanup and availability checks.
@@ -272,6 +279,25 @@ export class BookingsService {
       const fromStatus = booking.status;
       booking.status = isExpired ? BookingStatus.EXPIRED : next;
       if (!isExpired && next === BookingStatus.CANCELLED) {
+        const now = new Date();
+        const hoursUntilPickup = (booking.pickupAt.getTime() - now.getTime()) / 3_600_000;
+        if (cancellationType === 'NO_SHOW') {
+          if (now.getTime() < booking.pickupAt.getTime() + 30 * 60_000)
+            throw new BadRequestException('Chỉ được ghi nhận No-show sau 30 phút kể từ giờ nhận xe');
+          booking.cancellationFeeAmount = Math.min(
+            Math.round(Number(booking.rentalAmount) * 0.30 * 100) / 100,
+            Number(booking.depositSnapshot),
+          ).toFixed(2);
+        } else if (cancellationType === 'CUSTOMER_CANCELLED') {
+          if (current.role === Role.CUSTOMER && hoursUntilPickup <= 0)
+            throw new BadRequestException('Đã đến giờ nhận xe. Vui lòng liên hệ nhân viên để được hỗ trợ');
+          booking.cancellationFeeAmount = booking.status === BookingStatus.CONFIRMED && hoursUntilPickup < 24
+            ? Math.min(Math.round(Number(booking.rentalAmount) * 0.20 * 100) / 100, Number(booking.depositSnapshot)).toFixed(2)
+            : '0.00';
+        } else {
+          booking.cancellationFeeAmount = '0.00';
+        }
+        booking.cancellationType = cancellationType ?? 'STAFF_CANCELLED';
         booking.cancelReason = cancelReason ?? null;
       }
       const saved = await bookings.save(booking);

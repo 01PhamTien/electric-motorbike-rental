@@ -29,6 +29,7 @@ const adminNav = [
   { to: '/admin/customers', label: 'Khách hàng' },
   { to: '/admin/staff', label: 'Nhân viên' },
   { to: '/admin/staff-schedules', label: 'Lịch làm việc & phân ca' },
+  { to: '/admin/staff-presence', label: 'Nhân viên đang trực' },
   { to: '/admin/vouchers', label: 'Voucher' },
   { to: '/admin/dashboard', label: 'Báo cáo' },
   { to: '/admin/audit-logs', label: 'Nhật ký hoạt động' },

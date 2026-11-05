@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
@@ -9,6 +9,7 @@ import { Booking } from '../bookings/booking.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { CreateMaintenanceDto, UpdateMaintenanceDto } from './dto';
 import { MaintenanceRecord, MaintenanceStatus } from './maintenance.entity';
+import { AuditService } from '../audit/audit.service';
 
 const OPEN_MAINTENANCE = [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS];
 
@@ -18,6 +19,7 @@ export class MaintenanceService {
     private readonly dataSource: DataSource,
     @InjectRepository(MaintenanceRecord) private readonly repo: Repository<MaintenanceRecord>,
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
+    @Optional() private readonly audit?: AuditService,
   ) {}
 
   private assertStationAccess(user: JwtUser, vehicle: Vehicle) {
@@ -71,7 +73,9 @@ export class MaintenanceService {
       });
       vehicle.status = VehicleStatus.MAINTENANCE;
       await vehicleRepo.save(vehicle);
-      return recordRepo.save(record);
+      const saved = await recordRepo.save(record);
+      await this.audit?.record(user.sub, 'MAINTENANCE_SCHEDULED', 'MAINTENANCE', saved.id, { vehicleId: vehicle.id, reason: saved.reason, scheduledAt: saved.scheduledAt });
+      return saved;
     });
   }
 
@@ -123,6 +127,7 @@ export class MaintenanceService {
           await vehicleRepo.save(vehicle);
         }
       }
+      await this.audit?.record(user.sub, 'MAINTENANCE_UPDATED', 'MAINTENANCE', saved.id, { vehicleId: vehicle.id, status: saved.status, cost: saved.cost });
       return saved;
     });
   }

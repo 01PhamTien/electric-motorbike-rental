@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { Role } from '../../common/enums/role.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { AuditService } from '../audit/audit.service';
@@ -72,7 +72,7 @@ export class BatteriesService {
       const battery=await batteryRepo.findOne({where:{id:dto.batteryId},lock:{mode:'pessimistic_write'}});
       if(!battery) throw new NotFoundException('Không tìm thấy pin');
       if(battery.status!==BatteryStatus.FULL||battery.vehicleId!==null) throw new BadRequestException('Chỉ có thể lắp pin đầy đang ở kho trạm');
-      const fullCount=await batteryRepo.count({where:{stationId:vehicle.stationId,status:BatteryStatus.FULL,vehicleId:null}});
+      const fullCount=await batteryRepo.count({where:{stationId:vehicle.stationId,status:BatteryStatus.FULL,vehicleId:IsNull()}});
       const heldCount=await reservationRepo.createQueryBuilder('r').where('r.stationId = :stationId',{stationId:vehicle.stationId})
         .andWhere('r.status = :status',{status:BatteryReservationStatus.RESERVED}).andWhere('r.expiresAt > :now',{now:new Date()}).getCount();
       if(fullCount-heldCount<=0) throw new ConflictException('Pin này đang được giữ trước cho khách. Không thể sử dụng cho thao tác khác.');

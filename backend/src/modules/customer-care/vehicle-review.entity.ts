@@ -1,9 +1,10 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { User } from '../users/user.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
 
 @Entity('vehicle_reviews')
+@Check('CK_vehicle_reviews_rating', 'rating >= 1 AND rating <= 5')
 @Index('UQ_vehicle_reviews_booking', ['bookingId'], { unique: true })
 @Index('IDX_vehicle_reviews_vehicle_created', ['vehicleId', 'createdAt'])
 export class VehicleReview {

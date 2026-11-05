@@ -35,7 +35,7 @@ function fixture() {
   };
   const vehicleRepo = {
     count: async ({where}:any) => where?.status === 'ACTIVE' ? 8 : where?.status === 'MAINTENANCE' ? 1 : where?.isActive === false ? 1 : 10,
-    find: async () => [{id:10,code:'VG-10',station:{name:'Hai Chau'}},{id:11,code:'VG-11',station:{name:'Hai Chau'}}],
+    find: async () => [{id:10,code:'VG-10',station:{name:'Hai Chau'}},{id:11,code:'VG-11',station:{name:'Hai Chau'}},{id:12,code:'VG-12',station:{name:'Hai Chau'}}],
   };
   const maintenanceRepo = { createQueryBuilder: () => qb(maintenance) };
   return new ReportsService(bookingRepo as never,vehicleRepo as never,paymentRepo as never,maintenanceRepo as never);
@@ -83,6 +83,8 @@ test('report calculates fleet utilization from rental overlap, excluding cancell
   assert.equal(report.fleetUtilization.utilizationRate,2.5);
   assert.equal(report.fleetUtilization.idleFleetDays,78);
   assert.equal(report.fleetUtilization.byVehicle[0].code,'VG-10');
+  assert.equal(report.fleetUtilization.byVehicle.find(v=>v.code==='VG-12')?.bookedDays,0);
+  assert.equal(report.fleetUtilization.byVehicle.find(v=>v.code==='VG-12')?.idleDays,10);
 });
 test('report rejects invalid and reversed date ranges', async () => {
   await assert.rejects(()=>fixture().getOverview('not-a-date'),/from không hợp lệ/);

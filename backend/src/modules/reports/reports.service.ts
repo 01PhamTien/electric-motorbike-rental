@@ -22,7 +22,7 @@ export class ReportsService {
   private parseDate(value: string | undefined, name: string, end = false): Date | undefined {
     if (!value) return undefined;
     // Date-only filters are interpreted in the server's local business timezone.
-    const parsed = /^\\d{4}-\\d{2}-\\d{2}$/.test(value)
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value)
       ? new Date(value + (end ? 'T23:59:59.999+07:00' : 'T00:00:00+07:00'))
       : new Date(value);
     if (Number.isNaN(parsed.getTime())) throw new BadRequestException('Tham số ' + name + ' không hợp lệ');
@@ -34,7 +34,10 @@ export class ReportsService {
     const end = this.parseDate(to, 'to', true);
     if (start && end && start > end) throw new BadRequestException('from phải nhỏ hơn hoặc bằng to');
 
-    const bookingQuery = this.bookings.createQueryBuilder('booking')\n      .leftJoinAndSelect('booking.vehicle', 'vehicle')\n      .leftJoinAndSelect('vehicle.model', 'model')\n      .leftJoinAndSelect('vehicle.station', 'station');
+    const bookingQuery = this.bookings.createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.vehicle', 'vehicle')
+      .leftJoinAndSelect('vehicle.model', 'model')
+      .leftJoinAndSelect('vehicle.station', 'station');
     if (start) bookingQuery.andWhere('booking.createdAt >= :from', { from: start });
     if (end) bookingQuery.andWhere('booking.createdAt <= :to', { to: end });
     const bookingRows = await bookingQuery.getMany();

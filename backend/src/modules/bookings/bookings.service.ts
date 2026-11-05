@@ -61,6 +61,7 @@ export class BookingsService {
       for (const hold of expiredHolds) {
         hold.status = BookingStatus.EXPIRED;
         await bookingRepo.save(hold);
+        await this.vouchers?.release(manager, hold.id);
         await historyRepo.save(historyRepo.create({
           bookingId: hold.id,
           fromStatus: BookingStatus.PENDING,
@@ -274,6 +275,7 @@ export class BookingsService {
         booking.cancelReason = cancelReason ?? null;
       }
       const saved = await bookings.save(booking);
+      if (isExpired || next === BookingStatus.CANCELLED) await this.vouchers?.release(manager, id);
       await manager.getRepository(BookingStatusHistory).save({
         bookingId: id,
         fromStatus,

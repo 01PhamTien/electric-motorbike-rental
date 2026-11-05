@@ -3,6 +3,7 @@ import assert = require('node:assert/strict');
 import { test } from 'node:test';
 import { BookingStatus } from '../src/common/enums/booking-status.enum';
 import { PaymentPurpose } from '../src/modules/payments/payment.entity';
+import { OperatingCostCategory } from '../src/modules/operating-costs/operating-cost.entity';
 import { ReportsService } from '../src/modules/reports/reports.service';
 
 function fixture() {
@@ -10,6 +11,10 @@ function fixture() {
     { id:1, status:BookingStatus.COMPLETED, createdAt:new Date('2026-11-02T10:00:00Z'), pickupAt:new Date('2026-11-02T10:00:00Z'), returnAt:new Date('2026-11-03T10:00:00Z'), rentalAmount:'300000.00', customer:{id:101,role:'CUSTOMER',fullName:'Nguyen A',createdAt:new Date('2026-10-01T00:00:00Z')}, vehicle:{id:10,code:'VG-10',model:{name:'City'},station:{id:2,name:'Hai Chau'}} },
     { id:2, status:BookingStatus.RENTING, createdAt:new Date('2026-11-03T10:00:00Z'), pickupAt:new Date('2026-11-04T10:00:00Z'), returnAt:new Date('2026-11-05T10:00:00Z'), rentalAmount:'200000.00', customer:{id:101,role:'CUSTOMER',fullName:'Nguyen A',createdAt:new Date('2026-10-01T00:00:00Z')}, vehicle:{id:11,code:'VG-11',model:{name:'Go'},station:{id:2,name:'Hai Chau'}} },
     { id:3, status:BookingStatus.CANCELLED, createdAt:new Date('2026-11-04T10:00:00Z'), pickupAt:new Date('2026-11-06T10:00:00Z'), returnAt:new Date('2026-11-07T10:00:00Z'), rentalAmount:'100000.00', customer:{id:102,role:'CUSTOMER',fullName:'Tran B',createdAt:new Date('2026-11-02T00:00:00Z')}, vehicle:{id:10,code:'VG-10',model:{name:'City'},station:{id:2,name:'Hai Chau'}} },
+  ];
+  const operatingCosts = [
+    {stationId:2,station:{id:2,name:'Hai Chau'},vehicleId:10,vehicle:{id:10,code:'VG-10'},category:OperatingCostCategory.CHARGING,amount:'30000.00',energyKwh:'12.500'},
+    {stationId:2,station:{id:2,name:'Hai Chau'},vehicleId:11,vehicle:{id:11,code:'VG-11'},category:OperatingCostCategory.CLEANING,amount:'15000.00',energyKwh:null},
   ];
   const maintenance = [
     {vehicleId:10,status:'COMPLETED',cost:'75000.00',completedAt:new Date('2026-11-05T10:00:00Z')},
@@ -38,7 +43,8 @@ function fixture() {
     find: async () => [{id:10,code:'VG-10',station:{name:'Hai Chau'}},{id:11,code:'VG-11',station:{name:'Hai Chau'}},{id:12,code:'VG-12',station:{name:'Hai Chau'}}],
   };
   const maintenanceRepo = { createQueryBuilder: () => qb(maintenance) };
-  return new ReportsService(bookingRepo as never,vehicleRepo as never,paymentRepo as never,maintenanceRepo as never);
+  const operatingCostRepo = { createQueryBuilder: () => qb(operatingCosts) };
+  return new ReportsService(bookingRepo as never,vehicleRepo as never,paymentRepo as never,maintenanceRepo as never,operatingCostRepo as never);
 }
 
 test('report separates collected rent and extras from deposits and refunds', async () => {
@@ -85,6 +91,17 @@ test('report calculates fleet utilization from rental overlap, excluding cancell
   assert.equal(report.fleetUtilization.byVehicle[0].code,'VG-10');
   assert.equal(report.fleetUtilization.byVehicle.find(v=>v.code==='VG-12')?.bookedDays,0);
   assert.equal(report.fleetUtilization.byVehicle.find(v=>v.code==='VG-12')?.idleDays,10);
+});
+test('report aggregates operating costs by category, vehicle and station', async () => {
+  const report=await fixture().getOverview('2026-11-01','2026-11-30');
+  assert.equal(report.operatingCosts.totalCost,45000);
+  assert.equal(report.operatingCosts.chargingKwh,12.5);
+  assert.equal(report.operatingCosts.records,2);
+  assert.equal(report.operatingCosts.byVehicle[0].code,'VG-10');
+  assert.equal(report.operatingCosts.byVehicle[0].amount,30000);
+  assert.equal(report.operatingCosts.byStation[0].name,'Hai Chau');
+  assert.equal(report.operatingCosts.trackedCostTotal,145000);
+  assert.equal(report.operatingCosts.contributionAfterTrackedCosts,175000);
 });
 test('report rejects invalid and reversed date ranges', async () => {
   await assert.rejects(()=>fixture().getOverview('not-a-date'),/from không hợp lệ/);

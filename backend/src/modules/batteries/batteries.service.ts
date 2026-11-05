@@ -100,7 +100,7 @@ export class BatteriesService {
       const replacement=await batteryRepo.findOne({where:{id:dto.replacementBatteryId},lock:{mode:'pessimistic_write'}});
       if(!replacement) throw new NotFoundException('Không tìm thấy pin thay thế');
       if(replacement.status!==BatteryStatus.FULL||replacement.vehicleId!==null) throw new BadRequestException('Pin thay thế phải ở trạng thái đầy và sẵn sàng');
-      const fullCount=await batteryRepo.count({where:{stationId:vehicle.stationId,status:BatteryStatus.FULL,vehicleId:null}});
+      const fullCount=await batteryRepo.count({where:{stationId:vehicle.stationId,status:BatteryStatus.FULL,vehicleId:IsNull()}});
       const heldCount=await reservationRepo.createQueryBuilder('r').where('r.stationId = :stationId',{stationId:vehicle.stationId})
         .andWhere('r.status = :status',{status:BatteryReservationStatus.RESERVED}).andWhere('r.expiresAt > :now',{now:new Date()}).getCount();
       if(fullCount-heldCount<=0) throw new ConflictException('Pin dự phòng đang được giữ trước cho khách. Hãy chọn pin chưa được giữ.');
@@ -153,7 +153,7 @@ export class BatteriesService {
         .where('stationId = :stationId AND status = :status AND expiresAt <= :now',{stationId:station.id,status:BatteryReservationStatus.RESERVED,now}).execute();
       const existing=await reservationRepo.findOne({where:{customerId:user.sub,status:BatteryReservationStatus.RESERVED}});
       if(existing&&existing.expiresAt>now) throw new ConflictException('Bạn đang có một lượt giữ pin. Hãy sử dụng hoặc hủy lượt giữ hiện tại trước.');
-      const available=await batteryRepo.count({where:{stationId:station.id,status:BatteryStatus.FULL,vehicleId:null}});
+      const available=await batteryRepo.count({where:{stationId:station.id,status:BatteryStatus.FULL,vehicleId:IsNull()}});
       const held=await reservationRepo.createQueryBuilder('r').where('r.stationId = :stationId',{stationId:station.id})
         .andWhere('r.status = :status',{status:BatteryReservationStatus.RESERVED})
         .andWhere('r.expiresAt > :now',{now}).getCount();

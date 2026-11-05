@@ -26,7 +26,12 @@ export class VehiclesService {
 
   findAll(stationId?: number) {
     const qb = this.repo.createQueryBuilder('vehicle')
+      // QueryBuilder does not automatically load TypeORM eager relations.
+      // Customer screens need station/model to render real fleet and station availability.
+      .leftJoinAndSelect('vehicle.station', 'station')
+      .leftJoinAndSelect('vehicle.model', 'model')
       .where('vehicle.isActive = :active', { active: true })
+      .andWhere('station.isActive = :stationActive', { stationActive: true })
       .andWhere(qb => 'NOT EXISTS ' + qb.subQuery().select('1').from(VehicleTransfer, 'transfer')
         .where('transfer.vehicleId = vehicle.id')
         .andWhere('transfer.status IN (:...transferStatuses)')

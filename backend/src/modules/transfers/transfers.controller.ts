@@ -6,7 +6,7 @@ import { Role } from '../../common/enums/role.enum';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateVehicleTransferDto } from './vehicle-transfer.dto';
+import { CreateVehicleTransferDto, TransferInspectionDto } from './vehicle-transfer.dto';
 import { TransfersService } from './transfers.service';
 
 @ApiTags('Vehicle transfers')
@@ -28,14 +28,14 @@ export class TransfersController {
 
   @Patch(':id/dispatch')
   @Roles(Role.ADMIN, Role.STAFF)
-  dispatch(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-    return this.service.dispatch(user, id);
+  dispatch(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: TransferInspectionDto) {
+    return this.service.dispatch(user, id, dto);
   }
 
   @Patch(':id/receive')
   @Roles(Role.ADMIN, Role.STAFF)
-  receive(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-    return this.service.receive(user, id);
+  receive(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: TransferInspectionDto) {
+    return this.service.receive(user, id, dto);
   }
 
   @Patch(':id/cancel')

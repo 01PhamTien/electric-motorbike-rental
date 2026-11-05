@@ -47,7 +47,12 @@ export function StationsPage() {
     setLocating(true); setLocationError('');
     navigator.geolocation.getCurrentPosition(
       position => {
-        setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        const current = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+        setLocation(current);
+        const nearest = items
+          .map(station => ({ station, distance: distanceKm(current, { latitude: Number(station.latitude), longitude: Number(station.longitude) }) }))
+          .sort((a, b) => a.distance - b.distance)[0];
+        if (nearest) setSelectedId(nearest.station.id);
         setLocating(false);
       },
       reason => {
@@ -62,9 +67,9 @@ export function StationsPage() {
 
   return <section className="container-page space-y-9 py-12 sm:py-16">
     <div className="flex flex-wrap items-end justify-between gap-6">
-      <SectionHeading eyebrow="MẠNG LƯỚI ĐIỂM THUÊ" title="Tìm trạm nhận xe gần bạn" description="Bản đồ hiển thị tất cả trạm đang hoạt động. Cho phép truy cập vị trí để tìm trạm gần nhất và xem khoảng cách ước tính."/>
+      <SectionHeading eyebrow="MẠNG LƯỚI ĐIỂM THUÊ" title="Tìm trạm nhận xe gần bạn" description="Bản đồ hiển thị vị trí của bạn cùng toàn bộ điểm nhận xe đang hoạt động. Bật định vị để tự chọn trạm gần nhất và xem khoảng cách ước tính."/>
       <div className="flex flex-wrap gap-2">
-        <button onClick={locateMe} disabled={locating} className="btn-outline">{locating ? 'Đang xác định...' : location ? '↻ Cập nhật vị trí' : '◎ Dùng vị trí của tôi'}</button>
+        <button onClick={locateMe} disabled={locating} className="btn-outline">{locating ? 'Đang xác định...' : location ? '↻ Tìm lại trạm gần nhất' : '◎ Tìm trạm gần tôi'}</button>
         <Link to="/vehicles" className="btn-dark">Khám phá xe ↗</Link>
       </div>
     </div>

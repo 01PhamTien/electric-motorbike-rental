@@ -10,6 +10,7 @@ import { Battery, BatteryStatus } from './battery.entity';
 import { BatterySwap } from './battery-swap.entity';
 import { BatteryReservation, BatteryReservationStatus } from './battery-reservation.entity';
 import { Booking } from '../bookings/booking.entity';
+import { User } from '../users/user.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
 import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto } from './batteries.dto';
@@ -136,7 +137,9 @@ export class BatteriesService {
 
   async reserve(user:JwtUser,dto:CreateBatteryReservationDto) {
     const reservation=await this.dataSource.transaction(async manager=>{
-      const stationRepo=manager.getRepository(Station),bookingRepo=manager.getRepository(Booking);
+      const stationRepo=manager.getRepository(Station),bookingRepo=manager.getRepository(Booking),userRepo=manager.getRepository(User);
+      const customer=await userRepo.findOne({where:{id:user.sub},lock:{mode:'pessimistic_write'}});
+      if(!customer) throw new NotFoundException('Không tìm thấy tài khoản khách hàng');
       const batteryRepo=manager.getRepository(Battery),reservationRepo=manager.getRepository(BatteryReservation);
       const station=await stationRepo.findOne({where:{id:dto.stationId,isActive:true},lock:{mode:'pessimistic_write'}});
       if(!station) throw new NotFoundException('Trạm đổi pin không tồn tại hoặc đã ngừng hoạt động');

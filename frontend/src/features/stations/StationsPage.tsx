@@ -30,7 +30,7 @@ export function StationsPage() {
       const active = stations.filter(s => s.isActive !== false && coordinatesValid(s.latitude, s.longitude));
       const vehicleList: Vehicle[] = Array.isArray(vehicleResponse.data) ? vehicleResponse.data : vehicleResponse.data?.items ?? [];
       setItems(active);
-      setVehicles(vehicleList.filter(v => v.status === 'ACTIVE' && v.isActive !== false && v.station && coordinatesValid(v.station.latitude, v.station.longitude)));
+      setVehicles(vehicleList.filter(v => v.status === 'ACTIVE' && v.station && coordinatesValid(v.station.latitude, v.station.longitude)));
       setSelectedId(current => active.some(s => s.id === current) ? current : active[0]?.id ?? null);
     }).catch(() => { if (alive) setError('Không thể tải trạm và phương tiện. Vui lòng thử lại.'); })
       .finally(() => { if (alive) setLoading(false); });

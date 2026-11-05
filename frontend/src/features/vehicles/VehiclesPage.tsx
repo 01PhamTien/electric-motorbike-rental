@@ -5,6 +5,7 @@ import { EmptyState, LoadingState, money, SectionHeading } from '../../component
 import { ModelPhoto } from '../../components/ModelPhoto';
 import { useAuth } from '../auth/AuthContext';
 import type { Vehicle } from '../../types';
+type VehicleReview = { id:number; rating:number; comment:string|null; createdAt:string; customer?:{fullName:string} };
 
 function localDateTime(hoursAhead: number) {
   const d = new Date(Date.now() + hoursAhead * 3600_000);
@@ -26,6 +27,9 @@ export function VehiclesPage() {
   const [availability, setAvailability] = useState('all');
   const [selected, setSelected] = useState<Vehicle | null>(null);
   const [details, setDetails] = useState<Vehicle | null>(null);
+  const [reviews, setReviews] = useState<VehicleReview[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<{total:number;averageRating:number|null}>({total:0,averageRating:null});
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [pickup, setPickup] = useState(localDateTime(24));
   const [returnDate, setReturnDate] = useState(localDateTime(48));
   const [selectedStationId, setSelectedStationId] = useState<number | ''>('');
@@ -65,6 +69,12 @@ export function VehiclesPage() {
     setSelected(null); setBookingError(''); setAcceptedTerms(false);
     if (params.has('vehicle')) { params.delete('vehicle'); setParams(params, { replace: true }); }
   };
+  async function openDetails(vehicle: Vehicle) {
+    setDetails(vehicle); setReviews([]); setReviewSummary({total:0,averageRating:null}); setReviewsLoading(true);
+    try { const {data} = await api.get('/vehicles/'+vehicle.id+'/reviews'); setReviews(data?.items ?? []); setReviewSummary({total:data?.total ?? 0,averageRating:data?.averageRating ?? null}); }
+    catch { setReviews([]); }
+    finally { setReviewsLoading(false); }
+  }
   function openBooking(vehicle: Vehicle) {
     setSelected(vehicle);
     setSelectedStationId(vehicle.station?.id ?? '');
@@ -103,7 +113,7 @@ export function VehiclesPage() {
     <div className="mt-8 flex items-center justify-between"><p className="text-sm font-semibold text-slate-500">Hiển thị <strong className="text-slate-900">{filtered.length}</strong> kết quả</p><span className="text-xs text-slate-400">Giá thuê tính theo ngày</span></div>
     {isOperator && <div className="mt-6 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm leading-6 text-sky-900" role="status">Bạn đang dùng tài khoản {user?.role === 'ADMIN' ? 'quản trị viên' : 'nhân viên'}. Vai trò này chỉ quản lý đơn thuê; để đặt xe thử nghiệm, hãy đăng xuất và đăng nhập bằng tài khoản khách hàng. <Link className="font-bold underline underline-offset-2" to="/operations">Đến quản lý đơn thuê →</Link></div>}
     {loading ? <div className="mt-7"><LoadingState /></div> : loadError ? <div className="mt-7 rounded-2xl bg-rose-50 p-6 text-rose-700" role="alert">{loadError}</div> : !filtered.length ? <div className="mt-7"><EmptyState title="Chưa tìm thấy xe phù hợp" description="Thử thay đổi bộ lọc hoặc chọn điểm nhận khác." action={<button className="btn-dark" onClick={() => { setQuery(''); setStation(''); setAvailability('all'); }}>Xóa bộ lọc</button>} /></div> : <div className="mt-7 grid gap-6 md:grid-cols-2 xl:grid-cols-3">{filtered.map(v => <article key={v.id} className="panel group overflow-hidden">
-      <button className="vehicle-art relative flex aspect-[1.55] w-full items-center justify-center p-4 text-left" onClick={() => setDetails(v)} aria-label={'Xem chi tiết ' + v.model?.name}><div className="h-full w-full transition duration-300 group-hover:scale-[1.04]"><ModelPhoto url={v.model?.imageUrl} alt={[v.model?.brand, v.model?.name].filter(Boolean).join(' ')}/></div><span className={'absolute left-5 top-5 rounded-full px-3 py-1.5 text-xs font-bold ' + (v.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>{v.status === 'ACTIVE' ? '● Sẵn sàng' : '● ' + v.status}</span></button>
+      <button className="vehicle-art relative flex aspect-[1.55] w-full items-center justify-center p-4 text-left" onClick={() => void openDetails(v)} aria-label={'Xem chi tiết ' + v.model?.name}><div className="h-full w-full transition duration-300 group-hover:scale-[1.04]"><ModelPhoto url={v.model?.imageUrl} alt={[v.model?.brand, v.model?.name].filter(Boolean).join(' ')}/></div><span className={'absolute left-5 top-5 rounded-full px-3 py-1.5 text-xs font-bold ' + (v.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>{v.status === 'ACTIVE' ? '● Sẵn sàng' : '● ' + v.status}</span></button>
       <div className="p-6"><span className="text-xs font-bold uppercase tracking-[.15em] text-slate-400">{v.model?.brand} · {v.code}</span><button className="mt-2 block text-left text-2xl font-extrabold hover:text-emerald-700" onClick={() => setDetails(v)}>{v.model?.name}</button><p className="mt-2 text-sm text-slate-500">⌖ {v.station?.name || 'Đà Nẵng'}</p><div className="mt-5 flex items-end justify-between border-t border-slate-100 pt-5"><div><p className="text-2xl font-extrabold text-emerald-700">{money(v.dailyRate)}</p><p className="mt-1 text-xs text-slate-400">/ ngày · Cọc {money(v.depositAmount)}</p></div><div className="flex flex-col items-end gap-2"><button onClick={() => setDetails(v)} className="text-xs font-bold text-emerald-700 underline underline-offset-4">Xem chi tiết</button><button disabled={v.status !== 'ACTIVE' || authLoading || isOperator} title={isOperator ? 'Chỉ tài khoản khách hàng được đặt xe' : undefined} onClick={() => openBooking(v)} className="btn-dark">{isOperator ? 'Chỉ dành cho khách' : 'Đặt xe ↗'}</button></div></div></div>
     </article>)}</div>}
 
@@ -111,7 +121,7 @@ export function VehiclesPage() {
       <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">HỒ SƠ PHƯƠNG TIỆN</p><h2 id="vehicle-detail-title" className="mt-2 text-2xl font-extrabold">{details.model?.brand} {details.model?.name}</h2><p className="mt-2 text-sm text-slate-500">{details.code} · {details.station?.name}</p></div><button onClick={()=>setDetails(null)} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Đóng">✕</button></div>
       <div className="mt-6 grid gap-6 md:grid-cols-[.9fr_1.1fr]"><div className="vehicle-art flex min-h-56 items-center justify-center overflow-hidden rounded-2xl p-4"><ModelPhoto url={details.model?.imageUrl} alt={details.model?.name ?? 'Xe điện'}/></div><div><h3 className="text-lg font-extrabold">Thông tin xe</h3><div className="mt-4 grid grid-cols-2 gap-3 text-sm"><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Hãng</p><strong>{details.model?.brand}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Mã xe</p><strong>{details.code}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Giá thuê/ngày</p><strong>{money(details.dailyRate)}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Tiền cọc</p><strong>{money(details.depositAmount)}</strong></div></div><p className="mt-4 text-sm leading-6 text-slate-600">Điểm nhận: {details.station?.name}. Tình trạng: {details.status === 'ACTIVE' ? 'Sẵn sàng' : details.status}.</p></div></div>
       <div className="mt-7"><h3 className="text-lg font-extrabold">Thông số kỹ thuật và mô tả</h3><div className="mt-3 whitespace-pre-line rounded-2xl bg-slate-50 p-5 text-sm leading-7 text-slate-700">{details.model?.specifications || 'Thông số và mô tả chi tiết của mẫu xe đang được cập nhật.'}</div></div>
-      <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-5"><h3 className="font-extrabold text-amber-900">Đánh giá của khách hàng</h3><p className="mt-2 text-sm leading-6 text-amber-800">Chức năng đánh giá theo từng chuyến thuê sẽ chỉ mở sau khi khách hàng hoàn tất trả xe. VoltGo chưa có đánh giá xác thực cho mẫu xe này.</p></div>
+      <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-extrabold text-amber-950">Đánh giá từ khách đã thuê</h3><strong className="text-amber-900">{reviewSummary.averageRating===null?"Chưa có đánh giá":"★ "+reviewSummary.averageRating+"/5"} · {reviewSummary.total} lượt</strong></div>{reviewsLoading?<p className="mt-3 text-sm text-amber-800">Đang tải đánh giá...</p>:!reviews.length?<p className="mt-3 text-sm leading-6 text-amber-800">Chưa có đánh giá xác thực. Chỉ khách đã hoàn thành chuyến thuê mới được gửi đánh giá.</p>:<div className="mt-4 space-y-3">{reviews.map(review=><div key={review.id} className="rounded-xl bg-white/80 p-3"><div className="flex justify-between gap-3"><strong className="text-sm">{review.customer?.fullName||"Khách hàng VoltGo"}</strong><span className="text-amber-600">{"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}</span></div>{review.comment&&<p className="mt-2 text-sm leading-6 text-slate-700">{review.comment}</p>}<p className="mt-1 text-xs text-slate-400">{new Date(review.createdAt).toLocaleDateString("vi-VN")}</p></div>)}</div>}</div>
       <div className="mt-7 flex flex-wrap justify-end gap-3"><button className="btn-outline" onClick={()=>setDetails(null)}>Đóng</button><button disabled={details.status!=='ACTIVE'||isOperator||authLoading} className="btn-primary" onClick={()=>openBooking(details)}>Chọn xe này →</button></div>
     </section></div>}
 

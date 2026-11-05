@@ -11,7 +11,7 @@ export enum BatteryStatus {
 }
 
 @Entity('batteries')
-@Index(['stationId', 'status'])
+@Index('IDX_batteries_station_status', ['stationId', 'status'])
 export class Battery {
   @PrimaryGeneratedColumn() id: number;
   @Index({ unique: true })

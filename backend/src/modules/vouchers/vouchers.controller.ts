@@ -6,7 +6,7 @@ import { Role } from '../../common/enums/role.enum';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateVoucherDto, UpdateVoucherDto } from './dto';
+import { CreateVoucherDto, PreviewVoucherDto, UpdateVoucherDto } from './dto';
 import { VouchersService } from './vouchers.service';
 
 @ApiTags('Vouchers')
@@ -29,7 +29,7 @@ export class VouchersController {
   usage(@Param('id', ParseIntPipe) id: number) { return this.service.usage(id); }
   @Post('preview')
   @Roles(Role.CUSTOMER)
-  preview(@CurrentUser() user: JwtUser, @Body() dto: { code: string; rentalAmount: number }) {
+  preview(@CurrentUser() user: JwtUser, @Body() dto: PreviewVoucherDto) {
     return this.service.preview(user.sub, dto.code, dto.rentalAmount);
   }
 }

@@ -1,10 +1,12 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { User } from '../users/user.entity';
 
 @Entity('notifications')
 @Index(['userId', 'createdAt'])
 @Index(['userId', 'readAt'])
 export class Notification {
   @PrimaryGeneratedColumn() id: number;
+  @ManyToOne(() => User, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'userId', foreignKeyConstraintName: 'FK_notifications_user' }) user: User;
   @Column({ type: 'int' }) userId: number;
   @Column({ type: 'varchar', length: 40 }) type: string;
   @Column({ type: 'nvarchar', length: 160 }) title: string;

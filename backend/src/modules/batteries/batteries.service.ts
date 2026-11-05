@@ -60,6 +60,10 @@ export class BatteriesService {
   async install(user: JwtUser, dto: InstallBatteryDto) {
     return this.dataSource.transaction(async manager => {
       const batteryRepo=manager.getRepository(Battery), vehicleRepo=manager.getRepository(Vehicle);
+      const stationRepo=manager.getRepository(Station),reservationRepo=manager.getRepository(BatteryReservation);
+      const hint=await vehicleRepo.findOne({where:{id:dto.vehicleId}});
+      if(!hint) throw new NotFoundException('Không tìm thấy xe');
+      await stationRepo.findOne({where:{id:hint.stationId},lock:{mode:'pessimistic_write'}});
       const vehicle=await vehicleRepo.findOne({where:{id:dto.vehicleId},lock:{mode:'pessimistic_write'}});
       if(!vehicle) throw new NotFoundException('Không tìm thấy xe');
       this.assertStation(user,vehicle.stationId);
@@ -67,6 +71,10 @@ export class BatteriesService {
       const battery=await batteryRepo.findOne({where:{id:dto.batteryId},lock:{mode:'pessimistic_write'}});
       if(!battery) throw new NotFoundException('Không tìm thấy pin');
       if(battery.status!==BatteryStatus.FULL||battery.vehicleId!==null) throw new BadRequestException('Chỉ có thể lắp pin đầy đang ở kho trạm');
+      const fullCount=await batteryRepo.count({where:{stationId:vehicle.stationId,status:BatteryStatus.FULL,vehicleId:null}});
+      const heldCount=await reservationRepo.createQueryBuilder('r').where('r.stationId = :stationId',{stationId:vehicle.stationId})
+        .andWhere('r.status = :status',{status:BatteryReservationStatus.RESERVED}).andWhere('r.expiresAt > :now',{now:new Date()}).getCount();
+      if(fullCount-heldCount<=0) throw new ConflictException('Pin này đang được giữ trước cho khách. Không thể sử dụng cho thao tác khác.');
       if(battery.stationId!==vehicle.stationId) throw new BadRequestException('Pin và xe phải thuộc cùng một trạm');
       const installed=await batteryRepo.findOne({where:{vehicleId:vehicle.id,status:BatteryStatus.INSTALLED}});
       if(installed) throw new ConflictException('Xe đã có pin được lắp. Hãy dùng nghiệp vụ đổi pin.');
@@ -80,6 +88,10 @@ export class BatteriesService {
   async swap(user: JwtUser, dto: SwapBatteryDto) {
     const result=await this.dataSource.transaction(async manager=>{
       const batteryRepo=manager.getRepository(Battery),vehicleRepo=manager.getRepository(Vehicle),swapRepo=manager.getRepository(BatterySwap);
+      const stationRepo=manager.getRepository(Station),reservationRepo=manager.getRepository(BatteryReservation);
+      const hint=await vehicleRepo.findOne({where:{id:dto.vehicleId}});
+      if(!hint) throw new NotFoundException('Không tìm thấy xe');
+      await stationRepo.findOne({where:{id:hint.stationId},lock:{mode:'pessimistic_write'}});
       const vehicle=await vehicleRepo.findOne({where:{id:dto.vehicleId},lock:{mode:'pessimistic_write'}});
       if(!vehicle) throw new NotFoundException('Không tìm thấy xe');
       this.assertStation(user,vehicle.stationId);
@@ -87,6 +99,10 @@ export class BatteriesService {
       const replacement=await batteryRepo.findOne({where:{id:dto.replacementBatteryId},lock:{mode:'pessimistic_write'}});
       if(!replacement) throw new NotFoundException('Không tìm thấy pin thay thế');
       if(replacement.status!==BatteryStatus.FULL||replacement.vehicleId!==null) throw new BadRequestException('Pin thay thế phải ở trạng thái đầy và sẵn sàng');
+      const fullCount=await batteryRepo.count({where:{stationId:vehicle.stationId,status:BatteryStatus.FULL,vehicleId:null}});
+      const heldCount=await reservationRepo.createQueryBuilder('r').where('r.stationId = :stationId',{stationId:vehicle.stationId})
+        .andWhere('r.status = :status',{status:BatteryReservationStatus.RESERVED}).andWhere('r.expiresAt > :now',{now:new Date()}).getCount();
+      if(fullCount-heldCount<=0) throw new ConflictException('Pin dự phòng đang được giữ trước cho khách. Hãy chọn pin chưa được giữ.');
       if(replacement.stationId!==vehicle.stationId) throw new BadRequestException('Pin thay thế phải có sẵn tại trạm hiện tại của xe');
       const removed=await batteryRepo.findOne({where:{vehicleId:vehicle.id,status:BatteryStatus.INSTALLED},lock:{mode:'pessimistic_write'}});
       if(!removed) throw new BadRequestException('Xe chưa có pin được ghi nhận trong hệ thống');

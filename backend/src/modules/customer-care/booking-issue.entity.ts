@@ -8,15 +8,15 @@ export enum BookingIssueSeverity { LOW = 'LOW', MEDIUM = 'MEDIUM', HIGH = 'HIGH'
 export enum BookingIssueStatus { OPEN = 'OPEN', IN_PROGRESS = 'IN_PROGRESS', RESOLVED = 'RESOLVED', CANCELLED = 'CANCELLED' }
 
 @Entity('booking_issues')
-@Index(['bookingId', 'createdAt'])
-@Index(['status', 'createdAt'])
+@Index('IDX_booking_issues_booking_created', ['bookingId', 'createdAt'])
+@Index('IDX_booking_issues_status_created', ['status', 'createdAt'])
 export class BookingIssue {
   @PrimaryGeneratedColumn() id: number;
-  @ManyToOne(() => Booking, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'bookingId' }) booking: Booking;
+  @ManyToOne(() => Booking, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'bookingId', foreignKeyConstraintName: 'FK_booking_issues_booking' }) booking: Booking;
   @Column({ type: 'int' }) bookingId: number;
-  @ManyToOne(() => Vehicle, { eager: true, onDelete: 'NO ACTION' }) @JoinColumn({ name: 'vehicleId' }) vehicle: Vehicle;
+  @ManyToOne(() => Vehicle, { eager: true, onDelete: 'NO ACTION' }) @JoinColumn({ name: 'vehicleId', foreignKeyConstraintName: 'FK_booking_issues_vehicle' }) vehicle: Vehicle;
   @Column({ type: 'int' }) vehicleId: number;
-  @ManyToOne(() => User, { eager: true, onDelete: 'NO ACTION' }) @JoinColumn({ name: 'customerId' }) customer: User;
+  @ManyToOne(() => User, { eager: true, onDelete: 'NO ACTION' }) @JoinColumn({ name: 'customerId', foreignKeyConstraintName: 'FK_booking_issues_customer' }) customer: User;
   @Column({ type: 'int' }) customerId: number;
   @Column({ type: 'simple-enum', enum: BookingIssueType }) issueType: BookingIssueType;
   @Column({ type: 'simple-enum', enum: BookingIssueSeverity }) severity: BookingIssueSeverity;

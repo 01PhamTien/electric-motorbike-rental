@@ -34,6 +34,6 @@ export class BatteryReservation {
   @Column({type:'int',nullable:true}) redeemedById:number|null;
   @ManyToOne(()=>BatterySwap,{nullable:true,onDelete:'NO ACTION'}) @JoinColumn({name:'batterySwapId',foreignKeyConstraintName:'FK_battery_reservations_swap'}) batterySwap:BatterySwap|null;
   @Column({type:'int',nullable:true}) batterySwapId:number|null;
-  @CreateDateColumn({type:'datetime2'}) createdAt:Date;
-  @UpdateDateColumn({type:'datetime2'}) updatedAt:Date;
+  @CreateDateColumn({type:'datetime2',default:()=> 'SYSUTCDATETIME()'}) createdAt:Date;
+  @UpdateDateColumn({type:'datetime2',default:()=> 'SYSUTCDATETIME()'}) updatedAt:Date;
 }

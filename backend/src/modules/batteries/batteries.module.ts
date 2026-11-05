@@ -8,12 +8,13 @@ import { Battery } from './battery.entity';
 import { BatterySwap } from './battery-swap.entity';
 import { BatteryReservation } from './battery-reservation.entity';
 import { Booking } from '../bookings/booking.entity';
+import { User } from '../users/user.entity';
 import { BatteriesController } from './batteries.controller';
 import { BatterySwapPublicController } from './battery-swap-public.controller';
 import { BatteriesService } from './batteries.service';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([Battery,BatterySwap,BatteryReservation,Station,Vehicle,Booking]),AuthModule,AuditModule],
+  imports:[TypeOrmModule.forFeature([Battery,BatterySwap,BatteryReservation,Station,Vehicle,Booking,User]),AuthModule,AuditModule],
   controllers:[BatteriesController,BatterySwapPublicController],providers:[BatteriesService],
 })
 export class BatteriesModule {}

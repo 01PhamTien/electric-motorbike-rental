@@ -18,5 +18,5 @@ export interface Vehicle {
   depositAmount: string;
   status: 'ACTIVE' | 'CHARGING' | 'MAINTENANCE' | 'INACTIVE';
   station: Station;
-  model: { id: number; brand: string; name: string; imageUrl?: string | null };
+  model: { id: number; brand: string; name: string; imageUrl?: string | null; specifications?: string | null };
 }

@@ -10,10 +10,11 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { HandoverDto } from './dto';
 import { HandoverKind, HandoverRecord } from './handover.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class HandoversService {
-  constructor(private readonly dataSource: DataSource, @Optional() private readonly notifications?: NotificationsService) {}
+  constructor(private readonly dataSource: DataSource, @Optional() private readonly notifications?: NotificationsService, @Optional() private readonly audit?: AuditService) {}
   async process(current: JwtUser, bookingId: number, kind: HandoverKind, dto: HandoverDto) {
     if (current.role !== Role.ADMIN && current.role !== Role.STAFF) throw new ForbiddenException();
     // Match the vehicle -> booking lock order used by BookingsService.
@@ -63,6 +64,7 @@ export class HandoversService {
         reason: kind === HandoverKind.PICKUP ? 'Đã giao xe' : 'Đã nhận xe trả' });
       return { bookingId, status: next, record, customerId: booking.customerId };
     });
+    await this.audit?.record(current.sub, kind === HandoverKind.PICKUP ? 'VEHICLE_PICKED_UP' : 'VEHICLE_RETURNED', 'BOOKING', bookingId, { batteryPercent: dto.batteryPercent, odometerKm: dto.odometerKm });
     await this.notifications?.create(outcome.customerId, 'HANDOVER', kind === HandoverKind.PICKUP ? 'Đã nhận xe' : 'Đã trả xe',
       kind === HandoverKind.PICKUP ? 'Đơn thuê #' + bookingId + ' đã được bàn giao xe.' : 'Đơn thuê #' + bookingId + ' đã hoàn tất trả xe.', bookingId);
     const { customerId: _customerId, ...result } = outcome;

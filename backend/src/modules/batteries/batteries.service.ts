@@ -111,6 +111,20 @@ export class BatteriesService {
     return saved;
   }
 
+  async publicAvailability() {
+    const rows=await this.batteries.createQueryBuilder('battery')
+      .select('battery.stationId','stationId')
+      .addSelect('COUNT(*)','availableBatteryCount')
+      .where('battery.status = :status',{status:BatteryStatus.FULL})
+      .andWhere('battery.vehicleId IS NULL')
+      .groupBy('battery.stationId')
+      .getRawMany();
+    return rows.map((row:{stationId:string|number;availableBatteryCount:string|number})=>({
+      stationId:Number(row.stationId),availableBatteryCount:Number(row.availableBatteryCount),
+      supportsBatterySwap:Number(row.availableBatteryCount)>0,
+    }));
+  }
+
   async history(user: JwtUser, stationId?: number) {
     const qb=this.swaps.createQueryBuilder('swap').leftJoinAndSelect('swap.vehicle','vehicle')
       .leftJoinAndSelect('swap.station','station').leftJoinAndSelect('swap.removedBattery','removedBattery')

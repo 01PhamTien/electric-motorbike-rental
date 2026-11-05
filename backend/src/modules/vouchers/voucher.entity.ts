@@ -1,4 +1,4 @@
-import { Check, Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm';
 
 export enum VoucherDiscountType { PERCENT = 'PERCENT', FIXED = 'FIXED' }
 

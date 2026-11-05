@@ -18,7 +18,7 @@ function TransferInspectionForm({kind,busy,onSubmit}:{kind:'dispatch'|'receive';
   const [checklist,setChecklist]=useState<Record<string,boolean>>({});
   function submit(e:React.FormEvent) {
     e.preventDefault();
-    onSubmit({batteryPercent:Number(battery),odometerKm:Number(odo),conditionNote:condition.trim(),inspectionChecklist:Object.fromEntries(checklistItems.map(item=>[item.key,Boolean(checklist[item.key])])),damageNotes:damage.trim()||undefined,photoUrls:photos.split(/\\r?\\n/).map(url=>url.trim()).filter(Boolean)});
+    onSubmit({batteryPercent:Number(battery),odometerKm:Number(odo),conditionNote:condition.trim(),inspectionChecklist:Object.fromEntries(checklistItems.map(item=>[item.key,Boolean(checklist[item.key])])),damageNotes:damage.trim()||undefined,photoUrls:photos.split(/\r?\n/).map(url=>url.trim()).filter(Boolean)});
   }
   return <form onSubmit={submit} className="mt-4 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2">
     <div className="md:col-span-2"><p className="text-sm font-extrabold">{kind==='dispatch'?'Biên bản trước khi rời trạm':'Biên bản khi xe đến trạm'}</p><p className="mt-1 text-xs text-slate-500">Ghi nhận số liệu thực tế. ODO tiếp nhận không được thấp hơn ODO bàn giao.</p></div>
@@ -28,7 +28,7 @@ function TransferInspectionForm({kind,busy,onSubmit}:{kind:'dispatch'|'receive';
     <label className="md:col-span-2"><span className="field-label">Tình trạng tổng quát</span><textarea required maxLength={1000} className="field min-h-20" value={condition} onChange={e=>setCondition(e.target.value)} placeholder="Mô tả tình trạng xe, phụ kiện và ghi nhận thực tế..."/></label>
     <label className="md:col-span-2"><span className="field-label">Hư hỏng / sai khác (nếu có)</span><textarea maxLength={1000} className="field min-h-16" value={damage} onChange={e=>setDamage(e.target.value)} placeholder="Ghi rõ vị trí trầy xước, thiếu phụ kiện hoặc vấn đề phát hiện..."/></label>
     <label className="md:col-span-2"><span className="field-label">URL ảnh bằng chứng (tối đa 8 URL, mỗi dòng một URL)</span><textarea className="field min-h-16" value={photos} onChange={e=>setPhotos(e.target.value)} placeholder="https://..."/></label>
-    <div className="md:col-span-2 flex justify-end"><button className="btn-primary" disabled={busy||!odo||!condition.trim()||photos.split(/\\r?\\n/).filter(x=>x.trim()).length>8}>{busy?'Đang lưu...':kind==='dispatch'?'Lưu biên bản và xác nhận bàn giao':'Lưu biên bản và xác nhận tiếp nhận'}</button></div>
+    <div className="md:col-span-2 flex justify-end"><button className="btn-primary" disabled={busy||!odo||!condition.trim()||photos.split(/\r?\n/).filter(x=>x.trim()).length>8}>{busy?'Đang lưu...':kind==='dispatch'?'Lưu biên bản và xác nhận bàn giao':'Lưu biên bản và xác nhận tiếp nhận'}</button></div>
   </form>;
 }
 const parseList=(value:string|null):string[]=>{try{const parsed=JSON.parse(value||'[]');return Array.isArray(parsed)?parsed:[];}catch{return [];}};

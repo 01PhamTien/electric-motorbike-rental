@@ -33,6 +33,7 @@ export class BookingsService {
       const vehicle = await vehicleRepo.findOne({ where: { id: dto.vehicleId, isActive: true }, lock: { mode: 'pessimistic_write' } });
       if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
       if (vehicle.status !== VehicleStatus.ACTIVE) throw new BadRequestException('Xe hiện không thể đặt');
+      if (!vehicle.station || !vehicle.station.isActive) throw new BadRequestException('Trạm nhận xe hiện không hoạt động. Vui lòng chọn trạm khác.');
 
       // Release expired holds while holding the vehicle row lock, so another
       // booking request cannot race with the cleanup for this vehicle.

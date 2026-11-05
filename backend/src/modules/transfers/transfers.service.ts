@@ -5,6 +5,7 @@ import { Role } from '../../common/enums/role.enum';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
+import { BatteryReservation, BatteryReservationStatus } from '../batteries/battery-reservation.entity';
 import { Battery, BatteryStatus } from '../batteries/battery.entity';
 import { Station } from '../stations/station.entity';
 import { Booking } from '../bookings/booking.entity';
@@ -231,6 +232,9 @@ export class TransfersService {
       await vehicleRepo.save(vehicle);
       // The installed battery travels with its vehicle; spare/charging batteries remain at the source station.
       await batteryRepo.update({ vehicleId: vehicle.id, status: BatteryStatus.INSTALLED }, { stationId: destination.id });
+      await manager.getRepository(BatteryReservation).createQueryBuilder().update(BatteryReservation)
+        .set({ status: BatteryReservationStatus.CANCELLED, cancelledAt: new Date() })
+        .where('vehicleId = :vehicleId AND status = :status', { vehicleId: vehicle.id, status: BatteryReservationStatus.RESERVED }).execute();
       transfer.receiveBatteryPercent = dto.batteryPercent;
       transfer.receiveOdometerKm = dto.odometerKm.toFixed(1);
       transfer.receiveConditionNote = dto.conditionNote.trim();

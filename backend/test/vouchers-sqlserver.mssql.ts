@@ -31,7 +31,7 @@ test('SQL Server: voucher tables, booking snapshots and constraints are migrated
     assert.ok(voucherColumns.some((row: { COLUMN_NAME: string }) => row.COLUMN_NAME === 'usageCount'));
     assert.ok(voucherColumns.some((row: { COLUMN_NAME: string }) => row.COLUMN_NAME === 'perCustomerLimit'));
     assert.ok(redemptionColumns.some((row: { COLUMN_NAME: string }) => row.COLUMN_NAME === 'discountAmount'));
-    for (const name of ['baseRentalAmount','discountAmount','voucherId','voucherCodeSnapshot']) {
+    for (const name of ['baseRentalAmount','discountAmount','voucherId','voucherCodeSnapshot','cancellationFeeAmount','cancellationType']) {
       assert.ok(bookingColumns.some((row: { COLUMN_NAME: string }) => row.COLUMN_NAME === name), `Missing booking voucher column: ${name}`);
     }
     const indexes = await dataSource.query(

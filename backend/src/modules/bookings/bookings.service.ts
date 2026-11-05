@@ -15,6 +15,7 @@ import { AuditService } from '../audit/audit.service';
 import { VehicleTransfer, VehicleTransferStatus } from '../transfers/vehicle-transfer.entity';
 import { CancelBookingDto, CreateBookingDto } from './dto';
 import { VouchersService } from '../vouchers/vouchers.service';
+import { calculateCancellationFee } from './cancellation-policy';
 
 @Injectable()
 export class BookingsService {
@@ -279,24 +280,13 @@ export class BookingsService {
       const fromStatus = booking.status;
       booking.status = isExpired ? BookingStatus.EXPIRED : next;
       if (!isExpired && next === BookingStatus.CANCELLED) {
-        const now = new Date();
-        const hoursUntilPickup = (booking.pickupAt.getTime() - now.getTime()) / 3_600_000;
-        if (cancellationType === 'NO_SHOW') {
-          if (now.getTime() < booking.pickupAt.getTime() + 30 * 60_000)
-            throw new BadRequestException('Chỉ được ghi nhận No-show sau 30 phút kể từ giờ nhận xe');
-          booking.cancellationFeeAmount = Math.min(
-            Math.round(Number(booking.rentalAmount) * 0.30 * 100) / 100,
-            Number(booking.depositSnapshot),
-          ).toFixed(2);
-        } else if (cancellationType === 'CUSTOMER_CANCELLED') {
-          if (current.role === Role.CUSTOMER && hoursUntilPickup <= 0)
-            throw new BadRequestException('Đã đến giờ nhận xe. Vui lòng liên hệ nhân viên để được hỗ trợ');
-          booking.cancellationFeeAmount = booking.status === BookingStatus.CONFIRMED && hoursUntilPickup < 24
-            ? Math.min(Math.round(Number(booking.rentalAmount) * 0.20 * 100) / 100, Number(booking.depositSnapshot)).toFixed(2)
-            : '0.00';
-        } else {
-          booking.cancellationFeeAmount = '0.00';
-        }
+        booking.cancellationFeeAmount = calculateCancellationFee({
+          type: cancellationType ?? 'STAFF_CANCELLED',
+          bookingStatus: booking.status,
+          rentalAmount: booking.rentalAmount,
+          depositAmount: booking.depositSnapshot,
+          pickupAt: booking.pickupAt,
+        }).toFixed(2);
         booking.cancellationType = cancellationType ?? 'STAFF_CANCELLED';
         booking.cancelReason = cancelReason ?? null;
       }

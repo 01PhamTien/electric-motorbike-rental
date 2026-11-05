@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Station } from '../stations/station.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
 
@@ -11,6 +11,9 @@ export enum BatteryStatus {
 }
 
 @Entity('batteries')
+@Check('CK_batteries_status', "[status] IN ('FULL','INSTALLED','CHARGING','MAINTENANCE','RETIRED')")
+@Check('CK_batteries_health', '[healthPercent] BETWEEN 1 AND 100')
+@Check('CK_batteries_cycle', '[cycleCount] >= 0')
 @Index('IDX_batteries_station_status', ['stationId', 'status'])
 export class Battery {
   @PrimaryGeneratedColumn() id: number;

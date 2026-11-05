@@ -134,14 +134,24 @@ export class BookingsService {
 
     const maintenanceRepo = this.bookingRepo.manager.getRepository(MaintenanceRecord);
     const maintenanceQb = maintenanceRepo.createQueryBuilder('m')
-      .innerJoinAndSelect(Vehicle, 'vehicle', 'vehicle.id = m.vehicleId')
-      .leftJoinAndSelect('vehicle.station', 'station')
-      .leftJoinAndSelect('vehicle.model', 'model')
+      .innerJoin('vehicles', 'v', 'v.id = m.vehicleId')
+      .leftJoin('stations', 'st', 'st.id = v.stationId')
+      .leftJoin('vehicle_models', 'vm', 'vm.id = v.modelId')
+      .select('m.id', 'id')
+      .addSelect('m.vehicleId', 'vehicleId')
+      .addSelect('m.reason', 'reason')
+      .addSelect('m.status', 'status')
+      .addSelect('m.scheduledAt', 'scheduledAt')
+      .addSelect('m.completedAt', 'completedAt')
+      .addSelect('v.code', 'vehicleCode')
+      .addSelect('st.name', 'stationName')
+      .addSelect('vm.brand', 'brand')
+      .addSelect('vm.name', 'modelName')
       .where('m.scheduledAt >= :from AND m.scheduledAt <= :to', { from, to })
       .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
       .orderBy('m.scheduledAt', 'ASC');
-    if (current.role === Role.STAFF) maintenanceQb.andWhere('vehicle.stationId = :stationId', { stationId: current.stationId });
-    const maintenance = await maintenanceQb.getMany();
+    if (current.role === Role.STAFF) maintenanceQb.andWhere('v.stationId = :stationId', { stationId: current.stationId });
+    const maintenance = await maintenanceQb.getRawMany();
 
     return [
       ...bookings.map(b => ({
@@ -152,9 +162,9 @@ export class BookingsService {
       })),
       ...maintenance.map(m => ({
         type: 'MAINTENANCE' as const, id: m.id, vehicleId: m.vehicleId,
-        vehicleCode: (m as any).vehicle?.code ?? '',
-        model: (m as any).vehicle?.model ? (m as any).vehicle.model.brand + ' ' + (m as any).vehicle.model.name : '',
-        stationName: (m as any).vehicle?.station?.name ?? '',
+        vehicleCode: m.vehicleCode ?? '',
+        model: [m.brand, m.modelName].filter(Boolean).join(' '),
+        stationName: m.stationName ?? '',
         customerName: '', title: m.reason, status: m.status, start: m.scheduledAt, end: m.completedAt,
       })),
     ].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());

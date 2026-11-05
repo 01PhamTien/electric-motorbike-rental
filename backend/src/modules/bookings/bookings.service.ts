@@ -108,13 +108,19 @@ export class BookingsService {
   async listCalendar(current: JwtUser, fromInput: string, toInput: string) {
     if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
     if (current.role === Role.STAFF && current.stationId == null) throw new ForbiddenException('Nhân viên chưa được phân công trạm');
-    const datePattern = /^\\d{4}-\\d{2}-\\d{2}$/;
+    const datePattern = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
     if (!datePattern.test(fromInput) || !datePattern.test(toInput)) {
       throw new BadRequestException('Ngày bắt đầu và kết thúc phải theo định dạng YYYY-MM-DD');
     }
-    const from = new Date(fromInput + 'T00:00:00');
-    const to = new Date(toInput + 'T23:59:59.999');
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) {
+    const parseDate = (value: string, endOfDay = false) => {
+      const [year, month, day] = value.split('-').map(Number);
+      const date = new Date(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+      return date;
+    };
+    const from = parseDate(fromInput);
+    const to = parseDate(toInput, true);
+    if (!from || !to || to < from) {
       throw new BadRequestException('Khoảng thời gian lịch không hợp lệ');
     }
     if (to.getTime() - from.getTime() > 31 * 86_400_000) {

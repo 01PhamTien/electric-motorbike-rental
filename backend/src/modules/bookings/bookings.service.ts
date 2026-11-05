@@ -9,6 +9,7 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from './booking-status-history.entity';
 import { Booking } from './booking.entity';
+import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { CancelBookingDto, CreateBookingDto } from './dto';
@@ -101,6 +102,62 @@ export class BookingsService {
       await this.notifications?.create(current.sub, 'BOOKING_CREATED', 'Đặt xe thành công', 'Đơn thuê #' + booking.id + ' đã được tạo và đang chờ xác nhận.', booking.id);
       return created;
     });
+  }
+
+
+  async listCalendar(current: JwtUser, fromInput: string, toInput: string) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    if (current.role === Role.STAFF && current.stationId == null) throw new ForbiddenException('Nhân viên chưa được phân công trạm');
+    const datePattern = /^\\d{4}-\\d{2}-\\d{2}$/;
+    if (!datePattern.test(fromInput) || !datePattern.test(toInput)) {
+      throw new BadRequestException('Ngày bắt đầu và kết thúc phải theo định dạng YYYY-MM-DD');
+    }
+    const from = new Date(fromInput + 'T00:00:00');
+    const to = new Date(toInput + 'T23:59:59.999');
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) {
+      throw new BadRequestException('Khoảng thời gian lịch không hợp lệ');
+    }
+    if (to.getTime() - from.getTime() > 31 * 86_400_000) {
+      throw new BadRequestException('Mỗi lần chỉ xem lịch tối đa 31 ngày');
+    }
+
+    const bookingQb = this.bookingRepo.createQueryBuilder('b')
+      .leftJoinAndSelect('b.vehicle', 'vehicle')
+      .leftJoinAndSelect('vehicle.station', 'station')
+      .leftJoinAndSelect('vehicle.model', 'model')
+      .leftJoinAndSelect('b.customer', 'customer')
+      .where('b.pickupAt <= :to AND b.returnAt >= :from', { from, to })
+      .andWhere('b.status IN (:...statuses)', { statuses: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.RENTING] })
+      .orderBy('b.pickupAt', 'ASC');
+    if (current.role === Role.STAFF) bookingQb.andWhere('vehicle.stationId = :stationId', { stationId: current.stationId });
+    const bookings = await bookingQb.getMany();
+
+    const maintenanceRepo = this.bookingRepo.manager.getRepository(MaintenanceRecord);
+    const maintenanceQb = maintenanceRepo.createQueryBuilder('m')
+      .innerJoinAndSelect(Vehicle, 'vehicle', 'vehicle.id = m.vehicleId')
+      .leftJoinAndSelect('vehicle.station', 'station')
+      .leftJoinAndSelect('vehicle.model', 'model')
+      .where('m.scheduledAt >= :from AND m.scheduledAt <= :to', { from, to })
+      .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
+      .orderBy('m.scheduledAt', 'ASC');
+    if (current.role === Role.STAFF) maintenanceQb.andWhere('vehicle.stationId = :stationId', { stationId: current.stationId });
+    const maintenance = await maintenanceQb.getMany();
+
+    return [
+      ...bookings.map(b => ({
+        type: 'BOOKING' as const, id: b.id, vehicleId: b.vehicleId,
+        vehicleCode: b.vehicle?.code ?? '', model: b.vehicle?.model?.brand + ' ' + b.vehicle?.model?.name,
+        stationName: b.vehicle?.station?.name ?? '', customerName: b.customer?.fullName ?? '',
+        title: 'Đơn thuê #' + b.id, status: b.status, start: b.pickupAt, end: b.returnAt,
+      })),
+      ...maintenance.map(m => ({
+        type: 'MAINTENANCE' as const, id: m.id, vehicleId: m.vehicleId,
+        vehicleCode: (m as any).vehicle?.code ?? '',
+        model: (m as any).vehicle?.model ? (m as any).vehicle.model.brand + ' ' + (m as any).vehicle.model.name : '',
+        stationName: (m as any).vehicle?.station?.name ?? '',
+        customerName: '', title: m.reason, status: m.status, start: m.scheduledAt, end: m.completedAt,
+      })),
+    ].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   }
 
   async listForOperations(current: JwtUser) {

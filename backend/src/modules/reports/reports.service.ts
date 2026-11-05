@@ -99,7 +99,6 @@ export class ReportsService {
     const fleetCapacityMs = activeVehicles * utilizationPeriodMs;
     const totalBookedMs = [...utilizationByVehicle.values()].reduce((sum,item)=>sum+item.bookedMs,0);
     const utilizationVehicles = await this.vehicles.find({ where: { status: VehicleStatus.ACTIVE, isActive: true } });
-    const utilizationVehicleMap = new Map(utilizationVehicles.map(vehicle=>[vehicle.id,vehicle]));
     const fleetUtilization = {
       periodStart: utilizationStart.toISOString(),
       periodEnd: utilizationEnd.toISOString(),

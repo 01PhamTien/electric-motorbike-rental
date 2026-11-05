@@ -34,7 +34,7 @@ export class ReportsService {
     const end = this.parseDate(to, 'to', true);
     if (start && end && start > end) throw new BadRequestException('from phải nhỏ hơn hoặc bằng to');
 
-    const bookingQuery = this.bookings.createQueryBuilder('booking');
+    const bookingQuery = this.bookings.createQueryBuilder('booking')\n      .leftJoinAndSelect('booking.vehicle', 'vehicle')\n      .leftJoinAndSelect('vehicle.model', 'model')\n      .leftJoinAndSelect('vehicle.station', 'station');
     if (start) bookingQuery.andWhere('booking.createdAt >= :from', { from: start });
     if (end) bookingQuery.andWhere('booking.createdAt <= :to', { to: end });
     const bookingRows = await bookingQuery.getMany();
@@ -85,18 +85,18 @@ export class ReportsService {
       monthly.set(key, item);
     }
 
-    const vehicleStats = new Map<number, { vehicleId: number; code: string; model: string; station: string; bookings: number; completed: number; revenue: number }>();
+    const vehicleStats = new Map<number, { vehicleId: number; code: string; model: string; station: string; bookings: number; completed: number; bookingValue: number }>();
     const stationStats = new Map<number, { stationId: number; name: string; bookings: number; completed: number; renting: number; revenue: number }>();
     for (const booking of bookingRows) {
       const vehicle = booking.vehicle;
       if (!vehicle) continue;
       const vehicleItem = vehicleStats.get(vehicle.id) ?? {
         vehicleId: vehicle.id, code: vehicle.code, model: vehicle.model?.name ?? 'Chưa phân loại',
-        station: vehicle.station?.name ?? 'Chưa phân trạm', bookings: 0, completed: 0, revenue: 0,
+        station: vehicle.station?.name ?? 'Chưa phân trạm', bookings: 0, completed: 0, bookingValue: 0,
       };
       vehicleItem.bookings += 1;
       if (booking.status === BookingStatus.COMPLETED) vehicleItem.completed += 1;
-      vehicleItem.revenue += cents(booking.rentalAmount);
+      vehicleItem.bookingValue += cents(booking.rentalAmount);
       vehicleStats.set(vehicle.id, vehicleItem);
       if (vehicle.station) {
         const stationItem = stationStats.get(vehicle.station.id) ?? {
@@ -105,7 +105,7 @@ export class ReportsService {
         stationItem.bookings += 1;
         if (booking.status === BookingStatus.COMPLETED) stationItem.completed += 1;
         if (booking.status === BookingStatus.RENTING) stationItem.renting += 1;
-        stationItem.revenue += cents(booking.rentalAmount);
+        stationItem.bookingValue += cents(booking.rentalAmount);
         stationStats.set(vehicle.station.id, stationItem);
       }
     }
@@ -132,7 +132,7 @@ export class ReportsService {
         note: 'Doanh thu ghi nhận chỉ gồm tiền thuê và phụ phí đã thu; tiền cọc không tính là doanh thu. Hoàn cọc được trình bày riêng.',
       },
       monthly: months,
-      topVehicles: [...vehicleStats.values()].sort((a, b) => b.bookings - a.bookings).slice(0, 10).map(item => ({ ...item, revenue: money(item.revenue) })),
+      topVehicles: [...vehicleStats.values()].sort((a, b) => b.bookings - a.bookings).slice(0, 10).map(item => ({ ...item, bookingValue: money(item.bookingValue) })),
       stations: [...stationStats.values()].sort((a, b) => b.bookings - a.bookings).map(item => ({ ...item, revenue: money(item.revenue) })),
       notes: ['Đơn thuê và hiệu quả xe/trạm được lọc theo ngày tạo đơn.', 'Dòng tiền dựa trên giao dịch thanh toán thủ công đã ghi nhận; không phải xác nhận giao dịch ngân hàng tự động.', 'Số tiền cọc đang giữ được tính lũy kế toàn hệ thống, không phụ thuộc khoảng thời gian báo cáo.'],
     };

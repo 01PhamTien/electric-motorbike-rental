@@ -14,7 +14,7 @@ export class BookingIssue {
   @PrimaryGeneratedColumn() id: number;
   @ManyToOne(() => Booking, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'bookingId' }) booking: Booking;
   @Column({ type: 'int' }) bookingId: number;
-  @ManyToOne(() => Vehicle, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'vehicleId' }) vehicle: Vehicle;
+  @ManyToOne(() => Vehicle, { eager: true, onDelete: 'NO ACTION' }) @JoinColumn({ name: 'vehicleId' }) vehicle: Vehicle;
   @Column({ type: 'int' }) vehicleId: number;
   @ManyToOne(() => User, { eager: true, onDelete: 'NO ACTION' }) @JoinColumn({ name: 'customerId' }) customer: User;
   @Column({ type: 'int' }) customerId: number;

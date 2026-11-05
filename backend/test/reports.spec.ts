@@ -7,9 +7,9 @@ import { ReportsService } from '../src/modules/reports/reports.service';
 
 function fixture() {
   const bookings = [
-    { id:1, status:BookingStatus.COMPLETED, createdAt:new Date('2026-11-02T10:00:00Z'), rentalAmount:'300000.00', customer:{id:101,role:'CUSTOMER',fullName:'Nguyen A',createdAt:new Date('2026-10-01T00:00:00Z')}, vehicle:{id:10,code:'VG-10',model:{name:'City'},station:{id:2,name:'Hai Chau'}} },
-    { id:2, status:BookingStatus.RENTING, createdAt:new Date('2026-11-03T10:00:00Z'), rentalAmount:'200000.00', customer:{id:101,role:'CUSTOMER',fullName:'Nguyen A',createdAt:new Date('2026-10-01T00:00:00Z')}, vehicle:{id:11,code:'VG-11',model:{name:'Go'},station:{id:2,name:'Hai Chau'}} },
-    { id:3, status:BookingStatus.CANCELLED, createdAt:new Date('2026-11-04T10:00:00Z'), rentalAmount:'100000.00', customer:{id:102,role:'CUSTOMER',fullName:'Tran B',createdAt:new Date('2026-11-02T00:00:00Z')}, vehicle:{id:10,code:'VG-10',model:{name:'City'},station:{id:2,name:'Hai Chau'}} },
+    { id:1, status:BookingStatus.COMPLETED, createdAt:new Date('2026-11-02T10:00:00Z'), pickupAt:new Date('2026-11-02T10:00:00Z'), returnAt:new Date('2026-11-03T10:00:00Z'), rentalAmount:'300000.00', customer:{id:101,role:'CUSTOMER',fullName:'Nguyen A',createdAt:new Date('2026-10-01T00:00:00Z')}, vehicle:{id:10,code:'VG-10',model:{name:'City'},station:{id:2,name:'Hai Chau'}} },
+    { id:2, status:BookingStatus.RENTING, createdAt:new Date('2026-11-03T10:00:00Z'), pickupAt:new Date('2026-11-04T10:00:00Z'), returnAt:new Date('2026-11-05T10:00:00Z'), rentalAmount:'200000.00', customer:{id:101,role:'CUSTOMER',fullName:'Nguyen A',createdAt:new Date('2026-10-01T00:00:00Z')}, vehicle:{id:11,code:'VG-11',model:{name:'Go'},station:{id:2,name:'Hai Chau'}} },
+    { id:3, status:BookingStatus.CANCELLED, createdAt:new Date('2026-11-04T10:00:00Z'), pickupAt:new Date('2026-11-06T10:00:00Z'), returnAt:new Date('2026-11-07T10:00:00Z'), rentalAmount:'100000.00', customer:{id:102,role:'CUSTOMER',fullName:'Tran B',createdAt:new Date('2026-11-02T00:00:00Z')}, vehicle:{id:10,code:'VG-10',model:{name:'City'},station:{id:2,name:'Hai Chau'}} },
   ];
   const maintenance = [
     {vehicleId:10,status:'COMPLETED',cost:'75000.00',completedAt:new Date('2026-11-05T10:00:00Z')},

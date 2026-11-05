@@ -12,6 +12,7 @@ import { Booking } from './booking.entity';
 import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+import { VehicleTransfer, VehicleTransferStatus } from '../transfers/vehicle-transfer.entity';
 import { CancelBookingDto, CreateBookingDto } from './dto';
 
 @Injectable()
@@ -39,6 +40,11 @@ export class BookingsService {
       if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
       if (vehicle.status !== VehicleStatus.ACTIVE) throw new BadRequestException('Xe hiện không thể đặt');
       if (!vehicle.station || !vehicle.station.isActive) throw new BadRequestException('Trạm nhận xe hiện không hoạt động. Vui lòng chọn trạm khác.');
+      const transferInProgress = await manager.getRepository(VehicleTransfer).createQueryBuilder('t')
+        .where('t.vehicleId = :vehicleId', { vehicleId: vehicle.id })
+        .andWhere('t.status IN (:...statuses)', { statuses: [VehicleTransferStatus.PENDING, VehicleTransferStatus.IN_TRANSIT] })
+        .getOne();
+      if (transferInProgress) throw new BadRequestException('Xe đang trong quy trình điều chuyển, vui lòng chọn xe khác.');
 
       // Release expired holds while holding the vehicle row lock, so another
       // booking request cannot race with the cleanup for this vehicle.

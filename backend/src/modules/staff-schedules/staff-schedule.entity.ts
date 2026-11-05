@@ -25,6 +25,9 @@ export class StaffSchedule {
   @Column({ type: 'varchar', length: 20, default: 'PLANNED' }) status: StaffScheduleStatus;
   @Column({ type: 'nvarchar', length: 500, nullable: true }) note: string | null;
 
+  @ManyToOne(() => User, { nullable: false, onDelete: 'NO ACTION' })
+  @JoinColumn({ name: 'createdById', foreignKeyConstraintName: 'FK_staff_schedules_created_by' })
+  createdBy: User;
   @Column({ type: 'int' }) createdById: number;
   @CreateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' }) createdAt: Date;
   @UpdateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' }) updatedAt: Date;

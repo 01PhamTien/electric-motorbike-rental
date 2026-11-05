@@ -11,9 +11,10 @@ import { VehicleTransfer } from '../transfers/vehicle-transfer.entity';
 import { BookingExpiryService } from './booking-expiry.service';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
+import { VouchersModule } from '../vouchers/vouchers.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Booking, BookingStatusHistory, Vehicle, VehicleTransfer]), AuthModule, NotificationsModule, AuditModule],
+  imports: [TypeOrmModule.forFeature([Booking, BookingStatusHistory, Vehicle, VehicleTransfer]), AuthModule, NotificationsModule, AuditModule, VouchersModule],
   controllers: [BookingsController],
   providers: [BookingsService, BookingExpiryService, RolesGuard],
   exports: [BookingsService, TypeOrmModule],

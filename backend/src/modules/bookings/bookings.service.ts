@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -18,7 +18,7 @@ export class BookingsService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     @InjectRepository(Booking) private readonly bookingRepo: Repository<Booking>,
-    private readonly notifications: NotificationsService,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   async create(current: JwtUser, dto: CreateBookingDto) {
@@ -95,7 +95,7 @@ export class BookingsService {
         reason: 'Tạo đơn thuê',
       }));
       const created = await bookingRepo.findOne({ where: { id: booking.id } });
-      await this.notifications.create(current.sub, 'BOOKING_CREATED', 'Đặt xe thành công', 'Đơn thuê #' + booking.id + ' đã được tạo và đang chờ xác nhận.', booking.id);
+      await this.notifications?.create(current.sub, 'BOOKING_CREATED', 'Đặt xe thành công', 'Đơn thuê #' + booking.id + ' đã được tạo và đang chờ xác nhận.', booking.id);
       return created;
     });
   }

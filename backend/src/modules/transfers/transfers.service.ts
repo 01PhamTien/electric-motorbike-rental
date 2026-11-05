@@ -10,6 +10,9 @@ import { Booking } from '../bookings/booking.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 import { AuditService } from '../audit/audit.service';
+import { User } from '../users/user.entity';
+import { UserStatus } from '../../common/enums/user-status.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateVehicleTransferDto, TransferInspectionDto } from './vehicle-transfer.dto';
 import { VehicleTransfer, VehicleTransferStatus } from './vehicle-transfer.entity';
 
@@ -25,12 +28,36 @@ export class TransfersService {
     @InjectRepository(Station) private readonly stations: Repository<Station>,
     @InjectRepository(Booking) private readonly bookings: Repository<Booking>,
     @InjectRepository(MaintenanceRecord) private readonly maintenance: Repository<MaintenanceRecord>,
+    @InjectRepository(User) private readonly users: Repository<User>,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private assertStation(user: JwtUser, stationId: number) {
     if (user.role === Role.STAFF && user.stationId !== stationId) {
       throw new ForbiddenException('Bạn chỉ được xử lý điều chuyển liên quan đến trạm được phân công');
+    }
+  }
+
+  private async notifyStationStaff(stationId: number, title: string, message: string) {
+    try {
+      const staff = await this.users.find({
+        where: { stationId, role: Role.STAFF, status: UserStatus.ACTIVE },
+        select: { id: true },
+      });
+      await Promise.allSettled(staff.map(user => this.notifications.create(
+        user.id, 'VEHICLE_TRANSFER', title, message,
+      )));
+    } catch {
+      // Notifications are best-effort and must not roll back a completed transfer action.
+    }
+  }
+
+  private async notifyUser(userId: number, title: string, message: string) {
+    try {
+      await this.notifications.create(userId, 'VEHICLE_TRANSFER', title, message);
+    } catch {
+      // Notifications are best-effort and must not roll back a completed transfer action.
     }
   }
 
@@ -140,7 +167,7 @@ export class TransfersService {
   }
 
   async dispatch(user: JwtUser, id: number, dto: TransferInspectionDto) {
-    return this.dataSource.transaction(async manager => {
+    const result = await this.dataSource.transaction(async manager => {
       const transferRepo = manager.getRepository(VehicleTransfer);
       const vehicleRepo = manager.getRepository(Vehicle);
       const bookingRepo = manager.getRepository(Booking);
@@ -177,10 +204,12 @@ export class TransfersService {
       });
       return saved;
     });
+    await this.notifyStationStaff(result.destinationStationId, 'Xe đang được điều chuyển đến trạm', `Xe ${result.vehicleId} đã được bàn giao và đang trên đường đến trạm. Yêu cầu #${result.id}.`);
+    return result;
   }
 
   async receive(user: JwtUser, id: number, dto: TransferInspectionDto) {
-    return this.dataSource.transaction(async manager => {
+    const result = await this.dataSource.transaction(async manager => {
       const transferRepo = manager.getRepository(VehicleTransfer);
       const vehicleRepo = manager.getRepository(Vehicle);
       const stationRepo = manager.getRepository(Station);
@@ -215,6 +244,8 @@ export class TransfersService {
       });
       return { transfer: saved, vehicle };
     });
+    await this.notifyUser(result.transfer.requestedById, 'Xe đã được tiếp nhận tại trạm mới', `Yêu cầu điều chuyển #${result.transfer.id} đã hoàn tất. Xe hiện thuộc trạm #${result.transfer.destinationStationId}.`);
+    return result;
   }
 
   async cancel(user: JwtUser, id: number) {

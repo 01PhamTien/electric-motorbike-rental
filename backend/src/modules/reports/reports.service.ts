@@ -283,7 +283,7 @@ export class ReportsService {
       generatedAt: new Date().toISOString(),
       filters: { from: start?.toISOString() ?? null, to: end?.toISOString() ?? null },
       bookings: { total: bookingRows.length, byStatus: bookingCounts },
-      fleet: { total: totalVehicles, active: activeVehicles, maintenance: maintenanceVehicles, inactive: inactiveVehicles },
+      fleet: { total: totalVehicles, active: activeVehicles, maintenance: maintenanceVehicleCount, inactive: inactiveVehicles },
       finance: {
         rentCollected: money(rentCollected),
         extrasCollected: money(extrasCollected),

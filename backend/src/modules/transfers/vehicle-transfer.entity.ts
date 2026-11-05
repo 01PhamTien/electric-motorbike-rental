@@ -1,4 +1,7 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Vehicle } from '../vehicles/vehicle.entity';
+import { Station } from '../stations/station.entity';
+import { User } from '../users/user.entity';
 
 export enum VehicleTransferStatus {
   PENDING = 'PENDING',
@@ -14,21 +17,27 @@ export class VehicleTransfer {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @ManyToOne(() => Vehicle, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'vehicleId', foreignKeyConstraintName: 'FK_vehicle_transfers_vehicle' }) vehicle: Vehicle;
   @Column({ type: 'int' })
   vehicleId: number;
 
+  @ManyToOne(() => Station, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'sourceStationId', foreignKeyConstraintName: 'FK_vehicle_transfers_source' }) sourceStation: Station;
   @Column({ type: 'int' })
   sourceStationId: number;
 
+  @ManyToOne(() => Station, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'destinationStationId', foreignKeyConstraintName: 'FK_vehicle_transfers_destination' }) destinationStation: Station;
   @Column({ type: 'int' })
   destinationStationId: number;
 
+  @ManyToOne(() => User, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'requestedById', foreignKeyConstraintName: 'FK_vehicle_transfers_requestedBy' }) requestedBy: User;
   @Column({ type: 'int' })
   requestedById: number;
 
+  @ManyToOne(() => User, { nullable: true, onDelete: 'NO ACTION' }) @JoinColumn({ name: 'dispatchedById', foreignKeyConstraintName: 'FK_vehicle_transfers_dispatchedBy' }) dispatchedBy: User | null;
   @Column({ type: 'int', nullable: true })
   dispatchedById: number | null;
 
+  @ManyToOne(() => User, { nullable: true, onDelete: 'NO ACTION' }) @JoinColumn({ name: 'receivedById', foreignKeyConstraintName: 'FK_vehicle_transfers_receivedBy' }) receivedBy: User | null;
   @Column({ type: 'int', nullable: true })
   receivedById: number | null;
 

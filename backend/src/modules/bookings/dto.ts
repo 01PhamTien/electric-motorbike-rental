@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateBookingDto {
   @Type(() => Number)
@@ -11,6 +11,9 @@ export class CreateBookingDto {
 
   @IsDateString()
   returnAt: string;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  voucherCode?: string;
 }
 
 export class CancelBookingDto {

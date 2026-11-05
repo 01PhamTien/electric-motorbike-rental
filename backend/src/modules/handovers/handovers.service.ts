@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
@@ -9,10 +9,11 @@ import { Role } from '../../common/enums/role.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { HandoverDto } from './dto';
 import { HandoverKind, HandoverRecord } from './handover.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class HandoversService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly dataSource: DataSource, @Optional() private readonly notifications?: NotificationsService) {}
   async process(current: JwtUser, bookingId: number, kind: HandoverKind, dto: HandoverDto) {
     if (current.role !== Role.ADMIN && current.role !== Role.STAFF) throw new ForbiddenException();
     // Match the vehicle -> booking lock order used by BookingsService.
@@ -22,7 +23,7 @@ export class HandoversService {
       select: { id: true, vehicleId: true },
     });
     if (!candidate) throw new NotFoundException('Không tìm thấy đơn');
-    return this.dataSource.transaction(async manager => {
+    const outcome = await this.dataSource.transaction(async manager => {
       const vehicle = await manager.getRepository(Vehicle).findOne({
         where: { id: candidate.vehicleId },
         lock: { mode: 'pessimistic_write' },
@@ -60,8 +61,12 @@ export class HandoversService {
       await manager.getRepository(Vehicle).save(vehicle);
       await manager.getRepository(BookingStatusHistory).save({ bookingId, fromStatus: expected, toStatus: next, performedById: current.sub,
         reason: kind === HandoverKind.PICKUP ? 'Đã giao xe' : 'Đã nhận xe trả' });
-      return { bookingId, status: next, record };
+      return { bookingId, status: next, record, customerId: booking.customerId };
     });
+    await this.notifications?.create(outcome.customerId, 'HANDOVER', kind === HandoverKind.PICKUP ? 'Đã nhận xe' : 'Đã trả xe',
+      kind === HandoverKind.PICKUP ? 'Đơn thuê #' + bookingId + ' đã được bàn giao xe.' : 'Đơn thuê #' + bookingId + ' đã hoàn tất trả xe.', bookingId);
+    const { customerId: _customerId, ...result } = outcome;
+    return result;
   }
   async list(current: JwtUser, bookingId: number) {
     const booking = await this.dataSource.getRepository(Booking).findOneBy({ id: bookingId });

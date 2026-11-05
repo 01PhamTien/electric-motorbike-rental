@@ -31,38 +31,31 @@ export class AuditService {
 
 
   async staffPresence() {
+    const staff = await this.users.find({
+      where: { role: 'STAFF' as any, status: 'ACTIVE' as any },
+      relations: { station: true },
+      order: { fullName: 'ASC' },
+    });
     const logs = await this.repo.createQueryBuilder('log')
-      .leftJoinAndSelect('log.actor', 'actor')
-      .leftJoinAndSelect('actor.station', 'station')
       .where('log.targetType = :targetType', { targetType: 'SHIFT' })
       .andWhere('log.actorId IS NOT NULL')
       .orderBy('log.createdAt', 'DESC')
       .addOrderBy('log.id', 'DESC')
-      .take(2000)
+      .take(5000)
       .getMany();
-
-    const latestByStaff = new Map<number, AuditLog>();
-    for (const log of logs) {
-      if (log.actorId !== null && !latestByStaff.has(log.actorId)) latestByStaff.set(log.actorId, log);
-    }
-
-    return Array.from(latestByStaff.values())
-      .filter(log => log.actor?.role === 'STAFF' && log.actor.status === 'ACTIVE')
-      .map(log => {
-        let details: Record<string, unknown> = {};
-        try { details = log.details ? JSON.parse(log.details) : {}; } catch { details = {}; }
-        return {
-          staffId: log.actorId,
-          fullName: log.actor?.fullName ?? 'Nhân viên',
-          email: log.actor?.email ?? null,
-          stationId: log.actor?.stationId ?? null,
-          stationName: log.actor?.station?.name ?? 'Chưa phân trạm',
-          active: log.action === 'SHIFT_STARTED',
-          lastAction: log.action,
-          lastActivityAt: log.createdAt,
-          handover: details,
-        };
-      });
+    const latest = new Map<number, AuditLog>();
+    for (const log of logs) if (log.actorId !== null && !latest.has(log.actorId)) latest.set(log.actorId, log);
+    return staff.map(person => {
+      const log = latest.get(person.id);
+      let handover: Record<string, unknown> = {};
+      try { handover = log?.details ? JSON.parse(log.details) : {}; } catch { handover = {}; }
+      return {
+        staffId: person.id, fullName: person.fullName, email: person.email,
+        stationId: person.stationId, stationName: person.station?.name ?? 'Chưa phân trạm',
+        active: log?.action === 'SHIFT_STARTED', lastAction: log?.action ?? null,
+        lastActivityAt: log?.createdAt ?? null, handover,
+      };
+    });
   }
 
   async getMyShift(actorId: number) {

@@ -36,11 +36,24 @@ export class TransfersService {
 
   async list(user: JwtUser) {
     const qb = this.transfers.createQueryBuilder('t')
-      .leftJoin('vehicles', 'v', 'v.id = t.vehicleId')
+      .innerJoin('vehicles', 'v', 'v.id = t.vehicleId')
+      .innerJoin('stations', 'src', 'src.id = t.sourceStationId')
+      .innerJoin('stations', 'dst', 'dst.id = t.destinationStationId')
+      .select('t.id', 'id')
+      .addSelect('t.vehicleId', 'vehicleId')
+      .addSelect('t.sourceStationId', 'sourceStationId')
+      .addSelect('t.destinationStationId', 'destinationStationId')
+      .addSelect('t.requestedById', 'requestedById')
+      .addSelect('t.dispatchedById', 'dispatchedById')
+      .addSelect('t.receivedById', 'receivedById')
+      .addSelect('t.status', 'status')
+      .addSelect('t.note', 'note')
+      .addSelect('t.dispatchedAt', 'dispatchedAt')
+      .addSelect('t.receivedAt', 'receivedAt')
+      .addSelect('t.cancelledAt', 'cancelledAt')
+      .addSelect('t.createdAt', 'createdAt')
       .addSelect('v.code', 'vehicleCode')
-      .leftJoin('stations', 'src', 'src.id = t.sourceStationId')
       .addSelect('src.name', 'sourceStationName')
-      .leftJoin('stations', 'dst', 'dst.id = t.destinationStationId')
       .addSelect('dst.name', 'destinationStationName')
       .orderBy('t.createdAt', 'DESC')
       .take(200);
@@ -48,13 +61,7 @@ export class TransfersService {
       if (user.stationId == null) return [];
       qb.andWhere('(t.sourceStationId = :stationId OR t.destinationStationId = :stationId)', { stationId: user.stationId });
     }
-    const rows = await qb.getRawAndEntities();
-    return rows.entities.map((item, index) => ({
-      ...item,
-      vehicleCode: rows.raw[index]?.vehicleCode ?? '',
-      sourceStationName: rows.raw[index]?.sourceStationName ?? '',
-      destinationStationName: rows.raw[index]?.destinationStationName ?? '',
-    }));
+    return qb.getRawMany();
   }
 
   async create(user: JwtUser, dto: CreateVehicleTransferDto) {

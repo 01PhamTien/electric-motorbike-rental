@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
 import { api } from '../../services/api';
@@ -30,6 +30,7 @@ export function MyBookingsPage() {
   const [filter, setFilter] = useState('ALL');
   const [params] = useSearchParams();
   const [detail, setDetail] = useState<Booking | null>(null);
+  const detailRequestId = useRef(0);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [handovers, setHandovers] = useState<Handover[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -54,7 +55,13 @@ export function MyBookingsPage() {
   }, [loggedIn]);
   useEffect(() => { void load(); }, [load]);
   const visible = filter === 'ALL' ? items : items.filter(b => b.status === filter);
+  function closeDetails() {
+    detailRequestId.current += 1;
+    setDetail(null);
+    setDetailLoading(false);
+  }
   async function openDetails(booking: Booking) {
+    const requestId = ++detailRequestId.current;
     setDetail(booking); setDetailLoading(true); setDetailError(''); setPayments([]); setHandovers([]); setIssues([]); setReview(null);
     setIssueDescription('');setIssueLocation(null);setReviewComment('');setReviewRating(5);
     const [bookingResult, paymentResult, handoverResult, reviewResult, issueResult] = await Promise.allSettled([
@@ -62,6 +69,7 @@ export function MyBookingsPage() {
       api.get('/bookings/' + booking.id + '/handovers'), api.get('/bookings/' + booking.id + '/review'),
       api.get('/bookings/' + booking.id + '/issues'),
     ]);
+    if (requestId !== detailRequestId.current) return;
     if (bookingResult.status === 'fulfilled') setDetail(bookingResult.value.data);
     else setDetailError(getError(bookingResult.reason));
     if (paymentResult.status === 'fulfilled') setPayments(Array.isArray(paymentResult.value.data) ? paymentResult.value.data : paymentResult.value.data?.items ?? []);
@@ -116,8 +124,8 @@ export function MyBookingsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4"><button onClick={()=>void openDetails(b)} className="text-sm font-extrabold text-emerald-800 underline underline-offset-4">Xem chi tiết đơn →</button><div className="flex flex-wrap gap-2">{['PENDING', 'CONFIRMED'].includes(b.status) && <button disabled={busyId === b.id} onClick={() => void cancel(b)} className="rounded-lg border border-rose-200 px-4 py-2 text-xs font-extrabold text-rose-700 hover:bg-rose-50">{busyId === b.id ? 'Đang hủy...' : 'Hủy đơn'}</button>}{b.status==='RENTING'&&<button onClick={()=>void openDetails(b)} className="rounded-lg bg-amber-100 px-4 py-2 text-xs font-extrabold text-amber-900">Báo sự cố / hết pin</button>}{b.status==='COMPLETED'&&<button onClick={()=>void openDetails(b)} className="rounded-lg bg-emerald-100 px-4 py-2 text-xs font-extrabold text-emerald-900">Đánh giá xe</button>}</div></div>
       </article>)}</div>}
     </>}
-    {detail && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071c21]/70 p-4 backdrop-blur-sm" onMouseDown={e=>{if(e.target===e.currentTarget)setDetail(null);}}><section role="dialog" aria-modal="true" aria-labelledby="booking-detail-title" className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-[26px] bg-white p-6 shadow-2xl sm:p-8">
-      <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">CHI TIẾT CHUYẾN THUÊ</p><h2 id="booking-detail-title" className="mt-2 text-2xl font-extrabold">Đơn thuê #{detail.id}</h2><span className={'mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold '+badge[detail.status]}>{labels[detail.status]}</span></div><button onClick={()=>setDetail(null)} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Đóng">✕</button></div>
+    {detail && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071c21]/70 p-4 backdrop-blur-sm" onMouseDown={e=>{if(e.target===e.currentTarget)closeDetails();}}><section role="dialog" aria-modal="true" aria-labelledby="booking-detail-title" className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-[26px] bg-white p-6 shadow-2xl sm:p-8">
+      <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">CHI TIẾT CHUYẾN THUÊ</p><h2 id="booking-detail-title" className="mt-2 text-2xl font-extrabold">Đơn thuê #{detail.id}</h2><span className={'mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold '+badge[detail.status]}>{labels[detail.status]}</span></div><button onClick={closeDetails} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Đóng">✕</button></div>
       {detailLoading?<div className="mt-6"><LoadingState label="Đang tải thông tin đơn..."/></div>:<>
         {detailError&&<p role="alert" className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{detailError}</p>}
         <div className="mt-6 rounded-2xl bg-slate-50 p-5"><h3 className="font-extrabold">Thông tin phương tiện và điểm nhận</h3><p className="mt-3 text-lg font-bold">{detail.vehicle?.model?.brand} {detail.vehicle?.model?.name}</p><p className="mt-1 text-sm text-slate-600">Mã xe: {detail.vehicle?.code} · Biển số: {detail.vehicle?.licensePlate||'—'}</p><p className="mt-3 text-sm font-bold">{detail.vehicle?.station?.name}</p><p className="mt-1 text-sm text-slate-600">{detail.vehicle?.station?.address||'—'}</p>{detail.vehicle?.station?.phone&&<p className="mt-1 text-sm text-slate-600">☎ {detail.vehicle.station.phone}</p>}</div>
@@ -131,7 +139,7 @@ export function MyBookingsPage() {
         <div className="mt-6"><h3 className="font-extrabold">Lịch sử báo cáo sự cố</h3>{!issues.length?<p className="mt-2 text-sm text-slate-500">Chưa có báo cáo sự cố.</p>:<div className="mt-3 space-y-3">{issues.map(issue=><div key={issue.id} className="rounded-xl border border-slate-100 p-4"><div className="flex flex-wrap justify-between gap-2"><strong className="text-sm">{issueLabels[issue.issueType]||issue.issueType} · {issue.severity}</strong><span className="text-xs font-bold text-sky-800">{issueStatus[issue.status]||issue.status}</span></div><p className="mt-2 text-sm text-slate-600">{issue.description}</p>{issue.resolutionNote&&<p className="mt-2 text-sm text-emerald-800">Xử lý: {issue.resolutionNote}</p>}<p className="mt-1 text-xs text-slate-400">{timeText(issue.createdAt)}</p></div>)}</div>}</div>
         <div className="mt-6"><h3 className="font-extrabold">Thanh toán và đối soát</h3>{!payments.length?<p className="mt-2 text-sm text-slate-500">Chưa có giao dịch được nhân viên ghi nhận.</p>:<><div className="mt-3 space-y-2">{payments.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-3 rounded-xl border border-slate-100 p-3 text-sm"><div><strong>{p.purpose}</strong><p className="text-xs text-slate-500">{p.method} · {timeText(p.createdAt)}{p.note?' · '+p.note:''}</p></div><strong className={p.purpose==='REFUND'?'text-rose-600':'text-emerald-700'}>{p.purpose==='REFUND'?'-':'+'}{money(p.amount)}</strong></div>)}</div><p className="mt-3 text-sm text-slate-600">Đã thu/ghi nhận: {money(paymentTotal)} · Đã hoàn: {money(refundTotal)}</p></>}</div>
       </>}
-      <div className="mt-7 flex flex-wrap justify-end gap-3"><Link to={'/bookings/'+detail.id+'/payments'} className="btn-outline">Mở trang giao dịch</Link><button onClick={()=>setDetail(null)} className="btn-primary">Đóng</button></div>
+      <div className="mt-7 flex flex-wrap justify-end gap-3"><Link to={'/bookings/'+detail.id+'/payments'} className="btn-outline">Mở trang giao dịch</Link><button onClick={closeDetails} className="btn-primary">Đóng</button></div>
     </section></div>}
   </div>;
 }

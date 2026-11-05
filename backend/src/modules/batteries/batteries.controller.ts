@@ -8,7 +8,7 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BatteryStatus } from './battery.entity';
 import { BatteriesService } from './batteries.service';
-import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto } from './batteries.dto';
+import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
 
 @ApiTags('Batteries and swaps')
 @ApiBearerAuth()
@@ -17,6 +17,21 @@ import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto } from './batteries
 @Controller('batteries')
 export class BatteriesController {
   constructor(private readonly service:BatteriesService){}
+  @Post('reservations')
+  @Roles(Role.CUSTOMER)
+  reserve(@CurrentUser() user:JwtUser,@Body() dto:CreateBatteryReservationDto){return this.service.reserve(user,dto);}
+  @Get('reservations/my')
+  @Roles(Role.CUSTOMER)
+  myReservations(@CurrentUser() user:JwtUser){return this.service.myReservations(user);}
+  @Patch('reservations/:id/cancel')
+  @Roles(Role.CUSTOMER)
+  cancelReservation(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number){return this.service.cancelReservation(user,id);}
+  @Get('reservations')
+  @Roles(Role.ADMIN,Role.STAFF)
+  listReservations(@CurrentUser() user:JwtUser,@Query('stationId') stationId?:string){return this.service.listReservations(user,stationId?Number(stationId):undefined);}
+  @Post('reservations/:id/redeem')
+  @Roles(Role.ADMIN,Role.STAFF)
+  redeemReservation(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:RedeemBatteryReservationDto){return this.service.redeemReservation(user,id,dto);}
   @Post() create(@CurrentUser() user:JwtUser,@Body() dto:CreateBatteryDto){return this.service.create(user,dto);}
   @Get() list(@CurrentUser() user:JwtUser,@Query('stationId') stationId?:string,@Query('status') status?:BatteryStatus){
     return this.service.list(user,stationId?Number(stationId):undefined,status);

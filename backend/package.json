@@ -21,7 +21,8 @@
     "migration:run:mssql": "node -r ts-node/register ./node_modules/typeorm/cli.js -d src/database/data-source.ts migration:run --transaction each",
     "test:mssql": "node -r ts-node/register --test test/*.mssql.ts",
     "migration:check:mssql": "node -r ts-node/register src/database/check-schema.ts",
-    "seed:rich-demo": "node -r ts-node/register src/database/seed-rich-demo.ts"
+    "seed:rich-demo": "node -r ts-node/register src/database/seed-rich-demo.ts",
+    "migration:baseline:mssql": "node -r ts-node/register src/database/baseline-existing-mssql.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",

@@ -1,3 +1,47 @@
+# SQL Server Express — existing local VoltGoDB
+
+The SQL Server schema has its own migration history in \`backend/src/database/migrations-mssql\`. Never run MySQL migration commands against SQL Server.
+
+## If VoltGoDB already contains tables created by TypeORM synchronize
+
+Do **not** run the initial SQL Server migration directly against a populated database. First create and test a full backup of VoltGoDB. Then, from \`backend/\`, inspect:
+
+\`\`\`powershell
+npm run migration:show
+npm run migration:check:mssql
+\`\`\`
+
+If the database is populated but has no migration history, and \`migration:check:mssql\` reports that the schema matches the current entities, adopt it with the guarded baseline tool:
+
+\`\`\`powershell
+$env:DB_TYPE = "mssql"
+$env:BASELINE_CONFIRM = "I_HAVE_A_VERIFIED_BACKUP"
+npm run migration:baseline:mssql
+Remove-Item Env:BASELINE_CONFIRM
+npm run migration:show
+npm run migration:run:mssql
+npm run migration:check:mssql
+\`\`\`
+
+The baseline tool refuses an empty database, refuses existing migration history, checks for schema drift, and inserts only the initial migration record. It does not alter application tables or data. After the baseline, pending additive migrations (such as editable vehicle images and customer reviews/issues) are applied normally.
+
+If \`migration:check:mssql\` reports drift, **stop**. Do not use synchronize or baseline to hide the differences. Back up the database, review the printed SQL, and prepare a separate migration.
+
+## If VoltGoDB is empty
+
+Use only:
+
+\`\`\`powershell
+$env:DB_TYPE = "mssql"
+npm run migration:show
+npm run migration:run:mssql
+npm run migration:check:mssql
+\`\`\`
+
+Never run \`migration:baseline:mssql\` on an empty database.
+
+---
+
 # Database migrations — MySQL 8.4
 
 The production backend **never runs TypeORM synchronize**. This repository now uses an immutable initial migration:

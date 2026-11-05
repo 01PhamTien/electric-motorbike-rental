@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { Vehicle } from '../vehicles/vehicle.entity';
@@ -86,7 +86,7 @@ export class ReportsService {
     }
 
     const vehicleStats = new Map<number, { vehicleId: number; code: string; model: string; station: string; bookings: number; completed: number; bookingValue: number }>();
-    const stationStats = new Map<number, { stationId: number; name: string; bookings: number; completed: number; renting: number; revenue: number }>();
+    const stationStats = new Map<number, { stationId: number; name: string; bookings: number; completed: number; renting: number; bookingValue: number }>();
     for (const booking of bookingRows) {
       const vehicle = booking.vehicle;
       if (!vehicle) continue;
@@ -100,7 +100,7 @@ export class ReportsService {
       vehicleStats.set(vehicle.id, vehicleItem);
       if (vehicle.station) {
         const stationItem = stationStats.get(vehicle.station.id) ?? {
-          stationId: vehicle.station.id, name: vehicle.station.name, bookings: 0, completed: 0, renting: 0, revenue: 0,
+          stationId: vehicle.station.id, name: vehicle.station.name, bookings: 0, completed: 0, renting: 0, bookingValue: 0,
         };
         stationItem.bookings += 1;
         if (booking.status === BookingStatus.COMPLETED) stationItem.completed += 1;
@@ -133,7 +133,7 @@ export class ReportsService {
       },
       monthly: months,
       topVehicles: [...vehicleStats.values()].sort((a, b) => b.bookings - a.bookings).slice(0, 10).map(item => ({ ...item, bookingValue: money(item.bookingValue) })),
-      stations: [...stationStats.values()].sort((a, b) => b.bookings - a.bookings).map(item => ({ ...item, revenue: money(item.revenue) })),
+      stations: [...stationStats.values()].sort((a, b) => b.bookings - a.bookings).map(item => ({ ...item, bookingValue: money(item.bookingValue) })),
       notes: ['Đơn thuê và hiệu quả xe/trạm được lọc theo ngày tạo đơn.', 'Dòng tiền dựa trên giao dịch thanh toán thủ công đã ghi nhận; không phải xác nhận giao dịch ngân hàng tự động.', 'Số tiền cọc đang giữ được tính lũy kế toàn hệ thống, không phụ thuộc khoảng thời gian báo cáo.'],
     };
   }

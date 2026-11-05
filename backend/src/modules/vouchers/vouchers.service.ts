@@ -104,6 +104,20 @@ export class VouchersService {
     return { voucherId: voucher.id, voucherCode: voucher.code, ...amounts };
   }
 
+  async release(manager: EntityManager, bookingId: number) {
+    const redemptionRepo = manager.getRepository(VoucherRedemption);
+    const redemption = await redemptionRepo.findOne({ where: { bookingId }, lock: { mode: 'pessimistic_write' } });
+    if (!redemption) return false;
+    const voucherRepo = manager.getRepository(Voucher);
+    const voucher = await voucherRepo.findOne({ where: { id: redemption.voucherId }, lock: { mode: 'pessimistic_write' } });
+    if (voucher && voucher.usageCount > 0) {
+      voucher.usageCount -= 1;
+      await voucherRepo.save(voucher);
+    }
+    await redemptionRepo.delete({ id: redemption.id });
+    return true;
+  }
+
   async usage(id: number) {
     await this.findOne(id);
     return this.redemptions.find({ where: { voucherId: id }, order: { createdAt: 'DESC' }, take: 200 });

@@ -35,6 +35,7 @@ export class ReportsService {
     if (start && end && start > end) throw new BadRequestException('from phải nhỏ hơn hoặc bằng to');
 
     const bookingQuery = this.bookings.createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.customer', 'customer')
       .leftJoinAndSelect('booking.vehicle', 'vehicle')
       .leftJoinAndSelect('vehicle.model', 'model')
       .leftJoinAndSelect('vehicle.station', 'station');
@@ -113,13 +114,13 @@ export class ReportsService {
       }
     }
 
-    const customerStats = new Map<number, { customerId:number; name:string; bookings:number; completed:number; bookingValue:number; firstBookingAt:Date }>();
+    const customerStats = new Map<number, { customerId:number; name:string; createdAt:Date; bookings:number; completed:number; bookingValue:number; firstBookingAt:Date }>();
     let newCustomers = 0;
     for (const booking of bookingRows) {
       const customer = booking.customer;
       if (!customer || customer.role !== 'CUSTOMER') continue;
       const item = customerStats.get(customer.id) ?? {
-        customerId: customer.id, name: customer.fullName, bookings: 0, completed: 0,
+        customerId: customer.id, name: customer.fullName, createdAt: new Date(customer.createdAt), bookings: 0, completed: 0,
         bookingValue: 0, firstBookingAt: booking.createdAt,
       };
       item.bookings += 1;
@@ -129,8 +130,7 @@ export class ReportsService {
       customerStats.set(customer.id, item);
     }
     for (const item of customerStats.values()) {
-      const createdAt = (bookingRows.find(row => row.customer?.id === item.customerId)?.customer as any)?.createdAt;
-      if (createdAt && (!start || new Date(createdAt) >= start) && (!end || new Date(createdAt) <= end)) newCustomers += 1;
+      if ((!start || item.createdAt >= start) && (!end || item.createdAt <= end)) newCustomers += 1;
     }
     const returningCustomers = [...customerStats.values()].filter(item => item.bookings > 1).length;
     const topCustomers = [...customerStats.values()]

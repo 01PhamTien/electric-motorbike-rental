@@ -21,7 +21,7 @@ export class AuditController {
   ) {
     const validDate = (value?: string) => {
       if (value === undefined || value === '') return undefined;
-      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value) || Number.isNaN(Date.parse(value + 'T00:00:00Z'))) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value + 'T00:00:00Z'))) {
         throw new BadRequestException('Ngày lọc phải theo định dạng YYYY-MM-DD.');
       }
       return value;

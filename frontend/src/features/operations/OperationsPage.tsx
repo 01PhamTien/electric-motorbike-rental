@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
 import { api } from '../../services/api';
+import { useAuth } from '../auth/AuthContext';
 
 type CalendarEvent = { type:'BOOKING'|'MAINTENANCE'; id:number; vehicleId:number; vehicleCode:string; model:string; stationName:string; customerName:string; title:string; status:string; start:string; end:string|null };
 function localDateInput(date:Date) { const offset=date.getTimezoneOffset(); return new Date(date.getTime()-offset*60000).toISOString().slice(0,10); }
@@ -17,6 +18,7 @@ const apiError = (e: unknown) => {
   return Array.isArray(m) ? m.join(', ') : m || 'Thao tác chưa thành công. Vui lòng thử lại.';
 };
 export function OperationsPage() {
+  const { user } = useAuth();
   const [items,setItems] = useState<Booking[]>([]);
   const [calendar,setCalendar] = useState<CalendarEvent[]>([]);
   const [calendarFrom,setCalendarFrom] = useState(()=>localDateInput(new Date()));
@@ -59,6 +61,7 @@ export function OperationsPage() {
   }
   useEffect(() => { void loadCalendar(); }, []);
   const visible = filter === 'ALL' ? items : items.filter(item => item.status === filter);
+  const queue = { pending: items.filter(x=>x.status==='PENDING').length, confirmed: items.filter(x=>x.status==='CONFIRMED').length, renting: items.filter(x=>x.status==='RENTING').length, attention: items.filter(x=>x.status==='PENDING'||x.status==='CONFIRMED').length };
   function beginHandover(id: number, kind: 'pickup' | 'return') {
     setBattery('80'); setOdometer(''); setCondition(kind === 'pickup' ? 'Xe hoạt động bình thường, đã kiểm tra ngoại quan và phụ kiện.' : 'Đã kiểm tra xe khi nhận trả.');
     setCheckedItems([]); setDamageNotes(''); setPhotoUrlsText('');
@@ -100,7 +103,19 @@ export function OperationsPage() {
     } catch(e) { setError(apiError(e)); } finally { setBusy(null); }
   }
   return <div className="container-page py-12 sm:py-16">
-    <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="TRUNG TÂM VẬN HÀNH" title="Điều phối đơn thuê" description="Xác nhận đặt xe, ghi nhận bàn giao và nhận trả phương tiện. Danh sách giới hạn 100 đơn gần nhất theo quyền tài khoản."/><div className="flex flex-wrap gap-2"><Link to="/vehicle-transfers" className="btn-outline">Điều chuyển xe ↗</Link><Link to="/issues" className="btn-outline">Sự cố khách báo ↗</Link><Link to="/maintenance" className="btn-outline">Bảo dưỡng ↗</Link><Link to="/locations" className="btn-outline">Vị trí xe ↗</Link><Link to="/admin/dashboard" className="btn-outline">Báo cáo ↗</Link></div></div>
+    <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="TRUNG TÂM VẬN HÀNH" title="Điều phối đơn thuê" description="Xác nhận đặt xe, ghi nhận bàn giao và nhận trả phương tiện. Danh sách giới hạn 100 đơn gần nhất theo quyền tài khoản."/><div className="flex flex-wrap gap-2"><Link to="/vehicle-transfers" className="btn-outline">Điều chuyển xe ↗</Link><Link to="/issues" className="btn-outline">Sự cố khách báo ↗</Link><Link to="/maintenance" className="btn-outline">Bảo dưỡng ↗</Link><Link to="/locations" className="btn-outline">Vị trí xe ↗</Link>{user?.role==='ADMIN'&&<Link to="/admin/dashboard" className="btn-outline">Báo cáo ↗</Link>}</div></div>
+    <section className="mt-8 space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow">CA LÀM VIỆC HÔM NAY</p><h2 className="mt-2 text-xl font-extrabold">Xin chào, {user?.fullName||'nhân viên'}!</h2><p className="mt-1 text-sm text-slate-500">{user?.stationId ? 'Dữ liệu nghiệp vụ được giới hạn theo trạm được phân công.' : user?.role==='ADMIN' ? 'Bạn đang xem phạm vi toàn hệ thống.' : 'Đang tải phạm vi công việc của bạn.'}</p></div><span className="tag">{new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</span></div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[{label:'Đơn chờ xác nhận',value:queue.pending,detail:'Cần kiểm tra yêu cầu',filter:'PENDING',tone:'text-amber-700'},{label:'Chờ bàn giao xe',value:queue.confirmed,detail:'Đơn đã xác nhận',filter:'CONFIRMED',tone:'text-sky-700'},{label:'Xe đang được thuê',value:queue.renting,detail:'Đang trong chuyến thuê',filter:'RENTING',tone:'text-emerald-700'},{label:'Việc cần chú ý',value:queue.attention,detail:'Chờ xác nhận hoặc bàn giao',filter:'ALL',tone:'text-slate-900'}].map(card=><button key={card.label} onClick={()=>setFilter(card.filter)} className="panel p-5 text-left transition hover:-translate-y-0.5 hover:border-emerald-300"><p className="text-sm font-semibold text-slate-500">{card.label}</p><strong className={'mt-3 block text-3xl font-extrabold '+card.tone}>{card.value}</strong><span className="mt-1 block text-xs text-slate-400">{card.detail}</span></button>)}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Link to="/issues" className="rounded-xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">🚨 Tiếp nhận sự cố <span className="float-right">↗</span></Link>
+        <Link to="/maintenance" className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold text-amber-800">🔧 Lịch bảo dưỡng <span className="float-right">↗</span></Link>
+        <Link to="/batteries" className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">🔋 Kho pin & đổi pin <span className="float-right">↗</span></Link>
+        <Link to="/vehicle-transfers" className="rounded-xl border border-sky-100 bg-sky-50 p-4 text-sm font-bold text-sky-800">🔀 Điều chuyển xe <span className="float-right">↗</span></Link>
+      </div>
+    </section>
     <section className="mt-8 panel p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">ĐIỀU PHỐI THEO THỜI GIAN</p><h2 className="mt-2 text-xl font-extrabold">Lịch xe và lịch bảo dưỡng</h2><p className="mt-1 text-sm text-slate-500">Tổng hợp các đơn đang giữ chỗ/đã xác nhận/đang thuê và lịch bảo dưỡng theo trạm được phân quyền.</p></div><div className="flex flex-wrap items-end gap-2"><label><span className="field-label">Từ ngày</span><input className="field" type="date" value={calendarFrom} onChange={e=>setCalendarFrom(e.target.value)}/></label><label><span className="field-label">Đến ngày</span><input className="field" type="date" value={calendarTo} onChange={e=>setCalendarTo(e.target.value)}/></label><button className="btn-dark" onClick={()=>void loadCalendar()} disabled={calendarLoading}>{calendarLoading?'Đang tải...':'Xem lịch'}</button></div></div>{calendarError&&<p role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{calendarError}</p>}{calendarLoading?<div className="mt-5"><LoadingState label="Đang tổng hợp lịch xe..."/></div>:!calendar.length?<p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Không có đơn thuê hoặc lịch bảo dưỡng trong khoảng ngày đã chọn.</p>:<div className="mt-5 space-y-3">{calendar.map(event=><article key={event.type+'-'+event.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-100 p-4"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={'rounded-full px-2.5 py-1 text-[10px] font-extrabold '+(event.type==='BOOKING'?'bg-sky-50 text-sky-800':'bg-amber-50 text-amber-800')}>{event.type==='BOOKING'?'ĐƠN THUÊ':'BẢO DƯỠNG'}</span><span className="text-xs font-bold text-slate-400">#{event.id} · {event.vehicleCode}</span><span className="text-xs text-slate-500">{event.status}</span></div><h3 className="mt-2 truncate font-extrabold">{event.model||event.title}</h3><p className="mt-1 text-xs text-slate-500">{event.stationName}{event.customerName?' · '+event.customerName:''}</p></div><div className="text-right text-sm"><p className="font-bold">{timeText(event.start)}</p><p className="mt-1 text-xs text-slate-500">{event.end?'Đến '+timeText(event.end):'Lịch thực hiện'}</p></div></article>)}</div>}</section>
     <div className="mt-8 flex flex-wrap items-center justify-between gap-4"><div className="flex flex-wrap gap-2">{[{value:'ALL',label:'Tất cả'},...Object.entries(statuses).map(([value,label])=>({value,label}))].map(x => <button key={x.value} onClick={()=>setFilter(x.value)} className={'rounded-full px-4 py-2 text-xs font-extrabold '+(filter===x.value?'bg-[#10373b] text-white':'bg-white text-slate-600')}>{x.label}</button>)}</div><button className="btn-outline" onClick={()=>void load()}>↻ Làm mới</button></div>
     {notice && <div role="status" className="mt-6 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}

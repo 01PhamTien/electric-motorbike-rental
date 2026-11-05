@@ -17,3 +17,12 @@ export class SwapBatteryDto {
   @ApiProperty({ example: 3 }) @IsInt() @Min(1) replacementBatteryId: number;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?: string;
 }
+
+export class CreateBatteryReservationDto {
+  @ApiProperty({example:1}) @IsInt() @Min(1) stationId:number;
+  @ApiProperty({example:25}) @IsInt() @Min(1) bookingId:number;
+}
+export class RedeemBatteryReservationDto {
+  @ApiProperty({example:3}) @IsInt() @Min(1) replacementBatteryId:number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}

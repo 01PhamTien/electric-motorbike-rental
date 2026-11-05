@@ -17,7 +17,12 @@ const apiError = (e: unknown) => {
   return Array.isArray(m) ? m.join(', ') : m || 'Thao tác chưa thành công. Vui lòng thử lại.';
 };
 export function OperationsPage() {
-  const [items,setItems] = useState<Booking[]>([]);\n  const [calendar,setCalendar] = useState<CalendarEvent[]>([]);\n  const [calendarFrom,setCalendarFrom] = useState(()=>localDateInput(new Date()));\n  const [calendarTo,setCalendarTo] = useState(()=>localDateInput(new Date(Date.now()+6*86_400_000)));\n  const [calendarLoading,setCalendarLoading] = useState(false);\n  const [calendarError,setCalendarError] = useState('');
+  const [items,setItems] = useState<Booking[]>([]);
+  const [calendar,setCalendar] = useState<CalendarEvent[]>([]);
+  const [calendarFrom,setCalendarFrom] = useState(()=>localDateInput(new Date()));
+  const [calendarTo,setCalendarTo] = useState(()=>localDateInput(new Date(Date.now()+6*86_400_000)));
+  const [calendarLoading,setCalendarLoading] = useState(false);
+  const [calendarError,setCalendarError] = useState('');
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
   const [notice,setNotice] = useState('');
@@ -42,7 +47,8 @@ export function OperationsPage() {
     catch(e) { setError(apiError(e)); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { void load(); },[load]);\n  async function loadCalendar() {
+  useEffect(() => { void load(); },[load]);
+  async function loadCalendar() {
     if (!calendarFrom || !calendarTo || calendarTo < calendarFrom) { setCalendarError('Vui lòng chọn khoảng ngày hợp lệ.'); return; }
     const span=(new Date(calendarTo+'T00:00:00').getTime()-new Date(calendarFrom+'T00:00:00').getTime())/86_400_000;
     if (span>30) { setCalendarError('Mỗi lần chỉ xem tối đa 31 ngày.'); return; }

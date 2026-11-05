@@ -18,6 +18,7 @@ import { VehicleModelsModule } from './modules/vehicle-models/vehicle-models.mod
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
 import { OperatingCostsModule } from './modules/operating-costs/operating-costs.module';
+import { BatteriesModule } from './modules/batteries/batteries.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { OperatingCostsModule } from './modules/operating-costs/operating-costs.
     NotificationsModule,
     AuditModule,
     OperatingCostsModule,
+    BatteriesModule,
   ],
 })
 export class AppModule {}

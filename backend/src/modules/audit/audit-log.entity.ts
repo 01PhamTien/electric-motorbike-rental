@@ -12,5 +12,5 @@ export class AuditLog {
   @Column({ type: 'varchar', length: 60 }) targetType: string;
   @Column({ type: 'int', nullable: true }) targetId: number | null;
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) details: string | null;
-  @CreateDateColumn({ type: 'datetime2' }) createdAt: Date;
+  @CreateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' }) createdAt: Date;
 }

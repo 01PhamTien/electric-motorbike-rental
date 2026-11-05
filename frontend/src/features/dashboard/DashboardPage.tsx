@@ -14,6 +14,7 @@ type Overview = {
     depositCollectedLifetime: number; depositRefundedLifetime: number; depositHeldNow: number;
     note: string;
   };
+  customers: {uniqueInPeriod:number;newInPeriod:number;returningInPeriod:number;topCustomers:Array<{customerId:number;name:string;bookings:number;completed:number;bookingValue:number;firstBookingAt:string}>};
   monthly: Array<{month:string;rentCollected:number;extrasCollected:number;refunds:number;netCashIn:number;bookings:number}>;
   topVehicles: Array<{vehicleId:number;code:string;model:string;station:string;bookings:number;completed:number;bookingValue:number}>;
   stations: Array<{stationId:number;name:string;bookings:number;completed:number;renting:number;bookingValue:number}>;
@@ -65,6 +66,13 @@ export function DashboardPage() {
       ['Thang','Tien thue da thu','Phu phi','Hoan tien','Dong tien rong','So don'],
       ...data.monthly.map(m=>[m.month,m.rentCollected,m.extrasCollected,m.refunds,m.netCashIn,m.bookings]),
       [],
+      ['PHAN TICH KHACH HANG'],
+      ['Khach co don',data.customers.uniqueInPeriod],
+      ['Khach moi',data.customers.newInPeriod],
+      ['Khach quay lai',data.customers.returningInPeriod],
+      ['Khach hang','So don','Hoan thanh','Gia tri don (VND)'],
+      ...data.customers.topCustomers.map(c=>[c.name,c.bookings,c.completed,c.bookingValue]),
+      [],
       ['HIEU QUA TRAM'],
       ['Tram','So don','Da hoan thanh','Dang thue','Gia tri don thue (VND)'],
       ...data.stations.map(s=>[s.name,s.bookings,s.completed,s.renting,s.bookingValue]),
@@ -107,6 +115,20 @@ export function DashboardPage() {
         </section>
         <section className="rounded-[22px] bg-[#10383b] p-7 text-white"><p className="text-xs font-extrabold uppercase tracking-[.16em] text-emerald-300">ĐỐI SOÁT TIỀN CỌC</p><h2 className="mt-3 text-2xl font-extrabold">Số dư tiền cọc</h2><p className="mt-3 text-3xl font-extrabold text-emerald-300">{money(data.finance.depositHeldNow)}</p><p className="mt-2 text-sm leading-6 text-emerald-50/75">Số tiền cọc đã thu trừ các khoản hoàn cọc được ghi nhận trên toàn hệ thống.</p><div className="mt-7 grid grid-cols-2 gap-3"><div className="rounded-xl bg-white/10 p-4"><p className="text-xs text-emerald-100/70">Đã thu lũy kế</p><strong className="mt-2 block text-lg">{money(data.finance.depositCollectedLifetime)}</strong></div><div className="rounded-xl bg-white/10 p-4"><p className="text-xs text-emerald-100/70">Đã hoàn lũy kế</p><strong className="mt-2 block text-lg">{money(data.finance.depositRefundedLifetime)}</strong></div></div></section>
       </div>
+      <section className="panel mt-7 overflow-hidden">
+        <div className="flex flex-wrap items-end justify-between gap-4 p-7">
+          <div><h2 className="text-xl font-extrabold">Phân tích khách hàng</h2><p className="mt-2 text-sm text-slate-500">Khách hàng có phát sinh đơn trong khoảng thời gian đã chọn; khách quay lại có từ hai đơn trở lên trong kỳ.</p></div>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-xl bg-slate-50 px-4 py-3"><strong className="block text-xl">{data.customers.uniqueInPeriod}</strong><span className="text-xs text-slate-500">Khách có đơn</span></div>
+            <div className="rounded-xl bg-emerald-50 px-4 py-3"><strong className="block text-xl text-emerald-800">{data.customers.newInPeriod}</strong><span className="text-xs text-emerald-700">Khách mới</span></div>
+            <div className="rounded-xl bg-sky-50 px-4 py-3"><strong className="block text-xl text-sky-800">{data.customers.returningInPeriod}</strong><span className="text-xs text-sky-700">Khách quay lại</span></div>
+          </div>
+        </div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-7 py-4">Khách hàng</th><th className="px-4 py-4">Số đơn</th><th className="px-4 py-4">Hoàn thành</th><th className="px-7 py-4 text-right">Giá trị đơn</th></tr></thead>
+          <tbody className="divide-y divide-slate-100">{data.customers.topCustomers.map(c=><tr key={c.customerId}><td className="px-7 py-4 font-bold">{c.name}</td><td className="px-4 py-4">{c.bookings}</td><td className="px-4 py-4">{c.completed}</td><td className="px-7 py-4 text-right font-semibold">{money(c.bookingValue)}</td></tr>)}{!data.customers.topCustomers.length&&<tr><td colSpan={4} className="px-7 py-8 text-center text-slate-400">Chưa có khách hàng phát sinh đơn trong kỳ.</td></tr>}</tbody>
+        </table></div>
+      </section>
       <div className="mt-7 grid gap-6 lg:grid-cols-2">
         <section className="panel p-7"><h2 className="text-xl font-extrabold">Đơn thuê theo trạng thái</h2><p className="mt-2 text-sm text-slate-500">Theo ngày tạo đơn trong khoảng đã chọn.</p><div className="mt-7 space-y-5">{statuses.map(([status,count])=><div key={status}><div className="mb-2 flex justify-between text-sm"><span className="font-semibold text-slate-600">{statusLabels[status]||status}</span><strong>{count}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{width:count/Math.max(1,data.bookings.total)*100+'%'}}/></div></div>)}</div></section>
         <section className="panel p-7"><h2 className="text-xl font-extrabold">Tình trạng đội xe</h2><p className="mt-2 text-sm text-slate-500">Số liệu hiện tại, không phụ thuộc bộ lọc ngày.</p><div className="mt-7 grid grid-cols-2 gap-4"><div className="rounded-xl bg-slate-50 p-5"><p className="text-sm text-slate-500">Tổng số xe</p><strong className="mt-2 block text-3xl">{data.fleet.total}</strong></div><div className="rounded-xl bg-emerald-50 p-5"><p className="text-sm text-emerald-700">Sẵn sàng</p><strong className="mt-2 block text-3xl text-emerald-800">{data.fleet.active}</strong></div><div className="rounded-xl bg-amber-50 p-5"><p className="text-sm text-amber-700">Bảo trì</p><strong className="mt-2 block text-3xl text-amber-800">{data.fleet.maintenance}</strong></div><div className="rounded-xl bg-slate-100 p-5"><p className="text-sm text-slate-500">Ngừng khai thác</p><strong className="mt-2 block text-3xl">{data.fleet.inactive}</strong></div></div></section>

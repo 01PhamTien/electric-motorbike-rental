@@ -30,7 +30,7 @@ export function OperatingCostsPage() {
   const [notice,setNotice]=useState('');
   const [categoryFilter,setCategoryFilter]=useState('');
   const [form,setForm]=useState({stationId:user?.stationId?String(user.stationId):'',vehicleId:'',category:'CHARGING' as Category,amount:'',energyKwh:'',unitPrice:'',occurredAt:localDateTime(),note:''});
-  const visibleVehicles=useMemo(()=>vehicles.filter(v=>String(v.station?.id??v.stationId)===form.stationId),[vehicles,form.stationId]);
+  const visibleVehicles=useMemo(()=>vehicles.filter(v=>String(v.station?.id)===form.stationId),[vehicles,form.stationId]);
   async function load() {
     setLoading(true);setError('');
     try {

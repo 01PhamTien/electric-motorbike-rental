@@ -91,7 +91,12 @@ export function StationsPage() {
     setLocating(true); setLocationError('');
     navigator.geolocation.getCurrentPosition(
       position => {
-        setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        const current = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+        setLocation(current);
+        const nearest = items
+          .map(station => ({ station, distance: distanceKm(current, { latitude: Number(station.latitude), longitude: Number(station.longitude) }) }))
+          .sort((a, b) => a.distance - b.distance)[0];
+        if (nearest) setSelectedId(nearest.station.id);
         setLocating(false);
       },
       reason => {

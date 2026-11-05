@@ -82,10 +82,8 @@ export class TransfersService {
         throw new BadRequestException('Chỉ xe đang hoạt động và sẵn sàng mới được điều chuyển');
       }
       if (vehicle.stationId === dto.destinationStationId) throw new BadRequestException('Trạm nhận phải khác trạm hiện tại');
-      const [source, destination] = await Promise.all([
-        stationRepo.findOne({ where: { id: vehicle.stationId, isActive: true } }),
-        stationRepo.findOne({ where: { id: dto.destinationStationId, isActive: true } }),
-      ]);
+      const source = await stationRepo.findOne({ where: { id: vehicle.stationId, isActive: true } });
+      const destination = await stationRepo.findOne({ where: { id: dto.destinationStationId, isActive: true } });
       if (!source || !destination) throw new BadRequestException('Trạm đi hoặc trạm đến không tồn tại/đã ngừng hoạt động');
 
       const bookingConflict = await bookingRepo.createQueryBuilder('b')

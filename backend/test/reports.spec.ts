@@ -11,6 +11,11 @@ function fixture() {
     { id:2, status:BookingStatus.RENTING, createdAt:new Date('2026-11-03T10:00:00Z'), rentalAmount:'200000.00', customer:{id:101,role:'CUSTOMER',fullName:'Nguyen A',createdAt:new Date('2026-10-01T00:00:00Z')}, vehicle:{id:11,code:'VG-11',model:{name:'Go'},station:{id:2,name:'Hai Chau'}} },
     { id:3, status:BookingStatus.CANCELLED, createdAt:new Date('2026-11-04T10:00:00Z'), rentalAmount:'100000.00', customer:{id:102,role:'CUSTOMER',fullName:'Tran B',createdAt:new Date('2026-11-02T00:00:00Z')}, vehicle:{id:10,code:'VG-10',model:{name:'City'},station:{id:2,name:'Hai Chau'}} },
   ];
+  const maintenance = [
+    {vehicleId:10,status:'COMPLETED',cost:'75000.00',completedAt:new Date('2026-11-05T10:00:00Z')},
+    {vehicleId:11,status:'COMPLETED',cost:'25000.00',completedAt:new Date('2026-11-06T10:00:00Z')},
+    {vehicleId:11,status:'SCHEDULED',cost:'90000.00',completedAt:null},
+  ];
   const payments = [
     {purpose:PaymentPurpose.RENT,amount:'300000.00',createdAt:new Date('2026-11-02T11:00:00Z')},
     {purpose:PaymentPurpose.EXTRA,amount:'20000.00',createdAt:new Date('2026-11-02T12:00:00Z')},
@@ -27,8 +32,12 @@ function fixture() {
     createQueryBuilder: () => qb(payments),
     find: async () => payments,
   };
-  const vehicleRepo = { count: async ({where}:any) => where?.status === 'ACTIVE' ? 8 : where?.status === 'MAINTENANCE' ? 1 : where?.isActive === false ? 1 : 10 };
-  return new ReportsService(bookingRepo as never,vehicleRepo as never,paymentRepo as never);
+  const vehicleRepo = {
+    count: async ({where}:any) => where?.status === 'ACTIVE' ? 8 : where?.status === 'MAINTENANCE' ? 1 : where?.isActive === false ? 1 : 10,
+    find: async () => [{id:10,code:'VG-10',station:{name:'Hai Chau'}},{id:11,code:'VG-11',station:{name:'Hai Chau'}}],
+  };
+  const maintenanceRepo = { createQueryBuilder: () => qb(maintenance) };
+  return new ReportsService(bookingRepo as never,vehicleRepo as never,paymentRepo as never,maintenanceRepo as never);
 }
 
 test('report separates collected rent and extras from deposits and refunds', async () => {
@@ -57,6 +66,13 @@ test('report distinguishes new and repeat customers and ranks top customers', as
   assert.equal(report.customers.returningInPeriod,1);
   assert.equal(report.customers.topCustomers[0].name,'Nguyen A');
   assert.equal(report.customers.topCustomers[0].bookings,2);
+});
+test('report totals completed maintenance cost and ranks per-vehicle expenses', async () => {
+  const report=await fixture().getOverview('2026-11-01','2026-11-30');
+  assert.equal(report.maintenance.completedRecords,2);
+  assert.equal(report.maintenance.recordedCost,100000);
+  assert.equal(report.maintenance.byVehicle[0].code,'VG-10');
+  assert.equal(report.maintenance.byVehicle[0].recordedCost,75000);
 });
 test('report rejects invalid and reversed date ranges', async () => {
   await assert.rejects(()=>fixture().getOverview('not-a-date'),/from không hợp lệ/);

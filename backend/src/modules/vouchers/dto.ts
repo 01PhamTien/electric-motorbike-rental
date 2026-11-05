@@ -1,11 +1,11 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, Matches } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, Matches, ValidateIf } from 'class-validator';
 import { VoucherDiscountType } from './voucher.entity';
 
 export class CreateVoucherDto {
   @IsString() @MaxLength(40) @Matches(/^[A-Za-z0-9_-]+$/) code: string;
   @IsEnum(VoucherDiscountType) discountType: VoucherDiscountType;
-  @Type(() => Number) @IsNumber() @Min(0.01) discountValue: number;
+  @Type(() => Number) @IsNumber() @Min(0.01) @ValidateIf(o => o.discountType === VoucherDiscountType.PERCENT) @Max(100) discountValue: number;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0.01) maxDiscountAmount?: number;
   @Type(() => Number) @IsNumber() @Min(0) minRentalAmount: number;
   @IsDateString() startsAt: string;

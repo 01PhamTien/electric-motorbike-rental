@@ -18,6 +18,7 @@ export class ReportsService {
     @InjectRepository(Booking) private readonly bookings: Repository<Booking>,
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
     @InjectRepository(PaymentTransaction) private readonly payments: Repository<PaymentTransaction>,
+    @InjectRepository(MaintenanceRecord) private readonly maintenance: Repository<MaintenanceRecord>,
   ) {}
 
   private parseDate(value: string | undefined, name: string, end = false): Date | undefined {
@@ -71,6 +72,34 @@ export class ReportsService {
       this.vehicles.count({ where: { status: VehicleStatus.MAINTENANCE } }),
       this.vehicles.count({ where: { isActive: false } }),
     ]);
+
+    const maintenanceQuery = this.maintenance.createQueryBuilder('maintenance');
+    maintenanceQuery.where('maintenance.status = :completed', { completed: MaintenanceStatus.COMPLETED });
+    if (start) maintenanceQuery.andWhere('maintenance.completedAt >= :from', { from: start });
+    if (end) maintenanceQuery.andWhere('maintenance.completedAt <= :to', { to: end });
+    const maintenanceRows = await maintenanceQuery.getMany();
+    const maintenanceByVehicle = new Map<number, { vehicleId:number; count:number; costCents:number }>();
+    let maintenanceCostCents = 0;
+    for (const record of maintenanceRows) {
+      const cost = cents(record.cost);
+      maintenanceCostCents += cost;
+      const item = maintenanceByVehicle.get(record.vehicleId) ?? { vehicleId:record.vehicleId, count:0, costCents:0 };
+      item.count += 1;
+      item.costCents += cost;
+      maintenanceByVehicle.set(record.vehicleId, item);
+    }
+    const maintenanceVehicleIds = [...maintenanceByVehicle.keys()];
+    const maintenanceVehicles = maintenanceVehicleIds.length
+      ? await this.vehicles.find({ where: maintenanceVehicleIds.map(id => ({ id })) })
+      : [];
+    const maintenanceVehicleMap = new Map(maintenanceVehicles.map(vehicle => [vehicle.id, vehicle]));
+    const maintenanceByVehicleReport = [...maintenanceByVehicle.values()]
+      .map(item => {
+        const vehicle = maintenanceVehicleMap.get(item.vehicleId);
+        return { vehicleId:item.vehicleId, code:vehicle?.code ?? 'Không xác định',
+          station:vehicle?.station?.name ?? 'Không xác định', records:item.count, recordedCost:money(item.costCents) };
+      })
+      .sort((a,b) => b.recordedCost - a.recordedCost).slice(0,10);
 
     const monthly = new Map<string, { rent: number; extra: number; refund: number; bookings: number }>();
     for (const row of periodPayments) {
@@ -161,6 +190,7 @@ export class ReportsService {
         note: 'Doanh thu ghi nhận chỉ gồm tiền thuê và phụ phí đã thu; tiền cọc không tính là doanh thu. Hoàn cọc được trình bày riêng.',
       },
       customers: { uniqueInPeriod: customerStats.size, newInPeriod: newCustomers, returningInPeriod: returningCustomers, topCustomers },
+      maintenance: { completedRecords: maintenanceRows.length, recordedCost: money(maintenanceCostCents), byVehicle: maintenanceByVehicleReport },
       monthly: months,
       topVehicles: [...vehicleStats.values()].sort((a, b) => b.bookings - a.bookings).slice(0, 10).map(item => ({ ...item, bookingValue: money(item.bookingValue) })),
       stations: [...stationStats.values()].sort((a, b) => b.bookings - a.bookings).map(item => ({ ...item, bookingValue: money(item.bookingValue) })),

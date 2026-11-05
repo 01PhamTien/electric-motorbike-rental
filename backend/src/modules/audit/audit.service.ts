@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditLog } from './audit-log.entity';
 import { User } from '../users/user.entity';
+import { Role } from '../../common/enums/role.enum';
+import { UserStatus } from '../../common/enums/user-status.enum';
 
 @Injectable()
 export class AuditService {
@@ -32,7 +34,7 @@ export class AuditService {
 
   async staffPresence() {
     const staff = await this.users.find({
-      where: { role: 'STAFF' as any, status: 'ACTIVE' as any },
+      where: { role: Role.STAFF, status: UserStatus.ACTIVE },
       relations: { station: true },
       order: { fullName: 'ASC' },
     });

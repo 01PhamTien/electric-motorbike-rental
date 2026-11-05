@@ -23,6 +23,7 @@ function fixture() {
     {purpose:PaymentPurpose.REFUND,amount:'100000.00',createdAt:new Date('2026-11-04T12:00:00Z')},
   ];
   const qb = (rows:any[]) => ({
+    where() { return this; },
     andWhere() { return this; },
     leftJoinAndSelect() { return this; },
     getMany: async () => rows,
@@ -73,6 +74,15 @@ test('report totals completed maintenance cost and ranks per-vehicle expenses', 
   assert.equal(report.maintenance.recordedCost,100000);
   assert.equal(report.maintenance.byVehicle[0].code,'VG-10');
   assert.equal(report.maintenance.byVehicle[0].recordedCost,75000);
+});
+test('report calculates fleet utilization from rental overlap, excluding cancelled bookings', async () => {
+  const report=await fixture().getOverview('2026-11-01','2026-11-11');
+  assert.equal(report.fleetUtilization.activeFleetCount,8);
+  assert.equal(report.fleetUtilization.periodDays,10);
+  assert.equal(report.fleetUtilization.bookedVehicleDays,2);
+  assert.equal(report.fleetUtilization.utilizationRate,2.5);
+  assert.equal(report.fleetUtilization.idleFleetDays,78);
+  assert.equal(report.fleetUtilization.byVehicle[0].code,'VG-10');
 });
 test('report rejects invalid and reversed date ranges', async () => {
   await assert.rejects(()=>fixture().getOverview('not-a-date'),/from không hợp lệ/);

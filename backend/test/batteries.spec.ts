@@ -4,6 +4,8 @@ import test = require('node:test');
 import { BatteriesService } from '../src/modules/batteries/batteries.service';
 import { Battery, BatteryStatus } from '../src/modules/batteries/battery.entity';
 import { BatterySwap } from '../src/modules/batteries/battery-swap.entity';
+import { BatteryReservation } from '../src/modules/batteries/battery-reservation.entity';
+import { Vehicle } from '../src/modules/vehicles/vehicle.entity';
 import { Role } from '../src/common/enums/role.enum';
 
 function fixture(){
@@ -21,9 +23,11 @@ function fixture(){
   };
   const swapRepo:any={create:(value:any)=>value,save:async(value:any)=>{const saved={...value,id:swaps.length+1};swaps.push(saved);return saved;}};
   const vehicleRepo:any={findOne:async()=>vehicle};
-  const manager:any={getRepository:(entity:any)=>entity===Battery?batteryRepo:entity===BatterySwap?swapRepo:vehicleRepo};
+  const reservationRepo:any={findOne:async()=>null,create:(value:any)=>value,save:async(value:any)=>value,createQueryBuilder:()=>({update:()=>({set:()=>({where:()=>({execute:async()=>({})})})}),select:()=>({addSelect:()=>({where:()=>({andWhere:()=>({andWhere:()=>({groupBy:()=>({getRawMany:async()=>[]})})})})})})})};
+  const stationRepo:any={findOne:async()=>({id:2,isActive:true})};
+  const manager:any={getRepository:(entity:any)=>entity===Battery?batteryRepo:entity===BatterySwap?swapRepo:entity===BatteryReservation?reservationRepo:entity===Vehicle?vehicleRepo:stationRepo};
   const dataSource:any={transaction:async(fn:any)=>fn(manager)};
-  const service=new BatteriesService(dataSource,batteryRepo,swapRepo,{findOne:async()=>({id:2,isActive:true})} as never,{findOne:async()=>vehicle} as never);
+  const service=new BatteriesService(dataSource,batteryRepo,swapRepo,reservationRepo,stationRepo,vehicleRepo);
   return {service,batteries,swaps,vehicle};
 }
 const staff={sub:5,email:'staff@example.test',role:Role.STAFF,stationId:2};

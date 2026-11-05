@@ -228,12 +228,12 @@ export class BookingsService {
   async cancel(current: JwtUser, id: number, dto: CancelBookingDto) {
     return this.transition(current, id, [BookingStatus.PENDING, BookingStatus.CONFIRMED],
       BookingStatus.CANCELLED, dto.reason || 'Hủy đơn', dto.reason || null, current.role === Role.CUSTOMER ? 'CUSTOMER_CANCELLED' : 'STAFF_CANCELLED');
+  }
 
   async markNoShow(current: JwtUser, id: number) {
     if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
     return this.transition(current, id, [BookingStatus.CONFIRMED], BookingStatus.CANCELLED,
       'Khách không đến nhận xe (No-show)', 'Khách không đến nhận xe', 'NO_SHOW');
-  }
   }
 
   private async changeStatus(current: JwtUser, id: number, expected: BookingStatus, next: BookingStatus, reason: string) {

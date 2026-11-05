@@ -12,7 +12,7 @@ type Issue = {
 const typeLabel:Record<string,string>={BREAKDOWN:'Xe bị hỏng',LOW_BATTERY:'Sắp hết pin',ACCIDENT:'Tai nạn / va chạm',OTHER:'Vấn đề khác'};
 const statusLabel:Record<string,string>={OPEN:'Mới tiếp nhận',IN_PROGRESS:'Đang xử lý',RESOLVED:'Đã xử lý',CANCELLED:'Đã hủy'};
 const severityLabel:Record<string,string>={LOW:'Thấp',MEDIUM:'Trung bình',HIGH:'Cao',CRITICAL:'Khẩn cấp'};
-const getError=(e:unknown)=>(e as {response?:{data?:{message?:string|string[]}}})?.response?.data?.message||'Không thể xử lý yêu cầu.';
+const getError=(e:unknown)=>{const m=(e as {response?:{data?:{message?:string|string[]}}})?.response?.data?.message;return Array.isArray(m)?m.join(', '):m||'Không thể xử lý yêu cầu.';};
 export function IssuesPage(){
   const [items,setItems]=useState<Issue[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [notice,setNotice]=useState('');const [busy,setBusy]=useState<number|null>(null);
   const [drafts,setDrafts]=useState<Record<number,{status:string;note:string}>>({});

@@ -13,8 +13,8 @@ export enum OperatingCostCategory {
 }
 
 @Entity('operating_costs')
-@Index(['stationId', 'occurredAt'])
-@Index(['vehicleId', 'occurredAt'])
+@Index('IDX_operating_costs_station_date', ['stationId', 'occurredAt'])
+@Index('IDX_operating_costs_vehicle_date', ['vehicleId', 'occurredAt'])
 export class OperatingCost {
   @PrimaryGeneratedColumn() id: number;
   @ManyToOne(() => Station, { onDelete: process.env.DB_TYPE === 'mssql' ? 'NO ACTION' : 'RESTRICT' })

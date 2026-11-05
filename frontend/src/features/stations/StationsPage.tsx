@@ -37,7 +37,7 @@ export function StationsPage() {
       const active = stations.filter(s => s.isActive !== false && coordinatesValid(s.latitude, s.longitude));
       const vehicleList: Vehicle[] = Array.isArray(vehicleResponse.data) ? vehicleResponse.data : vehicleResponse.data?.items ?? [];
       setItems(active);
-      setVehicles(vehicleList.filter(v => v.status === 'ACTIVE' && v.station && coordinatesValid(v.station.latitude, v.station.longitude)));
+      setVehicles(vehicleList.filter(v => v.status === 'ACTIVE' && v.station?.isActive !== false && v.station && coordinatesValid(v.station.latitude, v.station.longitude)));
       setSwapAvailability(Array.isArray(swapResponse.data) ? swapResponse.data : []);
       setRentingBookings((Array.isArray(bookingResponse.data) ? bookingResponse.data : []).filter((b:{status:string})=>b.status==='RENTING'));
       setMyBatteryReservations(Array.isArray(reservationResponse.data) ? reservationResponse.data : []);
@@ -54,7 +54,7 @@ export function StationsPage() {
   const ranked = useMemo(() => items.map(station => ({
     station,
     distance: location ? distanceKm(location, { latitude: Number(station.latitude), longitude: Number(station.longitude) }) : null,
-    availableVehicles: vehicles.filter(vehicle => vehicle.station.id === station.id).length,
+    availableVehicles: vehicles.filter(vehicle => (vehicle.station?.id ?? (vehicle as Vehicle & {stationId?:number}).stationId) === station.id && vehicle.status === 'ACTIVE').length,
     availableBatteryCount: swapAvailability.find(item => item.stationId === station.id)?.availableBatteryCount ?? 0,
   })).sort((a, b) => a.distance === null || b.distance === null ? a.station.name.localeCompare(b.station.name) : a.distance - b.distance), [items, location, vehicles, swapAvailability]);
   const selected = items.find(s => s.id === selectedId) ?? ranked[0]?.station;

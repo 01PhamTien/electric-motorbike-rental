@@ -5,6 +5,7 @@ import { StationMap, coordinatesValid, stationDirections } from '../../component
 import type { StationMapPoint, UserMapLocation } from '../../components/StationMap';
 import { api } from '../../services/api';
 import type { Station, Vehicle } from '../../types';
+import { useAuth } from '../auth/AuthContext';
 
 function distanceKm(a: UserMapLocation, b: UserMapLocation) {
   const rad = (value: number) => value * Math.PI / 180;
@@ -13,7 +14,12 @@ function distanceKm(a: UserMapLocation, b: UserMapLocation) {
   return 6371 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 export function StationsPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<Station[]>([]);
+  const [rentingBookings, setRentingBookings] = useState<{id:number;vehicleId:number;vehicle?:Vehicle;status:string}[]>([]);
+  const [myBatteryReservations, setMyBatteryReservations] = useState<{id:number;stationId:number;status:string;expiresAt:string;station?:Station}[]>([]);
+  const [reservationBusy, setReservationBusy] = useState(false);
+  const [reservationMessage, setReservationMessage] = useState('');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [swapAvailability, setSwapAvailability] = useState<{stationId:number;availableBatteryCount:number;supportsBatterySwap:boolean}[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -25,7 +31,7 @@ export function StationsPage() {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([api.get('/stations'), api.get('/vehicles'), api.get('/battery-swap/availability').catch(() => ({data:[]}))]).then(([stationResponse, vehicleResponse, swapResponse]) => {
+    Promise.all([api.get('/stations'), api.get('/vehicles'), api.get('/battery-swap/availability').catch(() => ({data:[]})), user?.role === 'CUSTOMER' ? api.get('/bookings/my').catch(() => ({data:[]})) : Promise.resolve({data:[]}), user?.role === 'CUSTOMER' ? api.get('/batteries/reservations/my').catch(() => ({data:[]})) : Promise.resolve({data:[]})]).then(([stationResponse, vehicleResponse, swapResponse, bookingResponse, reservationResponse]) => {
       if (!alive) return;
       const stations: Station[] = Array.isArray(stationResponse.data) ? stationResponse.data : stationResponse.data?.items ?? [];
       const active = stations.filter(s => s.isActive !== false && coordinatesValid(s.latitude, s.longitude));
@@ -33,11 +39,13 @@ export function StationsPage() {
       setItems(active);
       setVehicles(vehicleList.filter(v => v.status === 'ACTIVE' && v.station && coordinatesValid(v.station.latitude, v.station.longitude)));
       setSwapAvailability(Array.isArray(swapResponse.data) ? swapResponse.data : []);
+      setRentingBookings((Array.isArray(bookingResponse.data) ? bookingResponse.data : []).filter((b:{status:string})=>b.status==='RENTING'));
+      setMyBatteryReservations(Array.isArray(reservationResponse.data) ? reservationResponse.data : []);
       setSelectedId(current => active.some(s => s.id === current) ? current : active[0]?.id ?? null);
     }).catch(() => { if (alive) setError('Không thể tải trạm và phương tiện. Vui lòng thử lại.'); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, []);
+  }, [user?.role]);
 
   const points = useMemo<StationMapPoint[]>(() => [
     ...items.map(s => ({ id: s.id, latitude: s.latitude, longitude: s.longitude, name: s.name })),
@@ -50,6 +58,33 @@ export function StationsPage() {
     availableBatteryCount: swapAvailability.find(item => item.stationId === station.id)?.availableBatteryCount ?? 0,
   })).sort((a, b) => a.distance === null || b.distance === null ? a.station.name.localeCompare(b.station.name) : a.distance - b.distance), [items, location, vehicles, swapAvailability]);
   const selected = items.find(s => s.id === selectedId) ?? ranked[0]?.station;
+
+  async function reserveBattery(bookingId:number,stationId:number) {
+    setReservationBusy(true);setReservationMessage('');
+    try {
+      const response=await api.post('/batteries/reservations',{bookingId,stationId});
+      setReservationMessage('Đã giữ pin thành công. Mã giữ pin #'+response.data.id+' có hiệu lực đến '+new Date(response.data.expiresAt).toLocaleTimeString('vi-VN')+'.');
+      const [availability,reservations]=await Promise.all([api.get('/battery-swap/availability'),api.get('/batteries/reservations/my')]);
+      setSwapAvailability(Array.isArray(availability.data)?availability.data:[]);
+      setMyBatteryReservations(Array.isArray(reservations.data)?reservations.data:[]);
+    } catch(error) {
+      const message=(error as {response?:{data?:{message?:string}}})?.response?.data?.message;
+      setReservationMessage(message||'Không thể giữ pin. Vui lòng đăng nhập và kiểm tra đơn thuê đang sử dụng.');
+    } finally {setReservationBusy(false);}
+  }
+  async function cancelBatteryReservation(id:number) {
+    setReservationBusy(true);setReservationMessage('');
+    try {
+      await api.patch('/batteries/reservations/'+id+'/cancel');
+      setReservationMessage('Đã hủy lượt giữ pin #'+id+'.');
+      const [availability,reservations]=await Promise.all([api.get('/battery-swap/availability'),api.get('/batteries/reservations/my')]);
+      setSwapAvailability(Array.isArray(availability.data)?availability.data:[]);
+      setMyBatteryReservations(Array.isArray(reservations.data)?reservations.data:[]);
+    } catch(error) {
+      const message=(error as {response?:{data?:{message?:string}}})?.response?.data?.message;
+      setReservationMessage(message||'Không thể hủy lượt giữ pin.');
+    } finally {setReservationBusy(false);}
+  }
 
   function locateMe() {
     if (!navigator.geolocation) { setLocationError('Trình duyệt không hỗ trợ định vị. Bạn vẫn có thể chọn trạm trong danh sách.'); return; }
@@ -81,6 +116,14 @@ export function StationsPage() {
     {loading ? <LoadingState /> : error ? <p role="alert" className="rounded-xl bg-rose-50 p-6 text-rose-700">{error}</p> : !items.length ?
       <EmptyState title="Chưa có điểm thuê" description="Các điểm nhận xe có tọa độ hợp lệ sẽ xuất hiện tại đây." /> :
       <>
+        {user?.role==='CUSTOMER' && <section className="panel p-6">
+          <p className="eyebrow">GIỮ PIN TRƯỚC KHI ĐẾN TRẠM</p>
+          <h2 className="mt-2 text-xl font-extrabold">Đặt trước pin đổi trong 10 phút</h2>
+          <p className="mt-2 text-sm text-slate-600">Chọn một đơn thuê đang sử dụng xe tại trạm được chọn. Hệ thống sẽ giữ một pin đầy trong 10 phút.</p>
+          {reservationMessage && <p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{reservationMessage}</p>}
+          {myBatteryReservations.filter(r=>r.status==='RESERVED'&&new Date(r.expiresAt)>new Date()).map(r=><div key={r.id} className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><div><strong className="text-sm">Đang giữ pin #{r.id}</strong><p className="mt-1 text-xs text-slate-600">{r.station?.name??'Trạm #'+r.stationId} · Hết hạn {new Date(r.expiresAt).toLocaleTimeString('vi-VN')}</p></div><button disabled={reservationBusy} onClick={()=>void cancelBatteryReservation(r.id)} className="text-sm font-bold text-rose-700 underline">Hủy giữ pin</button></div>)}
+          {rentingBookings.length>0 ? <div className="mt-4 flex flex-wrap items-end gap-3"><label className="min-w-64 flex-1"><span className="field-label">Đơn thuê đang sử dụng tại trạm này</span><select id="battery-reservation-booking" className="field mt-2" defaultValue=""><option value="">Chọn đơn thuê</option>{rentingBookings.filter(b=>b.vehicle?.station?.id===selected?.id).map(b=><option key={b.id} value={b.id}>Đơn #{b.id} · {b.vehicle?.code}</option>)}</select></label><button disabled={reservationBusy||(ranked.find(x=>x.station.id===selected?.id)?.availableBatteryCount??0)<1} onClick={()=>{const select=document.getElementById('battery-reservation-booking') as HTMLSelectElement|null;if(select?.value&&selected)void reserveBattery(Number(select.value),selected.id);else setReservationMessage('Vui lòng chọn đơn thuê đang sử dụng tại trạm này.');}} className="btn-primary">Giữ pin 10 phút</button></div> : <p className="mt-4 text-sm text-slate-500">{user?.role==='CUSTOMER'?'Bạn chưa có đơn thuê đang sử dụng.':'Đăng nhập bằng tài khoản khách hàng có xe đang thuê để giữ pin.'}</p>}
+        </section>}
         <div className="panel overflow-hidden">
           <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">
             <div className="relative h-[390px] bg-slate-100 sm:h-[540px]">

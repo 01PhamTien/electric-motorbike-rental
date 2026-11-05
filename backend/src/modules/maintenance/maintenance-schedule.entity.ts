@@ -1,8 +1,10 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { User } from '../users/user.entity';
 
 @Entity('maintenance_schedules')
+@Check('CK_maintenance_schedules_intervalKm', '[intervalKm] BETWEEN 100 AND 50000')
+@Check('CK_maintenance_schedules_intervalDays', '[intervalDays] BETWEEN 1 AND 730')
 @Index(['vehicleId'], { unique: true })
 @Index('IDX_maintenance_schedules_active', ['isActive', 'vehicleId'])
 export class MaintenanceSchedule {

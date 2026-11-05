@@ -20,7 +20,8 @@ function fixture(){
     save:async(value:any)=>value,
   };
   const swapRepo:any={create:(value:any)=>value,save:async(value:any)=>{const saved={...value,id:swaps.length+1};swaps.push(saved);return saved;}};
-  const manager:any={getRepository:(entity:any)=>entity===Battery?batteryRepo:entity===BatterySwap?swapRepo:null};
+  const vehicleRepo:any={findOne:async()=>vehicle};
+  const manager:any={getRepository:(entity:any)=>entity===Battery?batteryRepo:entity===BatterySwap?swapRepo:vehicleRepo};
   const dataSource:any={transaction:async(fn:any)=>fn(manager)};
   const service=new BatteriesService(dataSource,batteryRepo,swapRepo,{findOne:async()=>({id:2,isActive:true})} as never,{findOne:async()=>vehicle} as never);
   return {service,batteries,swaps,vehicle};

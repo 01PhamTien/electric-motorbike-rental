@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Brand } from '../../components/Brand';
 import { api } from '../../services/api';
 import { useAuth } from './AuthContext';
@@ -7,7 +7,6 @@ import { useAuth } from './AuthContext';
 export function LoginPage() {
   const navigate = useNavigate();
   const { refresh } = useAuth();
-  const [params] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,8 +19,9 @@ export function LoginPage() {
       if (!data?.accessToken) throw new Error('Missing access token');
       localStorage.setItem('accessToken', data.accessToken);
       await refresh();
-      const requested = params.get('redirect');
-      navigate(requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/bookings/my', { replace: true });
+      // Let RoleLanding route the verified account to its own workspace.
+      // A shared customer URL such as /bookings/my must not be the default for ADMIN/STAFF.
+      navigate('/', { replace: true });
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setError(message || 'Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.');

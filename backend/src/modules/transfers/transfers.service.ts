@@ -5,6 +5,7 @@ import { Role } from '../../common/enums/role.enum';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
+import { Battery, BatteryStatus } from '../batteries/battery.entity';
 import { Station } from '../stations/station.entity';
 import { Booking } from '../bookings/booking.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
@@ -212,6 +213,7 @@ export class TransfersService {
     const result = await this.dataSource.transaction(async manager => {
       const transferRepo = manager.getRepository(VehicleTransfer);
       const vehicleRepo = manager.getRepository(Vehicle);
+      const batteryRepo = manager.getRepository(Battery);
       const stationRepo = manager.getRepository(Station);
       const transfer = await transferRepo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
       if (!transfer) throw new NotFoundException('Không tìm thấy yêu cầu điều chuyển');
@@ -227,6 +229,8 @@ export class TransfersService {
       }
       vehicle.stationId = destination.id;
       await vehicleRepo.save(vehicle);
+      // The installed battery travels with its vehicle; spare/charging batteries remain at the source station.
+      await batteryRepo.update({ vehicleId: vehicle.id, status: BatteryStatus.INSTALLED }, { stationId: destination.id });
       transfer.receiveBatteryPercent = dto.batteryPercent;
       transfer.receiveOdometerKm = dto.odometerKm.toFixed(1);
       transfer.receiveConditionNote = dto.conditionNote.trim();

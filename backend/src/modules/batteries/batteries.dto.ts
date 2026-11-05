@@ -10,6 +10,7 @@ export class CreateBatteryDto {
 }
 export class InstallBatteryDto {
   @ApiProperty({ example: 12 }) @IsInt() @Min(1) vehicleId: number;
+  @ApiProperty({ example: 3 }) @IsInt() @Min(1) batteryId: number;
 }
 export class SwapBatteryDto {
   @ApiProperty({ example: 12 }) @IsInt() @Min(1) vehicleId: number;

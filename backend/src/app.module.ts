@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { CustomerCareModule } from './modules/customer-care/customer-care.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
@@ -29,6 +30,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     MaintenanceModule,
     LocationsModule,
     ReportsModule,
+    CustomerCareModule,
   ],
 })
 export class AppModule {}

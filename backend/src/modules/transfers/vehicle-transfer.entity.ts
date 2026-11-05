@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { Station } from '../stations/station.entity';
 import { User } from '../users/user.entity';
@@ -11,6 +11,12 @@ export enum VehicleTransferStatus {
 }
 
 @Entity('vehicle_transfers')
+@Check('CK_vehicle_transfers_differentStations', '[sourceStationId] <> [destinationStationId]')
+@Check('CK_vehicle_transfers_status', "[status] IN ('PENDING','IN_TRANSIT','COMPLETED','CANCELLED')")
+@Check('CK_vehicle_transfers_dispatchBattery', '[dispatchBatteryPercent] IS NULL OR [dispatchBatteryPercent] BETWEEN 0 AND 100')
+@Check('CK_vehicle_transfers_receiveBattery', '[receiveBatteryPercent] IS NULL OR [receiveBatteryPercent] BETWEEN 0 AND 100')
+@Check('CK_vehicle_transfers_dispatchOdo', '[dispatchOdometerKm] IS NULL OR [dispatchOdometerKm] >= 0')
+@Check('CK_vehicle_transfers_receiveOdo', '[receiveOdometerKm] IS NULL OR [receiveOdometerKm] >= 0')
 @Index('IDX_vehicle_transfers_vehicle_status', ['vehicleId', 'status'])
 @Index('IDX_vehicle_transfers_source_status', ['sourceStationId', 'status'])
 @Index('IDX_vehicle_transfers_destination_status', ['destinationStationId', 'status'])

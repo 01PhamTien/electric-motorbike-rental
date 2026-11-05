@@ -1,4 +1,5 @@
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { CustomerBookingsRoute } from './CustomerBookingsRoute';
@@ -36,7 +37,7 @@ function RoleLanding() {
   return <HomePage />;
 }
 
-function CustomerOnly({ children }: { children: React.ReactNode }) {
+function CustomerOnly({ children }: { children: ReactNode }) {
   return <RoleRoute allowed={['CUSTOMER']}>{children}</RoleRoute>;
 }
 

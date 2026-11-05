@@ -4,8 +4,8 @@ import { Booking } from '../bookings/booking.entity';
 import { User } from '../users/user.entity';
 
 @Entity('voucher_redemptions')
-@Index(['bookingId'], { unique: true })
-@Index(['voucherId', 'customerId'])
+@Index('UQ_voucher_redemptions_booking', ['bookingId'], { unique: true })
+@Index('IDX_voucher_redemptions_voucher_customer', ['voucherId', 'customerId'])
 export class VoucherRedemption {
   @PrimaryGeneratedColumn() id: number;
   @ManyToOne(() => Voucher, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'voucherId', foreignKeyConstraintName: 'FK_voucher_redemptions_voucher' }) voucher: Voucher;

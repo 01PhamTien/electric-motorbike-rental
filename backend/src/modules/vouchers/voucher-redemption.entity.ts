@@ -15,5 +15,5 @@ export class VoucherRedemption {
   @ManyToOne(() => User, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'customerId', foreignKeyConstraintName: 'FK_voucher_redemptions_customer' }) customer: User;
   @Column({ type: 'int' }) customerId: number;
   @Column({ type: 'decimal', precision: 12, scale: 2 }) discountAmount: string;
-  @CreateDateColumn({ type: 'datetime2' }) createdAt: Date;
+  @CreateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' }) createdAt: Date;
 }

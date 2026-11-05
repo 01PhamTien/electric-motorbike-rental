@@ -16,6 +16,7 @@ type Overview = {
   };
   customers: {uniqueInPeriod:number;newInPeriod:number;returningInPeriod:number;topCustomers:Array<{customerId:number;name:string;bookings:number;completed:number;bookingValue:number;firstBookingAt:string}>};
   maintenance: {completedRecords:number;recordedCost:number;byVehicle:Array<{vehicleId:number;code:string;station:string;records:number;recordedCost:number}>};
+  fleetUtilization: {periodStart:string;periodEnd:string;periodDays:number;activeFleetCount:number;bookedVehicleDays:number;availableFleetDays:number;utilizationRate:number;idleFleetDays:number;byVehicle:Array<{vehicleId:number;code:string;bookedDays:number;idleDays:number;bookings:number;utilizationRate:number}>;note:string};
   monthly: Array<{month:string;rentCollected:number;extrasCollected:number;refunds:number;netCashIn:number;bookings:number}>;
   topVehicles: Array<{vehicleId:number;code:string;model:string;station:string;bookings:number;completed:number;bookingValue:number}>;
   stations: Array<{stationId:number;name:string;bookings:number;completed:number;renting:number;bookingValue:number}>;
@@ -78,6 +79,14 @@ export function DashboardPage() {
       ['Tram','So don','Da hoan thanh','Dang thue','Gia tri don thue (VND)'],
       ...data.stations.map(s=>[s.name,s.bookings,s.completed,s.renting,s.bookingValue]),
       [],
+      ['HIEU SUAT KHAI THAC DOI XE'],
+      ['Ty le khai thac (%)',data.fleetUtilization.utilizationRate],
+      ['Ngay xe duoc thue',data.fleetUtilization.bookedVehicleDays],
+      ['Ngay xe san sang',data.fleetUtilization.availableFleetDays],
+      ['Ngay xe nhan roi uoc tinh',data.fleetUtilization.idleFleetDays],
+      ['Ma xe','Ngay duoc thue','Ngay nhan roi','So don','Ty le khai thac (%)'],
+      ...data.fleetUtilization.byVehicle.map(v=>[v.code,v.bookedDays,v.idleDays,v.bookings,v.utilizationRate]),
+      [],
       ['CHI PHI BAO DUONG'],
       ['Phieu da hoan thanh',data.maintenance.completedRecords],
       ['Chi phi bao duong da ghi nhan',data.maintenance.recordedCost],
@@ -122,6 +131,22 @@ export function DashboardPage() {
         </section>
         <section className="rounded-[22px] bg-[#10383b] p-7 text-white"><p className="text-xs font-extrabold uppercase tracking-[.16em] text-emerald-300">ĐỐI SOÁT TIỀN CỌC</p><h2 className="mt-3 text-2xl font-extrabold">Số dư tiền cọc</h2><p className="mt-3 text-3xl font-extrabold text-emerald-300">{money(data.finance.depositHeldNow)}</p><p className="mt-2 text-sm leading-6 text-emerald-50/75">Số tiền cọc đã thu trừ các khoản hoàn cọc được ghi nhận trên toàn hệ thống.</p><div className="mt-7 grid grid-cols-2 gap-3"><div className="rounded-xl bg-white/10 p-4"><p className="text-xs text-emerald-100/70">Đã thu lũy kế</p><strong className="mt-2 block text-lg">{money(data.finance.depositCollectedLifetime)}</strong></div><div className="rounded-xl bg-white/10 p-4"><p className="text-xs text-emerald-100/70">Đã hoàn lũy kế</p><strong className="mt-2 block text-lg">{money(data.finance.depositRefundedLifetime)}</strong></div></div></section>
       </div>
+      <section className="panel mt-7 overflow-hidden">
+        <div className="flex flex-wrap items-end justify-between gap-4 p-7">
+          <div><h2 className="text-xl font-extrabold">Hiệu suất khai thác đội xe</h2><p className="mt-2 text-sm text-slate-500">Tính theo thời gian thuê giao nhau với kỳ báo cáo; đơn hủy và hết hạn không tính.</p></div>
+          <div className="text-right"><p className="text-xs font-semibold text-slate-500">Tỷ lệ khai thác</p><strong className="mt-1 block text-3xl text-emerald-700">{data.fleetUtilization.utilizationRate.toLocaleString('vi-VN')}%</strong><p className="mt-1 text-xs text-slate-400">{data.fleetUtilization.activeFleetCount} xe hoạt động · {data.fleetUtilization.periodDays} ngày</p></div>
+        </div>
+        <div className="grid gap-3 px-7 pb-6 sm:grid-cols-3">
+          <div className="rounded-xl bg-emerald-50 p-4"><p className="text-xs text-emerald-800">Ngày xe được thuê</p><strong className="mt-1 block text-xl text-emerald-900">{data.fleetUtilization.bookedVehicleDays}</strong></div>
+          <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Ngày xe sẵn sàng</p><strong className="mt-1 block text-xl">{data.fleetUtilization.availableFleetDays}</strong></div>
+          <div className="rounded-xl bg-amber-50 p-4"><p className="text-xs text-amber-800">Ngày xe nhàn rỗi ước tính</p><strong className="mt-1 block text-xl text-amber-900">{data.fleetUtilization.idleFleetDays}</strong></div>
+        </div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-7 py-4">Mã xe</th><th className="px-4 py-4">Ngày được thuê</th><th className="px-4 py-4">Ngày nhàn rỗi</th><th className="px-4 py-4">Số đơn</th><th className="px-7 py-4 text-right">Khai thác</th></tr></thead>
+          <tbody className="divide-y divide-slate-100">{data.fleetUtilization.byVehicle.map(v=><tr key={v.vehicleId}><td className="px-7 py-4 font-bold">{v.code}</td><td className="px-4 py-4">{v.bookedDays}</td><td className="px-4 py-4">{v.idleDays}</td><td className="px-4 py-4">{v.bookings}</td><td className="px-7 py-4 text-right font-semibold">{v.utilizationRate.toLocaleString('vi-VN')}%</td></tr>)}{!data.fleetUtilization.byVehicle.length&&<tr><td colSpan={5} className="px-7 py-8 text-center text-slate-400">Chưa có lượt thuê giao nhau với kỳ báo cáo.</td></tr>}</tbody>
+        </table></div>
+        <p className="px-7 pb-6 text-xs leading-5 text-slate-400">{data.fleetUtilization.note}</p>
+      </section>
       <section className="panel mt-7 overflow-hidden">
         <div className="flex flex-wrap items-end justify-between gap-4 p-7">
           <div><h2 className="text-xl font-extrabold">Phân tích khách hàng</h2><p className="mt-2 text-sm text-slate-500">Khách hàng có phát sinh đơn trong khoảng thời gian đã chọn; khách quay lại có từ hai đơn trở lên trong kỳ.</p></div>

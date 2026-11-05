@@ -68,7 +68,7 @@ export class ReportsService {
     const depositCollected = sumPurpose(allPaymentRows, PaymentPurpose.DEPOSIT);
     const depositRefunded = sumPurpose(allPaymentRows, PaymentPurpose.REFUND);
 
-    const [totalVehicles, activeVehicles, maintenanceVehicles, inactiveVehicles] = await Promise.all([
+    const [totalVehicles, activeVehicles, maintenanceVehicleCount, inactiveVehicles] = await Promise.all([
       this.vehicles.count(),
       this.vehicles.count({ where: { status: VehicleStatus.ACTIVE, isActive: true } }),
       this.vehicles.count({ where: { status: VehicleStatus.MAINTENANCE } }),

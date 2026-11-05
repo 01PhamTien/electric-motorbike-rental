@@ -65,3 +65,17 @@ test('rejects voucher below its minimum rental amount', async () => {
   );
   await assert.rejects(() => service.preview(22, item.code, 50000), /tối thiểu/);
 });
+
+test('releases a reserved voucher use when a booking is cancelled', async () => {
+  const item = voucher({ usageCount: 3 });
+  let deleted = false;
+  const manager = {
+    getRepository: (entity: unknown) => entity === require('../src/modules/vouchers/voucher-redemption.entity').VoucherRedemption
+      ? { findOne: async () => ({ id: 9, voucherId: item.id, bookingId: 44 }), delete: async () => { deleted = true; } }
+      : { findOne: async () => item, save: async (value: Voucher) => Object.assign(item, value) },
+  } as any;
+  const service = new VouchersService({} as any, {} as any);
+  assert.equal(await service.release(manager, 44), true);
+  assert.equal(item.usageCount, 2);
+  assert.equal(deleted, true);
+});

@@ -84,9 +84,9 @@ export function StationsPage() {
             <aside className="flex flex-col justify-between bg-[#103a39] p-6 text-white sm:p-8">
               <div>
                 <p className="text-xs font-black uppercase tracking-[.16em] text-emerald-300">{location ? 'TRẠM GẦN NHẤT' : 'ĐIỂM NHẬN ĐƯỢC CHỌN'}</p>
-                <h2 className="mt-4 text-2xl font-extrabold">{ranked[0]?.station.name ?? selected?.name}</h2>
-                <p className="mt-3 text-sm leading-7 text-emerald-50/85">{ranked[0]?.station.address ?? selected?.address}</p>
-                {location && ranked[0]?.distance !== null && <p className="mt-3 inline-flex rounded-full bg-emerald-300/15 px-3 py-2 text-sm font-bold text-emerald-100">Cách bạn khoảng {ranked[0].distance.toFixed(1)} km</p>}
+                <h2 className="mt-4 text-2xl font-extrabold">{selected?.name ?? ranked[0]?.station.name}</h2>
+                <p className="mt-3 text-sm leading-7 text-emerald-50/85">{selected?.address}</p>
+                {selected && location && <p className="mt-3 inline-flex rounded-full bg-emerald-300/15 px-3 py-2 text-sm font-bold text-emerald-100">Cách bạn khoảng {distanceKm(location,{latitude:Number(selected.latitude),longitude:Number(selected.longitude)}).toFixed(1)} km</p>}{location && ranked[0] && <p className="mt-2 text-xs text-emerald-100/80">Trạm gần nhất: {ranked[0].station.name} ({ranked[0].distance?.toFixed(1)} km)</p>}
                 <label className="mt-7 block text-sm font-bold" htmlFor="station-map-choice">Chọn điểm nhận xe</label>
                 <select id="station-map-choice" className="mt-3 w-full rounded-xl border border-white/20 bg-white p-3 text-sm font-medium text-slate-900" value={selected?.id ?? ''} onChange={e => setSelectedId(Number(e.target.value))}>
                   {ranked.map(({station, distance}) => <option key={station.id} value={station.id}>{station.name}{distance !== null ? ' · ' + distance.toFixed(1) + ' km' : ''}</option>)}

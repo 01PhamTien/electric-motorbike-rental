@@ -25,5 +25,5 @@ export class BatterySwap {
   @ManyToOne(() => User, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'performedById', foreignKeyConstraintName: 'FK_battery_swaps_user' }) performedBy: User;
   @Column({ type: 'int' }) performedById: number;
   @Column({ type: 'nvarchar', length: 500, nullable: true }) note: string | null;
-  @CreateDateColumn() createdAt: Date;
+  @CreateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' }) createdAt: Date;
 }

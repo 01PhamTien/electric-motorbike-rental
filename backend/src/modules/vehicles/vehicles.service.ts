@@ -53,6 +53,9 @@ export class VehiclesService {
 
   async update(id: number, dto: UpdateVehicleDto) {
     const vehicle = await this.findOne(id);
+    if (dto.stationId !== undefined && dto.stationId !== vehicle.stationId) {
+      throw new BadRequestException('Không đổi trạm trực tiếp trong hồ sơ xe. Hãy sử dụng chức năng điều chuyển để lưu đầy đủ lịch sử bàn giao.');
+    }
     await this.validateReferences(dto.modelId ?? vehicle.modelId, dto.stationId ?? vehicle.stationId);
     Object.assign(vehicle, {
       ...dto,

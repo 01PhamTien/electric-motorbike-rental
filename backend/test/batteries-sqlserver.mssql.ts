@@ -24,6 +24,11 @@ test('SQL Server: battery inventory and swap history schema are migrated',async(
     for(const name of ['vehicleId','stationId','removedBatteryId','installedBatteryId','performedById','createdAt']){
       assert.ok(swapColumns.has(name),'Missing battery swap column: '+name);
     }
+    const reservationRows=await dataSource.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='battery_reservations'");
+    const reservationColumns=new Set(reservationRows.map((row:{COLUMN_NAME:string})=>row.COLUMN_NAME));
+    for(const name of ['customerId','stationId','bookingId','vehicleId','status','expiresAt','redeemedAt','cancelledAt','redeemedById','batterySwapId']){
+      assert.ok(reservationColumns.has(name),'Missing battery_reservations column: '+name);
+    }
     const indexes=await dataSource.query("SELECT name FROM sys.indexes WHERE object_id=OBJECT_ID('batteries')");
     assert.ok(indexes.some((row:{name:string})=>row.name==='IDX_batteries_station_status'));
   }finally{await dataSource.destroy();}

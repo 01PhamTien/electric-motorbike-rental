@@ -2,8 +2,8 @@ import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, Primary
 import { User } from '../users/user.entity';
 
 @Entity('notifications')
-@Index(['userId', 'createdAt'])
-@Index(['userId', 'readAt'])
+@Index('IDX_notifications_user_created', ['userId', 'createdAt'])
+@Index('IDX_notifications_user_read', ['userId', 'readAt'])
 export class Notification {
   @PrimaryGeneratedColumn() id: number;
   @ManyToOne(() => User, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'userId', foreignKeyConstraintName: 'FK_notifications_user' }) user: User;

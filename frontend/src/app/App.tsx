@@ -9,6 +9,7 @@ import { ProfilePage } from '../features/profile/ProfilePage';
 import { StaffPage } from '../features/staff/StaffPage';
 import { MaintenancePage } from '../features/maintenance/MaintenancePage';
 import { OperationsPage } from '../features/operations/OperationsPage';
+import { IssuesPage } from '../features/operations/IssuesPage';
 import { LocationsPage } from '../features/locations/LocationsPage';
 import { StationsPage } from '../features/stations/StationsPage';
 import { VehiclesPage } from '../features/vehicles/VehiclesPage';
@@ -33,6 +34,7 @@ export function App() {
       <Route path="/bookings/:id/payments" element={<PaymentsPage />} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
       <Route path="/operations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
+      <Route path="/issues" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><IssuesPage /></RoleRoute>} />
       <Route path="/profile" element={<RoleRoute allowed={['ADMIN', 'STAFF', 'CUSTOMER']}><ProfilePage /></RoleRoute>} />
       <Route path="/admin" element={<RoleRoute allowed={['ADMIN']}><AdminHomePage /></RoleRoute>} />
       <Route path="/admin/vehicles" element={<RoleRoute allowed={['ADMIN']}><AdminVehiclesPage /></RoleRoute>} />

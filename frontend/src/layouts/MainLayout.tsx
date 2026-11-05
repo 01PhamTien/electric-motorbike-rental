@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Brand } from '../components/Brand';
 import { useAuth } from '../features/auth/AuthContext';
@@ -64,7 +64,7 @@ export function MainLayout(){
         <div className="ml-auto flex shrink-0 items-center gap-2 xl:ml-0">
           {loggedIn&&!loading&&<>
             <Link to="/notifications" aria-label={unread>0?'Thông báo, '+unread+' chưa đọc':'Thông báo'} title="Thông báo" className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-lg text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800">
-              <span aria-hidden="true">♧</span>
+              <span aria-hidden="true">🔔</span>
               {unread>0&&<><span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500"/><span className="sr-only">{unread} thông báo chưa đọc</span></>}
             </Link>
             <div className="relative">

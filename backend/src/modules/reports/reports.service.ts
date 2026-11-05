@@ -99,7 +99,7 @@ export class ReportsService {
       };
       vehicleItem.bookings += 1;
       if (booking.status === BookingStatus.COMPLETED) vehicleItem.completed += 1;
-      vehicleItem.bookingValue += cents(booking.rentalAmount);
+      if (![BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status)) vehicleItem.bookingValue += cents(booking.rentalAmount);
       vehicleStats.set(vehicle.id, vehicleItem);
       if (vehicle.station) {
         const stationItem = stationStats.get(vehicle.station.id) ?? {
@@ -108,7 +108,7 @@ export class ReportsService {
         stationItem.bookings += 1;
         if (booking.status === BookingStatus.COMPLETED) stationItem.completed += 1;
         if (booking.status === BookingStatus.RENTING) stationItem.renting += 1;
-        stationItem.bookingValue += cents(booking.rentalAmount);
+        if (![BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status)) stationItem.bookingValue += cents(booking.rentalAmount);
         stationStats.set(vehicle.station.id, stationItem);
       }
     }

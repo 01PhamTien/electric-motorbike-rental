@@ -71,7 +71,7 @@ export class StaffSchedulesService {
       .leftJoinAndSelect('schedule.staff', 'staff')
       .leftJoinAndSelect('schedule.station', 'station')
       .orderBy('schedule.startAt', 'ASC');
-    if (filters.from) query.andWhere('schedule.startAt >= :from', { from: new Date(filters.from + 'T00:00:00.000Z') });
+    if (filters.from) query.andWhere('schedule.endAt > :from', { from: new Date(filters.from + 'T00:00:00.000Z') });
     if (filters.to) query.andWhere('schedule.startAt < :to', { to: new Date(new Date(filters.to + 'T00:00:00.000Z').getTime() + 86400000) });
     if (filters.staffId) query.andWhere('schedule.staffId = :staffId', { staffId: filters.staffId });
     if (filters.stationId) query.andWhere('schedule.stationId = :stationId', { stationId: filters.stationId });
@@ -93,6 +93,10 @@ export class StaffSchedulesService {
     const item = await this.findOne(id);
     if (item.status === 'COMPLETED' || item.status === 'CANCELLED') {
       throw new BadRequestException('Không thể sửa ca đã hoàn tất hoặc đã hủy.');
+    }
+    if (dto.status && dto.status !== item.status) {
+      const allowed: Record<string, string[]> = { PLANNED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['COMPLETED'] };
+      if (!(allowed[item.status] || []).includes(dto.status)) throw new BadRequestException('Không thể chuyển ca sang trạng thái này.');
     }
     const staffId = dto.staffId ?? item.staffId;
     const stationId = dto.stationId ?? item.stationId;

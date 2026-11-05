@@ -59,7 +59,7 @@ export class BatteriesService {
       if(!vehicle) throw new NotFoundException('Không tìm thấy xe');
       this.assertStation(user,vehicle.stationId);
       if(!vehicle.isActive) throw new BadRequestException('Không thể lắp pin cho xe đã ngừng hoạt động');
-      const battery=await batteryRepo.findOne({where:{id:(dto as any).batteryId},lock:{mode:'pessimistic_write'}});
+      const battery=await batteryRepo.findOne({where:{id:dto.batteryId},lock:{mode:'pessimistic_write'}});
       if(!battery) throw new NotFoundException('Không tìm thấy pin');
       if(battery.status!==BatteryStatus.FULL||battery.vehicleId!==null) throw new BadRequestException('Chỉ có thể lắp pin đầy đang ở kho trạm');
       if(battery.stationId!==vehicle.stationId) throw new BadRequestException('Pin và xe phải thuộc cùng một trạm');

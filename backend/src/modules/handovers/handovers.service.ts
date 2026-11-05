@@ -4,6 +4,7 @@ import { Booking } from '../bookings/booking.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from '../bookings/booking-status-history.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
+import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { Role } from '../../common/enums/role.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { HandoverDto } from './dto';
@@ -49,6 +50,10 @@ export class HandoversService {
       }));
       booking.status = next;
       await manager.getRepository(Booking).save(booking);
+      // A rented vehicle must not appear available for another reservation.
+      // It becomes bookable again only after the return handover is recorded.
+      vehicle.status = kind === HandoverKind.PICKUP ? VehicleStatus.INACTIVE : VehicleStatus.ACTIVE;
+      await manager.getRepository(Vehicle).save(vehicle);
       await manager.getRepository(BookingStatusHistory).save({ bookingId, fromStatus: expected, toStatus: next, performedById: current.sub,
         reason: kind === HandoverKind.PICKUP ? 'Đã giao xe' : 'Đã nhận xe trả' });
       return { bookingId, status: next, record };

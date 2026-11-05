@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
 import { api } from '../../services/api';
 
+type CalendarEvent = { type:'BOOKING'|'MAINTENANCE'; id:number; vehicleId:number; vehicleCode:string; model:string; stationName:string; customerName:string; title:string; status:string; start:string; end:string|null };
+function localDateInput(date:Date) { const offset=date.getTimezoneOffset(); return new Date(date.getTime()-offset*60000).toISOString().slice(0,10); }
 type Booking = {
   id: number; status: string; pickupAt: string; returnAt: string;
   rentalAmount: string; depositSnapshot: string;
@@ -15,7 +17,7 @@ const apiError = (e: unknown) => {
   return Array.isArray(m) ? m.join(', ') : m || 'Thao tác chưa thành công. Vui lòng thử lại.';
 };
 export function OperationsPage() {
-  const [items,setItems] = useState<Booking[]>([]);
+  const [items,setItems] = useState<Booking[]>([]);\n  const [calendar,setCalendar] = useState<CalendarEvent[]>([]);\n  const [calendarFrom,setCalendarFrom] = useState(()=>localDateInput(new Date()));\n  const [calendarTo,setCalendarTo] = useState(()=>localDateInput(new Date(Date.now()+6*86_400_000)));\n  const [calendarLoading,setCalendarLoading] = useState(false);\n  const [calendarError,setCalendarError] = useState('');
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
   const [notice,setNotice] = useState('');
@@ -40,7 +42,16 @@ export function OperationsPage() {
     catch(e) { setError(apiError(e)); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { void load(); },[load]);
+  useEffect(() => { void load(); },[load]);\n  async function loadCalendar() {
+    if (!calendarFrom || !calendarTo || calendarTo < calendarFrom) { setCalendarError('Vui lòng chọn khoảng ngày hợp lệ.'); return; }
+    const span=(new Date(calendarTo+'T00:00:00').getTime()-new Date(calendarFrom+'T00:00:00').getTime())/86_400_000;
+    if (span>30) { setCalendarError('Mỗi lần chỉ xem tối đa 31 ngày.'); return; }
+    setCalendarLoading(true); setCalendarError('');
+    try { const {data}=await api.get('/bookings/calendar',{params:{from:calendarFrom,to:calendarTo}}); setCalendar(Array.isArray(data)?data:data?.items??[]); }
+    catch(e) { setCalendarError(apiError(e)); }
+    finally { setCalendarLoading(false); }
+  }
+  useEffect(() => { void loadCalendar(); }, []);
   const visible = filter === 'ALL' ? items : items.filter(item => item.status === filter);
   function beginHandover(id: number, kind: 'pickup' | 'return') {
     setBattery('80'); setOdometer(''); setCondition(kind === 'pickup' ? 'Xe hoạt động bình thường, đã kiểm tra ngoại quan và phụ kiện.' : 'Đã kiểm tra xe khi nhận trả.');
@@ -77,6 +88,7 @@ export function OperationsPage() {
   }
   return <div className="container-page py-12 sm:py-16">
     <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="TRUNG TÂM VẬN HÀNH" title="Điều phối đơn thuê" description="Xác nhận đặt xe, ghi nhận bàn giao và nhận trả phương tiện. Danh sách giới hạn 100 đơn gần nhất theo quyền tài khoản."/><div className="flex flex-wrap gap-2"><Link to="/issues" className="btn-outline">Sự cố khách báo ↗</Link><Link to="/maintenance" className="btn-outline">Bảo dưỡng ↗</Link><Link to="/locations" className="btn-outline">Vị trí xe ↗</Link><Link to="/admin/dashboard" className="btn-outline">Báo cáo ↗</Link></div></div>
+    <section className="mt-8 panel p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">ĐIỀU PHỐI THEO THỜI GIAN</p><h2 className="mt-2 text-xl font-extrabold">Lịch xe và lịch bảo dưỡng</h2><p className="mt-1 text-sm text-slate-500">Tổng hợp các đơn đang giữ chỗ/đã xác nhận/đang thuê và lịch bảo dưỡng theo trạm được phân quyền.</p></div><div className="flex flex-wrap items-end gap-2"><label><span className="field-label">Từ ngày</span><input className="field" type="date" value={calendarFrom} onChange={e=>setCalendarFrom(e.target.value)}/></label><label><span className="field-label">Đến ngày</span><input className="field" type="date" value={calendarTo} onChange={e=>setCalendarTo(e.target.value)}/></label><button className="btn-dark" onClick={()=>void loadCalendar()} disabled={calendarLoading}>{calendarLoading?'Đang tải...':'Xem lịch'}</button></div></div>{calendarError&&<p role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{calendarError}</p>}{calendarLoading?<div className="mt-5"><LoadingState label="Đang tổng hợp lịch xe..."/></div>:!calendar.length?<p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Không có đơn thuê hoặc lịch bảo dưỡng trong khoảng ngày đã chọn.</p>:<div className="mt-5 space-y-3">{calendar.map(event=><article key={event.type+'-'+event.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-100 p-4"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={'rounded-full px-2.5 py-1 text-[10px] font-extrabold '+(event.type==='BOOKING'?'bg-sky-50 text-sky-800':'bg-amber-50 text-amber-800')}>{event.type==='BOOKING'?'ĐƠN THUÊ':'BẢO DƯỠNG'}</span><span className="text-xs font-bold text-slate-400">#{event.id} · {event.vehicleCode}</span><span className="text-xs text-slate-500">{event.status}</span></div><h3 className="mt-2 truncate font-extrabold">{event.model||event.title}</h3><p className="mt-1 text-xs text-slate-500">{event.stationName}{event.customerName?' · '+event.customerName:''}</p></div><div className="text-right text-sm"><p className="font-bold">{timeText(event.start)}</p><p className="mt-1 text-xs text-slate-500">{event.end?'Đến '+timeText(event.end):'Lịch thực hiện'}</p></div></article>)}</div>}</section>
     <div className="mt-8 flex flex-wrap items-center justify-between gap-4"><div className="flex flex-wrap gap-2">{[{value:'ALL',label:'Tất cả'},...Object.entries(statuses).map(([value,label])=>({value,label}))].map(x => <button key={x.value} onClick={()=>setFilter(x.value)} className={'rounded-full px-4 py-2 text-xs font-extrabold '+(filter===x.value?'bg-[#10373b] text-white':'bg-white text-slate-600')}>{x.label}</button>)}</div><button className="btn-outline" onClick={()=>void load()}>↻ Làm mới</button></div>
     {notice && <div role="status" className="mt-6 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}
     {error && <div role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</div>}

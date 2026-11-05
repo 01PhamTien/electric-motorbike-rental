@@ -7,6 +7,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMaintenanceDto, UpdateMaintenanceDto } from './dto';
+import { UpsertMaintenanceScheduleDto } from './maintenance-schedule.dto';
 import { MaintenanceService } from './maintenance.service';
 
 @ApiTags('Maintenance')
@@ -20,6 +21,18 @@ export class MaintenanceController {
   @Roles(Role.ADMIN, Role.STAFF)
   list(@CurrentUser() user: JwtUser, @Query('vehicleId') vehicleId?: string) {
     return this.service.list(user, vehicleId ? Number(vehicleId) : undefined);
+  }
+
+  @Get('schedules')
+  @Roles(Role.ADMIN, Role.STAFF)
+  listSchedules(@CurrentUser() user: JwtUser) {
+    return this.service.listSchedules(user);
+  }
+
+  @Post('schedules')
+  @Roles(Role.ADMIN, Role.STAFF)
+  upsertSchedule(@CurrentUser() user: JwtUser, @Body() dto: UpsertMaintenanceScheduleDto) {
+    return this.service.upsertSchedule(user, dto);
   }
 
   @Post()

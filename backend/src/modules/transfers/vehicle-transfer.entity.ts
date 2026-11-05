@@ -11,8 +11,9 @@ export enum VehicleTransferStatus {
 }
 
 @Entity('vehicle_transfers')
-@Index(['sourceStationId', 'status'])
-@Index(['destinationStationId', 'status'])
+@Index('IDX_vehicle_transfers_vehicle_status', ['vehicleId', 'status'])
+@Index('IDX_vehicle_transfers_source_status', ['sourceStationId', 'status'])
+@Index('IDX_vehicle_transfers_destination_status', ['destinationStationId', 'status'])
 export class VehicleTransfer {
   @PrimaryGeneratedColumn()
   id: number;

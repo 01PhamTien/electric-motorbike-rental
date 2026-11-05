@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, Primary
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { User } from '../users/user.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
+import { Voucher } from '../vouchers/voucher.entity';
 
 @Entity('bookings')
 @Index(['vehicleId', 'pickupAt', 'returnAt'])
@@ -43,6 +44,10 @@ export class Booking {
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   discountAmount: string;
+
+  @ManyToOne(() => Voucher, { nullable: true, onDelete: 'NO ACTION' })
+  @JoinColumn({ name: 'voucherId', foreignKeyConstraintName: 'FK_bookings_voucher' })
+  voucher: Voucher | null;
 
   @Column({ type: 'int', nullable: true })
   voucherId: number | null;

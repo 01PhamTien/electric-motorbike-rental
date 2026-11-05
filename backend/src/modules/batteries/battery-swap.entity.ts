@@ -1,10 +1,11 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Battery } from './battery.entity';
 import { Station } from '../stations/station.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { User } from '../users/user.entity';
 
 @Entity('battery_swaps')
+@Check('CK_battery_swaps_distinct', '[removedBatteryId] <> [installedBatteryId]')
 @Index('IDX_battery_swaps_station_date', ['stationId', 'createdAt'])
 @Index('IDX_battery_swaps_vehicle_date', ['vehicleId', 'createdAt'])
 export class BatterySwap {

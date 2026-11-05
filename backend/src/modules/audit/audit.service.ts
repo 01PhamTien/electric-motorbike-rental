@@ -2,10 +2,11 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditLog } from './audit-log.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class AuditService {
-  constructor(@InjectRepository(AuditLog) private readonly repo: Repository<AuditLog>) {}
+  constructor(@InjectRepository(AuditLog) private readonly repo: Repository<AuditLog>, @InjectRepository(User) private readonly users: Repository<User>) {}
   async record(actorId: number | null, action: string, targetType: string, targetId: number | null, details?: unknown) {
     return this.repo.save(this.repo.create({ actorId, action, targetType, targetId,
       details: details === undefined ? null : JSON.stringify(details) }));

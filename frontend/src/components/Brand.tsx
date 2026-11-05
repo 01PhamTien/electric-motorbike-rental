@@ -17,6 +17,9 @@ export function LoadingState({ label = 'Đang tải dữ liệu...' }: { label?:
     <div className="animate-pulse space-y-3"><div className="h-4 w-1/3 rounded-full bg-[#eaf2ed]"/><div className="grid gap-3 sm:grid-cols-3"><div className="h-20 rounded-xl bg-[#f0f6f2]"/><div className="h-20 rounded-xl bg-[#f0f6f2]"/><div className="h-20 rounded-xl bg-[#f0f6f2]"/></div><div className="h-3 w-full rounded-full bg-[#f0f6f2]"/><div className="h-3 w-4/5 rounded-full bg-[#f0f6f2]"/></div>
   </div>;
 }
+export function ErrorState({ title = 'Không thể tải dữ liệu', description, onRetry }: { title?: string; description: string; onRetry?: () => void }) {
+  return <div role="alert" className="rounded-2xl border border-rose-100 bg-rose-50/80 p-5 sm:p-6"><div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-rose-600">!</span><div className="min-w-0 flex-1"><h3 className="font-bold text-rose-900">{title}</h3><p className="mt-1 text-sm leading-6 text-rose-800">{description}</p>{onRetry && <button type="button" onClick={onRetry} className="mt-3 rounded-lg border border-rose-200 bg-white px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100">Thử tải lại</button>}</div></div></div>;
+}
 export function EmptyState({ title, description, action }: { title: string; description: string; action?: ReactNode }) {
   return <div className="panel p-12 text-center"><div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-3xl">⚡</div><h3 className="text-xl font-bold">{title}</h3><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{description}</p>{action && <div className="mt-6">{action}</div>}</div>;
 }

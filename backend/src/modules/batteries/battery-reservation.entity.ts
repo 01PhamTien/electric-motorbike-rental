@@ -13,8 +13,8 @@ export enum BatteryReservationStatus {
 }
 
 @Entity('battery_reservations')
-@Index(['stationId','status','expiresAt'])
-@Index(['customerId','status','expiresAt'])
+@Index('IDX_battery_reservations_station_status_expiry',['stationId','status','expiresAt'])
+@Index('IDX_battery_reservations_customer_status_expiry',['customerId','status','expiresAt'])
 export class BatteryReservation {
   @PrimaryGeneratedColumn() id:number;
   @ManyToOne(()=>User,{onDelete:'NO ACTION'}) @JoinColumn({name:'customerId',foreignKeyConstraintName:'FK_battery_reservations_customer'}) customer:User;

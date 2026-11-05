@@ -36,13 +36,12 @@ export class TransfersService {
 
   async list(user: JwtUser) {
     const qb = this.transfers.createQueryBuilder('t')
-      .innerJoinAndSelect('t.vehicleId', 'vehicleId')
       .leftJoin('vehicles', 'v', 'v.id = t.vehicleId')
-      .addSelect(['v.code'])
+      .addSelect('v.code', 'vehicleCode')
       .leftJoin('stations', 'src', 'src.id = t.sourceStationId')
-      .addSelect(['src.name'])
+      .addSelect('src.name', 'sourceStationName')
       .leftJoin('stations', 'dst', 'dst.id = t.destinationStationId')
-      .addSelect(['dst.name'])
+      .addSelect('dst.name', 'destinationStationName')
       .orderBy('t.createdAt', 'DESC')
       .take(200);
     if (user.role === Role.STAFF) {
@@ -52,9 +51,9 @@ export class TransfersService {
     const rows = await qb.getRawAndEntities();
     return rows.entities.map((item, index) => ({
       ...item,
-      vehicleCode: rows.raw[index]?.v_code ?? '',
-      sourceStationName: rows.raw[index]?.src_name ?? '',
-      destinationStationName: rows.raw[index]?.dst_name ?? '',
+      vehicleCode: rows.raw[index]?.vehicleCode ?? '',
+      sourceStationName: rows.raw[index]?.sourceStationName ?? '',
+      destinationStationName: rows.raw[index]?.destinationStationName ?? '',
     }));
   }
 
@@ -82,12 +81,11 @@ export class TransfersService {
       ]);
       if (!source || !destination) throw new BadRequestException('Trạm đi hoặc trạm đến không tồn tại/đã ngừng hoạt động');
 
-      const activeBooking = await bookingRepo.findOne({ where: { vehicleId: vehicle.id, status: { } as any } });
       const bookingConflict = await bookingRepo.createQueryBuilder('b')
         .where('b.vehicleId = :vehicleId', { vehicleId: vehicle.id })
         .andWhere('b.status IN (:...statuses)', { statuses: OPEN_BOOKINGS })
         .getOne();
-      if (bookingConflict || activeBooking) throw new BadRequestException('Xe đang có đơn thuê chưa kết thúc, không thể điều chuyển');
+      if (bookingConflict) throw new BadRequestException('Xe đang có đơn thuê chưa kết thúc, không thể điều chuyển');
       const maintenanceConflict = await maintenanceRepo.findOne({ where: { vehicleId: vehicle.id, status: MaintenanceStatus.SCHEDULED } });
       const maintenanceInProgress = await maintenanceRepo.findOne({ where: { vehicleId: vehicle.id, status: MaintenanceStatus.IN_PROGRESS } });
       if (maintenanceConflict || maintenanceInProgress) throw new BadRequestException('Xe đang có phiếu bảo dưỡng chưa hoàn tất');

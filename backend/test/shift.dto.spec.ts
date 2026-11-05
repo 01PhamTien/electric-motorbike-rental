@@ -6,7 +6,7 @@ import { validateSync } from 'class-validator';
 import { ShiftHandoverDto } from '../src/modules/audit/shift.dto';
 
 function validate(payload: Record<string, unknown>) {
-  return validateSync(plainToInstance(ShiftHandoverDto, payload));
+  return validateSync(plainToInstance(ShiftHandoverDto, payload), { whitelist: true, forbidNonWhitelisted: true });
 }
 
 test('accepts a valid shift handover report', () => {

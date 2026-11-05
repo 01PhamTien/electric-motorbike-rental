@@ -44,7 +44,7 @@ test('review is blocked until the vehicle is returned and booking is completed',
 
 test('customer can report low battery only on their active rental and may attach a complete GPS pair', async () => {
   const {service,issueRows}=fixture(BookingStatus.RENTING);
-  const user={sub:5,role:Role.CUSTOMER,stationId:null};
+  const user={sub:5,email:'customer@test.invalid',role:Role.CUSTOMER,stationId:null};
   const issue=await service.createIssue(user,12,{issueType:BookingIssueType.LOW_BATTERY,severity:BookingIssueSeverity.HIGH,description:'Pin còn 5%, xe cần hỗ trợ',latitude:16.05,longitude:108.2});
   assert.equal(issue.status,BookingIssueStatus.OPEN);
   assert.equal(issueRows.length,1);

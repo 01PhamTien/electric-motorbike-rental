@@ -1,11 +1,11 @@
-import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { User } from '../users/user.entity';
 
 @Entity('maintenance_schedules')
 @Check('CK_maintenance_schedules_intervalKm', '[intervalKm] BETWEEN 100 AND 50000')
 @Check('CK_maintenance_schedules_intervalDays', '[intervalDays] BETWEEN 1 AND 730')
-@Index(['vehicleId'], { unique: true })
+@Unique('UQ_maintenance_schedules_vehicle', ['vehicleId'])
 @Index('IDX_maintenance_schedules_active', ['isActive', 'vehicleId'])
 export class MaintenanceSchedule {
   @PrimaryGeneratedColumn()
@@ -40,9 +40,9 @@ export class MaintenanceSchedule {
   @Column({ type: 'int' })
   updatedById: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' })
   updatedAt: Date;
 }

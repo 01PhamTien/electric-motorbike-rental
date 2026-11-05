@@ -38,14 +38,9 @@ export function StationsPage() {
   }, []);
 
   const points = useMemo<StationMapPoint[]>(() => [
-    ...items.map(s => ({ id: s.id, latitude: s.latitude, longitude: s.longitude, name: 'Trạm: ' + s.name, kind: 'station' as const })),
-    ...vehicles.map(v => ({ id: -v.id, latitude: v.station.latitude, longitude: v.station.longitude, name: 'Xe ' + v.code + ' · ' + v.model?.brand + ' ' + v.model?.name, kind: 'vehicle' as const })),
-  ], [items, vehicles]);
-  const onMarkerClick = useCallback((id: number) => {
-    if (id > 0) { setSelectedId(id); return; }
-    const vehicle = vehicles.find(v => v.id === -id);
-    if (vehicle?.station) setSelectedId(vehicle.station.id);
-  }, [vehicles]);
+    ...items.map(s => ({ id: s.id, latitude: s.latitude, longitude: s.longitude, name: s.name })),
+  ], [items]);
+  const onMarkerClick = useCallback((id: number) => setSelectedId(id), []);
   const ranked = useMemo(() => items.map(station => ({
     station,
     distance: location ? distanceKm(location, { latitude: Number(station.latitude), longitude: Number(station.longitude) }) : null,
@@ -73,7 +68,7 @@ export function StationsPage() {
 
   return <section className="container-page space-y-9 py-12 sm:py-16">
     <div className="flex flex-wrap items-end justify-between gap-6">
-      <SectionHeading eyebrow="MẠNG LƯỚI ĐIỂM THUÊ" title="Tìm trạm và xe gần bạn" description="Bản đồ hiển thị trạm đang hoạt động, xe sẵn sàng tại từng trạm và vị trí hiện tại của bạn. Bật định vị để tìm điểm thuê gần nhất."/>
+      <SectionHeading eyebrow="MẠNG LƯỚI ĐIỂM THUÊ" title="Tìm trạm nhận xe gần bạn" description="Bản đồ chỉ hiển thị các điểm nhận xe với tọa độ GPS của trạm. Bật định vị để tìm trạm gần nhất và xem khoảng cách ước tính."/>
       <div className="flex flex-wrap gap-2">
         <button onClick={locateMe} disabled={locating} className="btn-outline">{locating ? 'Đang xác định...' : location ? '↻ Cập nhật vị trí' : '◎ Dùng vị trí của tôi'}</button>
         <Link to="/vehicles" className="btn-dark">Khám phá xe ↗</Link>
@@ -92,9 +87,7 @@ export function StationsPage() {
                 <span className="rounded-full bg-white/95 px-4 py-2 text-xs font-extrabold text-sky-800 shadow-md">⚡ {vehicles.length} XE SẴN SÀNG</span>
                 {location && <span className="rounded-full bg-sky-50 px-4 py-2 text-xs font-extrabold text-sky-800 shadow-md">◎ VỊ TRÍ CỦA BẠN</span>}
               </div>
-              <div className="pointer-events-none absolute bottom-4 left-5 flex gap-3 rounded-xl bg-white/95 px-3 py-2 text-xs font-bold shadow-md">
-                <span className="text-emerald-700">⌖ Trạm xe</span><span className="text-sky-700">⚡ Xe sẵn sàng</span>
-              </div>
+              
             </div>
             <aside className="flex flex-col justify-between bg-[#103a39] p-6 text-white sm:p-8">
               <div>
@@ -138,7 +131,7 @@ export function StationsPage() {
             </article>)}
           </div>
         </div>
-        <p className="text-xs text-slate-500">Khoảng cách tới trạm là đường chim bay, không phải quãng đường di chuyển. Các marker xe hiện đặt tại tọa độ trạm quản lý xe, chưa phải GPS trực tiếp của từng xe. Bản đồ © OpenStreetMap contributors; tọa độ demo cần được xác minh trước khi phục vụ khách thật.</p>
+        <p className="text-xs text-slate-500">Khoảng cách tới trạm là đường chim bay, không phải quãng đường di chuyển. Không theo dõi GPS riêng cho từng xe; vị trí trên bản đồ là tọa độ GPS của trạm. Bản đồ © OpenStreetMap contributors; tọa độ demo cần được xác minh trước khi phục vụ khách thật.</p>
       </>}
   </section>;
 }

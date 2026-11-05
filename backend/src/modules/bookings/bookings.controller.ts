@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -23,6 +23,12 @@ export class BookingsController {
   @Get('my')
   @Roles(Role.CUSTOMER)
   my(@CurrentUser() user: JwtUser) { return this.service.myBookings(user); }
+
+  @Get('calendar')
+  @Roles(Role.ADMIN, Role.STAFF)
+  calendar(@CurrentUser() user: JwtUser, @Query('from') from: string, @Query('to') to: string) {
+    return this.service.listCalendar(user, from, to);
+  }
 
   @Get('operations')
   @Roles(Role.ADMIN, Role.STAFF)

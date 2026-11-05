@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { Station } from '../stations/station.entity';
 import { User } from '../users/user.entity';
@@ -13,6 +13,8 @@ export enum OperatingCostCategory {
 }
 
 @Entity('operating_costs')
+@Check('CK_operating_costs_amount_positive', '[amount] > 0')
+@Check('CK_operating_costs_energy_nonnegative', '[energyKwh] IS NULL OR [energyKwh] >= 0')
 @Index('IDX_operating_costs_station_date', ['stationId', 'occurredAt'])
 @Index('IDX_operating_costs_vehicle_date', ['vehicleId', 'occurredAt'])
 export class OperatingCost {

@@ -190,7 +190,7 @@ export class BookingsService {
       [BookingStatus.RENTING]: 'đang thuê', [BookingStatus.COMPLETED]: 'đã hoàn tất',
       [BookingStatus.CANCELLED]: 'đã bị hủy', [BookingStatus.EXPIRED]: 'đã hết thời hạn giữ chỗ',
     };
-    await this.notifications.create(result.saved.customerId, 'BOOKING_STATUS', 'Cập nhật đơn thuê', 'Đơn thuê #' + id + ' ' + statusText[result.saved.status] + '.', id);
+    await this.notifications?.create(result.saved.customerId, 'BOOKING_STATUS', 'Cập nhật đơn thuê', 'Đơn thuê #' + id + ' ' + statusText[result.saved.status] + '.', id);
     if (result.isExpired) throw new BadRequestException('Đơn đã hết thời hạn giữ chỗ');
     return result.saved;
   }

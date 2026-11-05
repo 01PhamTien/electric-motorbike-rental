@@ -55,7 +55,7 @@ export function MainLayout() {
       <div className="container-page flex min-h-[80px] items-center justify-between gap-4 py-3">
         <Link to={homePath} aria-label="VoltGo - Trang chính"><Brand /></Link>
         <nav className="hidden items-center gap-5 xl:flex" aria-label={management ? 'Điều hướng quản lý' : 'Điều hướng khách hàng'}>
-          {visibleNav.map(item => <NavLink key={item.to} to={item.to} end={'end' in item ? item.end : false} className={({ isActive }) => 'text-sm font-bold transition hover:text-emerald-700 ' + (isActive ? 'text-emerald-700' : 'text-slate-600')}>{item.label}</NavLink>)}
+          {visibleNav.map(item => <NavLink key={item.to} to={item.to} end={Boolean('end' in item && item.end)} className={({ isActive }) => 'text-sm font-bold transition hover:text-emerald-700 ' + (isActive ? 'text-emerald-700' : 'text-slate-600')}>{item.label}</NavLink>)}
         </nav>
         <div className="hidden items-center gap-3 lg:flex">
           {loggedIn && <><Link to="/notifications" className="text-xs font-bold text-slate-600 hover:text-emerald-700">Thông báo</Link><Link to="/profile" className="text-xs font-bold text-slate-600 hover:text-emerald-700">Tài khoản</Link></>}

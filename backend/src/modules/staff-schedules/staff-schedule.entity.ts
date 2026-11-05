@@ -1,10 +1,12 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Station } from '../stations/station.entity';
 import { User } from '../users/user.entity';
 
 export type StaffScheduleStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 @Entity('staff_schedules')
+@Check('CK_staff_schedules_range', '[endAt] > [startAt] AND DATEDIFF(MINUTE, [startAt], [endAt]) <= 1440')
+@Check('CK_staff_schedules_status', "[status] IN ('PLANNED','IN_PROGRESS','COMPLETED','CANCELLED')")
 @Index('IDX_staff_schedules_staff_start', ['staffId', 'startAt'])
 @Index('IDX_staff_schedules_station_start', ['stationId', 'startAt'])
 export class StaffSchedule {

@@ -3,7 +3,7 @@ import { BookingIssueSeverity, BookingIssueStatus, BookingIssueType } from './bo
 
 export class CreateVehicleReviewDto {
   @IsInt() @Min(1) @Max(5) rating: number;
-  @IsOptional() @IsString() @MinLength(3) @MaxLength(1200) comment?: string;
+  @IsOptional() @IsString() @MaxLength(1200) comment?: string;
 }
 export class CreateBookingIssueDto {
   @IsEnum(BookingIssueType) issueType: BookingIssueType;

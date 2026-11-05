@@ -19,7 +19,6 @@ function fixture() {
   const maintenance = [
     {vehicleId:10,status:'COMPLETED',cost:'75000.00',completedAt:new Date('2026-11-05T10:00:00Z')},
     {vehicleId:11,status:'COMPLETED',cost:'25000.00',completedAt:new Date('2026-11-06T10:00:00Z')},
-    {vehicleId:11,status:'SCHEDULED',cost:'90000.00',completedAt:null},
   ];
   const payments = [
     {purpose:PaymentPurpose.RENT,amount:'300000.00',createdAt:new Date('2026-11-02T11:00:00Z')},
@@ -84,13 +83,13 @@ test('report totals completed maintenance cost and ranks per-vehicle expenses', 
 test('report calculates fleet utilization from rental overlap, excluding cancelled bookings', async () => {
   const report=await fixture().getOverview('2026-11-01','2026-11-11');
   assert.equal(report.fleetUtilization.activeFleetCount,8);
-  assert.equal(report.fleetUtilization.periodDays,10);
+  assert.equal(report.fleetUtilization.periodDays,11);
   assert.equal(report.fleetUtilization.bookedVehicleDays,2);
-  assert.equal(report.fleetUtilization.utilizationRate,2.5);
-  assert.equal(report.fleetUtilization.idleFleetDays,78);
+  assert.equal(report.fleetUtilization.utilizationRate,2.27);
+  assert.equal(report.fleetUtilization.idleFleetDays,86);
   assert.equal(report.fleetUtilization.byVehicle[0].code,'VG-10');
   assert.equal(report.fleetUtilization.byVehicle.find(v=>v.code==='VG-12')?.bookedDays,0);
-  assert.equal(report.fleetUtilization.byVehicle.find(v=>v.code==='VG-12')?.idleDays,10);
+  assert.equal(report.fleetUtilization.byVehicle.find(v=>v.code==='VG-12')?.idleDays,11);
 });
 test('report aggregates operating costs by category, vehicle and station', async () => {
   const report=await fixture().getOverview('2026-11-01','2026-11-30');

@@ -109,11 +109,11 @@ export class ReportsService {
       availableFleetDays: Number((activeVehicles * periodDays).toFixed(2)),
       utilizationRate: fleetCapacityMs > 0 ? Number((totalBookedMs / fleetCapacityMs * 100).toFixed(2)) : 0,
       idleFleetDays: Number(Math.max(0, activeVehicles * periodDays - totalBookedMs / 86_400_000).toFixed(2)),
-      byVehicle: [...utilizationByVehicle.values()].map(item => {
-        const vehicle = utilizationVehicleMap.get(item.vehicleId);
+      byVehicle: utilizationVehicles.map(vehicle => {
+        const item = utilizationByVehicle.get(vehicle.id) ?? { vehicleId:vehicle.id, bookedMs:0, bookings:0 };
         const bookedDays = item.bookedMs / 86_400_000;
         return {
-          vehicleId:item.vehicleId, code:vehicle?.code ?? 'Không xác định',
+          vehicleId:vehicle.id, code:vehicle.code,
           bookedDays:Number(bookedDays.toFixed(2)),
           idleDays:Number(Math.max(0,periodDays-bookedDays).toFixed(2)),
           bookings:item.bookings,

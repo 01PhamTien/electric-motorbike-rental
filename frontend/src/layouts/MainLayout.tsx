@@ -15,7 +15,7 @@ export function MainLayout() {
   const loggedIn = Boolean(user);
   const role = user?.role;
   const staff = role === 'ADMIN' || role === 'STAFF';
-  const roleNav = role === 'CUSTOMER' ? [{ to: '/bookings/my', label: 'Đơn thuê của tôi' }] : staff ? [{ to: '/operations', label: 'Quản lý đơn thuê' }, { to: '/vehicle-transfers', label: 'Điều chuyển xe' }] : [];
+  const roleNav = role === 'CUSTOMER' ? [{ to: '/bookings/my', label: 'Đơn thuê của tôi' }] : staff ? [{ to: '/operations', label: 'Quản lý đơn thuê' }, { to: '/vehicle-transfers', label: 'Điều chuyển xe' }, { to: '/operating-costs', label: 'Chi phí vận hành' }] : [];
   const visibleNav = [...nav, ...roleNav];
   const logout = () => { endSession(); setMenuOpen(false); navigate('/login'); };
   return <div className="flex min-h-screen flex-col">

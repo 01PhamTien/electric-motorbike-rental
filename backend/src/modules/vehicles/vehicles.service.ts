@@ -13,7 +13,6 @@ export class VehiclesService {
     @InjectRepository(Vehicle) private readonly repo: Repository<Vehicle>,
     @InjectRepository(VehicleModel) private readonly models: Repository<VehicleModel>,
     @InjectRepository(Station) private readonly stations: Repository<Station>,
-    @InjectRepository(VehicleTransfer) private readonly transfers: Repository<VehicleTransfer>,
   ) {}
 
   findAllForAdmin() {

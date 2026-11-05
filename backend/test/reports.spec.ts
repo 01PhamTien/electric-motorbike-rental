@@ -39,7 +39,7 @@ function fixture() {
     find: async () => payments,
   };
   const vehicleRepo = {
-    count: async ({where}:any) => where?.status === 'ACTIVE' ? 8 : where?.status === 'MAINTENANCE' ? 1 : where?.isActive === false ? 1 : 10,
+    count: async ({where}:any = {}) => where?.status === 'ACTIVE' ? 8 : where?.status === 'MAINTENANCE' ? 1 : where?.isActive === false ? 1 : 10,
     find: async () => [{id:10,code:'VG-10',station:{name:'Hai Chau'}},{id:11,code:'VG-11',station:{name:'Hai Chau'}},{id:12,code:'VG-12',station:{name:'Hai Chau'}}],
   };
   const maintenanceRepo = { createQueryBuilder: () => qb(maintenance) };

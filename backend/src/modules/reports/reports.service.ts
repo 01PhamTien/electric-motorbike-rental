@@ -73,6 +73,59 @@ export class ReportsService {
       this.vehicles.count({ where: { isActive: false } }),
     ]);
 
+    // Fleet utilization is measured by booked hours overlapping the selected period,
+    // not by booking creation date. Cancelled/expired bookings never occupy a vehicle.
+    const utilizationStart = start ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const utilizationEnd = end ?? new Date();
+    const utilizationPeriodMs = Math.max(0, utilizationEnd.getTime() - utilizationStart.getTime());
+    const utilizationQuery = this.bookings.createQueryBuilder('utilBooking')
+      .where('utilBooking.pickupAt < :periodEnd', { periodEnd: utilizationEnd })
+      .andWhere('utilBooking.returnAt > :periodStart', { periodStart: utilizationStart })
+      .andWhere('utilBooking.status NOT IN (:...excluded)', {
+        excluded: [BookingStatus.CANCELLED, BookingStatus.EXPIRED],
+      });
+    const utilizationBookings = await utilizationQuery.getMany();
+    const utilizationByVehicle = new Map<number, { vehicleId:number; bookedMs:number; bookings:number }>();
+    for (const booking of utilizationBookings) {
+      const overlapStart = Math.max(new Date(booking.pickupAt).getTime(), utilizationStart.getTime());
+      const overlapEnd = Math.min(new Date(booking.returnAt).getTime(), utilizationEnd.getTime());
+      if (overlapEnd <= overlapStart) continue;
+      const item = utilizationByVehicle.get(booking.vehicleId) ?? { vehicleId:booking.vehicleId, bookedMs:0, bookings:0 };
+      item.bookedMs += overlapEnd - overlapStart;
+      item.bookings += 1;
+      utilizationByVehicle.set(booking.vehicleId, item);
+    }
+    const periodDays = utilizationPeriodMs / 86_400_000;
+    const fleetCapacityMs = activeVehicles * utilizationPeriodMs;
+    const totalBookedMs = [...utilizationByVehicle.values()].reduce((sum,item)=>sum+item.bookedMs,0);
+    const utilizationVehicleIds = [...utilizationByVehicle.keys()];
+    const utilizationVehicles = utilizationVehicleIds.length
+      ? await this.vehicles.find({ where: utilizationVehicleIds.map(id=>({id})) })
+      : [];
+    const utilizationVehicleMap = new Map(utilizationVehicles.map(vehicle=>[vehicle.id,vehicle]));
+    const fleetUtilization = {
+      periodStart: utilizationStart.toISOString(),
+      periodEnd: utilizationEnd.toISOString(),
+      periodDays: Number(periodDays.toFixed(2)),
+      activeFleetCount: activeVehicles,
+      bookedVehicleDays: Number((totalBookedMs / 86_400_000).toFixed(2)),
+      availableFleetDays: Number((activeVehicles * periodDays).toFixed(2)),
+      utilizationRate: fleetCapacityMs > 0 ? Number((totalBookedMs / fleetCapacityMs * 100).toFixed(2)) : 0,
+      idleFleetDays: Number(Math.max(0, activeVehicles * periodDays - totalBookedMs / 86_400_000).toFixed(2)),
+      byVehicle: [...utilizationByVehicle.values()].map(item => {
+        const vehicle = utilizationVehicleMap.get(item.vehicleId);
+        const bookedDays = item.bookedMs / 86_400_000;
+        return {
+          vehicleId:item.vehicleId, code:vehicle?.code ?? 'Không xác định',
+          bookedDays:Number(bookedDays.toFixed(2)),
+          idleDays:Number(Math.max(0,periodDays-bookedDays).toFixed(2)),
+          bookings:item.bookings,
+          utilizationRate:periodDays>0?Number((bookedDays/periodDays*100).toFixed(2)):0,
+        };
+      }).sort((a,b)=>b.utilizationRate-a.utilizationRate).slice(0,10),
+      note: 'Tỷ lệ dùng đội xe = tổng thời gian thuê giao nhau với kỳ báo cáo / (số xe đang hoạt động hiện tại × số ngày kỳ báo cáo). Số xe hoạt động là ảnh chụp hiện tại, không phải lịch sử đội xe.',
+    };
+
     const maintenanceQuery = this.maintenance.createQueryBuilder('maintenance');
     maintenanceQuery.where('maintenance.status = :completed', { completed: MaintenanceStatus.COMPLETED });
     if (start) maintenanceQuery.andWhere('maintenance.completedAt >= :from', { from: start });
@@ -191,10 +244,11 @@ export class ReportsService {
       },
       customers: { uniqueInPeriod: customerStats.size, newInPeriod: newCustomers, returningInPeriod: returningCustomers, topCustomers },
       maintenance: { completedRecords: maintenanceRows.length, recordedCost: money(maintenanceCostCents), byVehicle: maintenanceByVehicleReport },
+      fleetUtilization,
       monthly: months,
       topVehicles: [...vehicleStats.values()].sort((a, b) => b.bookings - a.bookings).slice(0, 10).map(item => ({ ...item, bookingValue: money(item.bookingValue) })),
       stations: [...stationStats.values()].sort((a, b) => b.bookings - a.bookings).map(item => ({ ...item, bookingValue: money(item.bookingValue) })),
-      notes: ['Đơn thuê và hiệu quả xe/trạm được lọc theo ngày tạo đơn.', 'Dòng tiền dựa trên giao dịch thanh toán thủ công đã ghi nhận; không phải xác nhận giao dịch ngân hàng tự động.', 'Số tiền cọc đang giữ được tính lũy kế toàn hệ thống, không phụ thuộc khoảng thời gian báo cáo.'],
+      notes: ['Đơn thuê và hiệu quả xe/trạm được lọc theo ngày tạo đơn.', 'Hiệu suất khai thác được tính theo thời gian thuê giao nhau với kỳ báo cáo; khi bỏ trống bộ lọc ngày, kỳ hiệu suất mặc định là từ đầu tháng hiện tại đến thời điểm lập báo cáo.', 'Dòng tiền dựa trên giao dịch thanh toán thủ công đã ghi nhận; không phải xác nhận giao dịch ngân hàng tự động.', 'Số tiền cọc đang giữ được tính lũy kế toàn hệ thống, không phụ thuộc khoảng thời gian báo cáo.'],
     };
   }
 }

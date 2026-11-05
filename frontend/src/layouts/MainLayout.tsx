@@ -50,7 +50,7 @@ export function MainLayout(){
   const navLinks=(items:NavItem[],mobile=false)=><>{items.map(item=><NavLink key={item.to} to={item.to} end={Boolean(item.end)} onClick={mobile?closeMenus:undefined} className={navClass}>{item.label}</NavLink>)}</>;
 
   return <div className="flex min-h-screen flex-col">
-    {!management&&<div className="bg-[#09292d] px-4 py-2 text-center text-[11px] font-semibold tracking-wide text-emerald-100">🌿 Khám phá Đà Nẵng theo cách xanh hơn · Thuê xe điện linh hoạt theo ngày</div>}
+    {!management&&<div className="bg-[#edf8f1] px-4 py-2 text-center text-[11px] font-semibold tracking-wide text-[#4d7668]">🌿 Khám phá Đà Nẵng theo cách xanh hơn · Thuê xe điện linh hoạt theo ngày</div>}
     <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/95 shadow-[0_2px_14px_rgba(15,23,42,0.035)] backdrop-blur-xl">
       <div className="container-page flex min-h-[76px] items-center gap-4 py-3">
         <Link to={homePath} aria-label="VoltGo - Trang chính" className="shrink-0"><Brand/></Link>
@@ -97,9 +97,9 @@ export function MainLayout(){
       </nav></div>}
     </header>
     <main className="flex-1"><Outlet/></main>
-    {management?<footer className="mt-12 border-t border-slate-200 bg-slate-50 py-6"><div className="container-page flex flex-wrap justify-between gap-2 text-xs text-slate-500"><span>© {new Date().getFullYear()} VoltGo · Cổng vận hành nội bộ</span><span>{role==='ADMIN'?'Quản trị toàn hệ thống':'Quản lý vận hành theo trạm'}</span></div></footer>:<footer className="mt-16 bg-[#0b252a] py-14 text-white">
-      <div className="container-page grid gap-10 md:grid-cols-3"><div><Brand light/><p className="mt-5 max-w-sm text-sm leading-7 text-slate-300">Nền tảng đặt thuê xe máy điện tại Đà Nẵng. Di chuyển linh hoạt, tận hưởng thành phố biển theo nhịp riêng.</p></div><div><h3 className="mb-5 text-sm font-extrabold">KHÁM PHÁ</h3><div className="grid gap-3 text-sm text-slate-300"><Link to="/vehicles">Danh sách xe điện</Link><Link to="/stations">Điểm nhận và trả xe</Link><Link to="/bookings/my">Theo dõi đơn thuê</Link></div></div><div><h3 className="mb-5 text-sm font-extrabold">THÔNG TIN</h3><p className="text-sm leading-7 text-slate-300">Khu vực phục vụ: Đà Nẵng, Việt Nam.<br/>Giá thuê, xe sẵn có và thông tin điểm nhận được lấy từ hệ thống theo thời gian truy cập.</p><Link to="/register" className="mt-4 inline-block font-semibold text-emerald-300">Bắt đầu hành trình ↗</Link></div></div>
-      <div className="container-page mt-12 flex flex-wrap justify-between gap-2 border-t border-white/10 pt-6 text-xs text-slate-400"><span>© {new Date().getFullYear()} VoltGo. Built for Da Nang.</span><span>Điện hóa hành trình · Kết nối trải nghiệm</span></div>
+    {management?<footer className="mt-12 border-t border-slate-200 bg-slate-50 py-6"><div className="container-page flex flex-wrap justify-between gap-2 text-xs text-slate-500"><span>© {new Date().getFullYear()} VoltGo · Cổng vận hành nội bộ</span><span>{role==='ADMIN'?'Quản trị toàn hệ thống':'Quản lý vận hành theo trạm'}</span></div></footer>:<footer className="mt-16 border-t border-[#e4eee8] bg-[#f2f7f4] py-14 text-[#294442]">
+      <div className="container-page grid gap-10 md:grid-cols-3"><div><Brand light/><p className="mt-5 max-w-sm text-sm leading-7 text-[#6a7e78]">Nền tảng đặt thuê xe máy điện tại Đà Nẵng. Di chuyển linh hoạt, tận hưởng thành phố biển theo nhịp riêng.</p></div><div><h3 className="mb-5 text-sm font-extrabold">KHÁM PHÁ</h3><div className="grid gap-3 text-sm text-slate-300"><Link to="/vehicles">Danh sách xe điện</Link><Link to="/stations">Điểm nhận và trả xe</Link><Link to="/bookings/my">Theo dõi đơn thuê</Link></div></div><div><h3 className="mb-5 text-sm font-extrabold">THÔNG TIN</h3><p className="text-sm leading-7 text-slate-300">Khu vực phục vụ: Đà Nẵng, Việt Nam.<br/>Giá thuê, xe sẵn có và thông tin điểm nhận được lấy từ hệ thống theo thời gian truy cập.</p><Link to="/register" className="mt-4 inline-block font-semibold text-emerald-300">Bắt đầu hành trình ↗</Link></div></div>
+      <div className="container-page mt-12 flex flex-wrap justify-between gap-2 border-t border-[#dfe9e3] pt-6 text-xs text-[#7b8d87]"><span>© {new Date().getFullYear()} VoltGo. Built for Da Nang.</span><span>Điện hóa hành trình · Kết nối trải nghiệm</span></div>
     </footer>}
   </div>;
 }

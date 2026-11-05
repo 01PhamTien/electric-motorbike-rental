@@ -21,6 +21,7 @@ import { AdminModelsPage } from '../features/admin/AdminModelsPage';
 import { AdminCustomersPage } from '../features/admin/AdminCustomersPage';
 import { MainLayout } from '../layouts/MainLayout';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
+import { AuditLogsPage } from '../features/admin/AuditLogsPage';
 
 export function App() {
   return <Routes>
@@ -44,6 +45,7 @@ export function App() {
       <Route path="/admin/models" element={<RoleRoute allowed={['ADMIN']}><AdminModelsPage /></RoleRoute>} />
       <Route path="/admin/customers" element={<RoleRoute allowed={['ADMIN']}><AdminCustomersPage /></RoleRoute>} />
       <Route path="/admin/staff" element={<RoleRoute allowed={['ADMIN']}><StaffPage /></RoleRoute>} />
+      <Route path="/admin/audit-logs" element={<RoleRoute allowed={["ADMIN"]}><AuditLogsPage /></RoleRoute>} />
       <Route path="/admin/dashboard" element={<RoleRoute allowed={['ADMIN']}><DashboardPage /></RoleRoute>} />
       <Route path="*" element={<div className="container-page py-32 text-center"><p className="eyebrow">404 · KHÔNG TÌM THẤY</p><h1 className="mt-4 text-4xl font-extrabold">Có vẻ bạn đã rẽ nhầm đường.</h1><p className="mt-3 text-slate-500">Trang này không tồn tại hoặc đã được thay đổi.</p><Link to="/" className="btn-primary mt-8">Về trang chủ →</Link></div>} />
     </Route>

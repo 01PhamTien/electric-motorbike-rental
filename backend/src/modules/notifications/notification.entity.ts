@@ -13,5 +13,5 @@ export class Notification {
   @Column({ type: 'nvarchar', length: 1000 }) message: string;
   @Column({ type: 'int', nullable: true }) relatedBookingId: number | null;
   @Column({ type: 'datetime2', nullable: true }) readAt: Date | null;
-  @CreateDateColumn({ type: 'datetime2' }) createdAt: Date;
+  @CreateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' }) createdAt: Date;
 }

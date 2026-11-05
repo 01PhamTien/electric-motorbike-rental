@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { Station } from '../stations/station.entity';
 import { User } from '../users/user.entity';
@@ -13,6 +13,7 @@ export enum BatteryReservationStatus {
 }
 
 @Entity('battery_reservations')
+@Check('CK_battery_reservations_status', "[status] IN ('RESERVED','REDEEMED','CANCELLED','EXPIRED')")
 @Index('IDX_battery_reservations_station_status_expiry',['stationId','status','expiresAt'])
 @Index('IDX_battery_reservations_customer_status_expiry',['customerId','status','expiresAt'])
 export class BatteryReservation {

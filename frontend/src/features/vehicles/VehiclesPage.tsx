@@ -57,14 +57,14 @@ export function VehiclesPage() {
 
   const stations = useMemo(() => {
     const unique = new Map<number, {id:number;name:string}>();
-    items.forEach(v => { if (v.station) unique.set(v.station.id, {id:v.station.id,name:v.station.name}); });
+    items.forEach(v => { if (v.station && v.station.isActive !== false) unique.set(v.station.id, {id:v.station.id,name:v.station.name}); });
     return [...unique.values()].sort((a,b) => a.name.localeCompare(b.name));
   }, [items]);
   const filtered = useMemo(() => items.filter(v => {
     const name = [v.model?.brand, v.model?.name, v.code, v.licensePlate].join(' ').toLowerCase();
-    return name.includes(query.trim().toLowerCase()) && (!station || v.station?.name === station) && (availability !== 'ready' || v.status === 'ACTIVE');
+    return v.station?.isActive !== false && name.includes(query.trim().toLowerCase()) && (!station || v.station?.name === station) && (availability !== 'ready' || v.status === 'ACTIVE');
   }), [items, query, station, availability]);
-  const availableAtSelectedStation = useMemo(() => items.filter(v => v.station?.id === selectedStationId && v.status === 'ACTIVE'), [items, selectedStationId]);
+  const availableAtSelectedStation = useMemo(() => items.filter(v => v.station?.id === selectedStationId && v.station?.isActive !== false && v.status === 'ACTIVE'), [items, selectedStationId]);
   const closeBooking = () => {
     setSelected(null); setBookingError(''); setAcceptedTerms(false);
     if (params.has('vehicle')) { params.delete('vehicle'); setParams(params, { replace: true }); }
@@ -91,6 +91,7 @@ export function VehiclesPage() {
   async function book(event: React.FormEvent) {
     event.preventDefault();
     if (!selected || submitting || authLoading) return;
+    if (selected.station?.isActive === false) { setBookingError('Trạm nhận xe hiện không hoạt động. Vui lòng chọn trạm khác.'); return; }
     if (isOperator) { setBookingError('Chỉ tài khoản khách hàng (CUSTOMER) được tạo đơn thuê. Hãy đăng xuất và đăng nhập tài khoản khách hàng để đặt xe.'); return; }
     if (!user || !localStorage.getItem('accessToken')) { navigate('/login?redirect=' + encodeURIComponent('/vehicles?vehicle=' + selected.id)); return; }
     if (!validPeriod || estimatedDays < 1) { setBookingError('Hãy chọn thời gian nhận trong tương lai và thời gian trả sau thời gian nhận.'); return; }

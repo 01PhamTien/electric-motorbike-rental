@@ -4,6 +4,7 @@ import { User } from '../users/user.entity';
 
 @Entity('maintenance_schedules')
 @Index(['vehicleId'], { unique: true })
+@Index('IDX_maintenance_schedules_active', ['isActive', 'vehicleId'])
 export class MaintenanceSchedule {
   @PrimaryGeneratedColumn()
   id: number;

@@ -12,6 +12,7 @@ const customerNav = [
 
 const staffNav = [
   { to: '/operations', label: 'Vận hành' },
+  { to: '/my-schedule', label: 'Lịch trực của tôi' },
   { to: '/locations', label: 'Bản đồ & vị trí xe' },
   { to: '/maintenance', label: 'Bảo dưỡng' },
   { to: '/vehicle-transfers', label: 'Điều chuyển xe' },
@@ -27,6 +28,7 @@ const adminNav = [
   { to: '/admin/models', label: 'Dòng xe' },
   { to: '/admin/customers', label: 'Khách hàng' },
   { to: '/admin/staff', label: 'Nhân viên' },
+  { to: '/admin/staff-schedules', label: 'Lịch làm việc & phân ca' },
   { to: '/admin/vouchers', label: 'Voucher' },
   { to: '/admin/dashboard', label: 'Báo cáo' },
   { to: '/admin/audit-logs', label: 'Nhật ký hoạt động' },

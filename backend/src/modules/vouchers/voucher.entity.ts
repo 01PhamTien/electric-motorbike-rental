@@ -1,8 +1,12 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 export enum VoucherDiscountType { PERCENT = 'PERCENT', FIXED = 'FIXED' }
 
 @Entity('vouchers')
+@Check('CK_vouchers_discountType', "[discountType] IN ('PERCENT','FIXED')")
+@Check('CK_vouchers_discountValue', '[discountValue] > 0')
+@Check('CK_vouchers_usage', '[usageCount] >= 0 AND ([usageLimit] IS NULL OR [usageLimit] >= [usageCount])')
+@Check('CK_vouchers_dates', '[endsAt] > [startsAt]')
 @Index(['code'], { unique: true })
 export class Voucher {
   @PrimaryGeneratedColumn() id: number;

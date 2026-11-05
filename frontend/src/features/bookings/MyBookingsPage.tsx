@@ -6,14 +6,18 @@ import { api } from '../../services/api';
 type BookingStatus = 'PENDING' | 'CONFIRMED' | 'RENTING' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
 type Booking = {
   id: number; status: BookingStatus; pickupAt: string; returnAt: string;
-  rentalAmount: string; depositSnapshot: string; holdExpiresAt: string | null;
+  rentalAmount: string; depositSnapshot: string; dailyRateSnapshot?: string; holdExpiresAt: string | null;
   cancelReason?: string | null;
-  vehicle?: { code: string; model?: { brand: string; name: string }; station?: { name: string } };
+  vehicle?: { code: string; licensePlate?: string; model?: { brand: string; name: string }; station?: { name: string; address?: string; phone?: string } };
 };
+type Payment = { id:number; purpose:string; method:string; amount:string; note?:string|null; createdAt:string };
+type Handover = { id:number; kind:'PICKUP'|'RETURN'; batteryPercent:number; odometerKm:string; conditionNote:string; createdAt:string };
 const labels: Record<BookingStatus, string> = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', RENTING: 'Đang thuê', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', EXPIRED: 'Hết hạn' };
 const badge: Record<BookingStatus, string> = { PENDING: 'bg-amber-50 text-amber-700', CONFIRMED: 'bg-blue-50 text-blue-700', RENTING: 'bg-emerald-50 text-emerald-700', COMPLETED: 'bg-slate-100 text-slate-700', CANCELLED: 'bg-rose-50 text-rose-700', EXPIRED: 'bg-slate-100 text-slate-600' };
-function getError(error: unknown) { return (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Không thể thực hiện thao tác. Vui lòng thử lại.'; }
-
+function getError(error: unknown) {
+  const message = (error as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+  return Array.isArray(message) ? message.join(', ') : message || 'Không thể thực hiện thao tác. Vui lòng thử lại.';
+}
 export function MyBookingsPage() {
   const [items, setItems] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +25,11 @@ export function MyBookingsPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [filter, setFilter] = useState('ALL');
   const [params] = useSearchParams();
+  const [detail, setDetail] = useState<Booking | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [handovers, setHandovers] = useState<Handover[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
   const loggedIn = Boolean(localStorage.getItem('accessToken'));
   const load = useCallback(async () => {
     if (!loggedIn) { setLoading(false); return; }
@@ -31,6 +40,19 @@ export function MyBookingsPage() {
   }, [loggedIn]);
   useEffect(() => { void load(); }, [load]);
   const visible = filter === 'ALL' ? items : items.filter(b => b.status === filter);
+  async function openDetails(booking: Booking) {
+    setDetail(booking); setDetailLoading(true); setDetailError(''); setPayments([]); setHandovers([]);
+    const [bookingResult, paymentResult, handoverResult] = await Promise.allSettled([
+      api.get('/bookings/' + booking.id),
+      api.get('/bookings/' + booking.id + '/payments'),
+      api.get('/bookings/' + booking.id + '/handovers'),
+    ]);
+    if (bookingResult.status === 'fulfilled') setDetail(bookingResult.value.data);
+    else setDetailError(getError(bookingResult.reason));
+    if (paymentResult.status === 'fulfilled') setPayments(Array.isArray(paymentResult.value.data) ? paymentResult.value.data : paymentResult.value.data?.items ?? []);
+    if (handoverResult.status === 'fulfilled') setHandovers(Array.isArray(handoverResult.value.data) ? handoverResult.value.data : handoverResult.value.data?.items ?? []);
+    setDetailLoading(false);
+  }
   async function cancel(booking: Booking) {
     if (!window.confirm('Bạn có chắc muốn hủy đơn #' + booking.id + '?')) return;
     setBusyId(booking.id); setError('');
@@ -38,13 +60,33 @@ export function MyBookingsPage() {
     catch (err) { setError(getError(err)); }
     finally { setBusyId(null); }
   }
+  const paymentTotal = payments.filter(p=>p.purpose!=='REFUND').reduce((sum,p)=>sum+Number(p.amount),0);
+  const refundTotal = payments.filter(p=>p.purpose==='REFUND').reduce((sum,p)=>sum+Number(p.amount),0);
   return <div className="container-page py-12 sm:py-16">
-    <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="HÀNH TRÌNH CỦA TÔI" title="Quản lý đơn thuê" description="Theo dõi lịch nhận và trả xe, trạng thái đặt chỗ và chi phí trong từng chuyến đi."/><Link to="/vehicles" className="btn-dark">+ Đặt xe mới</Link></div>
-    {params.get('created') === '1' && <div role="status" className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">✓ Đặt xe thành công! Đơn của bạn đã được gửi và đang chờ xác nhận.</div>}
+    <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="HÀNH TRÌNH CỦA TÔI" title="Quản lý đơn thuê" description="Theo dõi lịch nhận và trả xe, trạng thái đặt chỗ, chi phí, giao nhận và lịch sử thanh toán trong từng chuyến đi."/><Link to="/vehicles" className="btn-dark">+ Đặt xe mới</Link></div>
+    {params.get('created') === '1' && <div role="status" className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">✓ Yêu cầu đặt xe đã được gửi. Đơn đang chờ xác nhận; chưa có khoản tiền nào được tự động thu.</div>}
     {!loggedIn ? <div className="mt-8"><EmptyState title="Đăng nhập để xem đơn thuê" description="Bạn cần đăng nhập để theo dõi đơn và lịch sử đặt xe." action={<Link className="btn-primary" to="/login?redirect=%2Fbookings%2Fmy">Đăng nhập →</Link>} /></div> : <>
       <div className="mt-8 flex flex-wrap gap-2">{[{value:'ALL',label:'Tất cả'},...Object.entries(labels).map(([value,label]) => ({value,label}))].map(item => <button key={item.value} onClick={() => setFilter(item.value)} className={'rounded-full px-4 py-2 text-xs font-bold transition ' + (filter === item.value ? 'bg-[#102f33] text-white' : 'bg-white text-slate-500 hover:bg-emerald-50')}>{item.label}</button>)}</div>
       {error && <div role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error} <button onClick={() => void load()} className="ml-2 font-bold underline">Thử lại</button></div>}
-      {loading ? <div className="mt-6"><LoadingState label="Đang tải đơn thuê..." /></div> : !visible.length ? <div className="mt-6"><EmptyState title="Chưa có đơn thuê phù hợp" description="Khám phá danh sách xe và bắt đầu hành trình mới tại Đà Nẵng." action={<Link to="/vehicles" className="btn-primary">Khám phá xe ↗</Link>} /></div> : <div className="mt-6 space-y-5">{visible.map(b => <article key={b.id} className="panel overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-6"><div><span className="text-xs font-bold uppercase tracking-widest text-slate-400">MÃ ĐƠN #{b.id}</span><h3 className="mt-2 text-xl font-extrabold">{b.vehicle?.model ? b.vehicle.model.brand + ' ' + b.vehicle.model.name : 'Xe máy điện'}</h3><p className="mt-1 text-xs text-slate-500">{b.vehicle?.code} · {b.vehicle?.station?.name}</p></div><span className={'rounded-full px-4 py-2 text-xs font-bold ' + (badge[b.status] || 'bg-slate-100')}>{labels[b.status] || b.status}</span></div><div className="grid gap-6 p-6 md:grid-cols-3"><div><p className="field-label">Nhận xe</p><p className="text-sm font-bold">{timeText(b.pickupAt)}</p></div><div><p className="field-label">Trả xe</p><p className="text-sm font-bold">{timeText(b.returnAt)}</p></div><div><p className="field-label">Tiền thuê</p><p className="text-xl font-extrabold text-emerald-700">{money(b.rentalAmount)}</p><p className="mt-1 text-xs text-slate-400">Đặt cọc: {money(b.depositSnapshot)}</p></div></div>{(b.status === 'PENDING' || b.status === 'CONFIRMED' || b.cancelReason) && <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 px-6 py-4"><p className="text-xs leading-6 text-slate-500">{b.status === 'PENDING' && b.holdExpiresAt ? 'Thời hạn giữ chỗ: ' + timeText(b.holdExpiresAt) : b.cancelReason ? 'Lý do: ' + b.cancelReason : 'Vui lòng theo dõi để nhận xe đúng lịch.'}</p>{['PENDING', 'CONFIRMED'].includes(b.status) && <button disabled={busyId === b.id} onClick={() => void cancel(b)} className="rounded-lg border border-rose-200 px-4 py-2 text-xs font-extrabold text-rose-700 hover:bg-rose-50">{busyId === b.id ? 'Đang hủy...' : 'Hủy đơn'}</button>}</div>}</article>)}</div>}
+      {loading ? <div className="mt-6"><LoadingState label="Đang tải đơn thuê..." /></div> : !visible.length ? <div className="mt-6"><EmptyState title="Chưa có đơn thuê phù hợp" description="Khám phá danh sách xe và bắt đầu hành trình mới tại Đà Nẵng." action={<Link to="/vehicles" className="btn-primary">Khám phá xe ↗</Link>} /></div> : <div className="mt-6 space-y-5">{visible.map(b => <article key={b.id} className="panel overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-6"><div><span className="text-xs font-bold uppercase tracking-widest text-slate-400">MÃ ĐƠN #{b.id}</span><h3 className="mt-2 text-xl font-extrabold">{b.vehicle?.model ? b.vehicle.model.brand + ' ' + b.vehicle.model.name : 'Xe máy điện'}</h3><p className="mt-1 text-xs text-slate-500">{b.vehicle?.code} · {b.vehicle?.station?.name}</p></div><span className={'rounded-full px-4 py-2 text-xs font-bold ' + (badge[b.status] || 'bg-slate-100')}>{labels[b.status] || b.status}</span></div>
+        <div className="grid gap-6 p-6 md:grid-cols-3"><div><p className="field-label">Nhận xe</p><p className="text-sm font-bold">{timeText(b.pickupAt)}</p></div><div><p className="field-label">Trả xe</p><p className="text-sm font-bold">{timeText(b.returnAt)}</p></div><div><p className="field-label">Tiền thuê</p><p className="text-xl font-extrabold text-emerald-700">{money(b.rentalAmount)}</p><p className="mt-1 text-xs text-slate-400">Đặt cọc: {money(b.depositSnapshot)}</p></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4"><button onClick={()=>void openDetails(b)} className="text-sm font-extrabold text-emerald-800 underline underline-offset-4">Xem chi tiết đơn →</button><div className="flex flex-wrap gap-2">{['PENDING', 'CONFIRMED'].includes(b.status) && <button disabled={busyId === b.id} onClick={() => void cancel(b)} className="rounded-lg border border-rose-200 px-4 py-2 text-xs font-extrabold text-rose-700 hover:bg-rose-50">{busyId === b.id ? 'Đang hủy...' : 'Hủy đơn'}</button>}{b.status==='RENTING'&&<button onClick={()=>void openDetails(b)} className="rounded-lg bg-amber-100 px-4 py-2 text-xs font-extrabold text-amber-900">Hỗ trợ chuyến đi</button>}</div></div>
+      </article>)}</div>}
     </>}
+    {detail && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071c21]/70 p-4 backdrop-blur-sm" onMouseDown={e=>{if(e.target===e.currentTarget)setDetail(null);}}><section role="dialog" aria-modal="true" aria-labelledby="booking-detail-title" className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-[26px] bg-white p-6 shadow-2xl sm:p-8">
+      <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">CHI TIẾT CHUYẾN THUÊ</p><h2 id="booking-detail-title" className="mt-2 text-2xl font-extrabold">Đơn thuê #{detail.id}</h2><span className={'mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold '+badge[detail.status]}>{labels[detail.status]}</span></div><button onClick={()=>setDetail(null)} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Đóng">✕</button></div>
+      {detailLoading?<div className="mt-6"><LoadingState label="Đang tải thông tin đơn..."/></div>:<>
+        {detailError&&<p role="alert" className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{detailError}</p>}
+        <div className="mt-6 rounded-2xl bg-slate-50 p-5"><h3 className="font-extrabold">Thông tin phương tiện và điểm nhận</h3><p className="mt-3 text-lg font-bold">{detail.vehicle?.model?.brand} {detail.vehicle?.model?.name}</p><p className="mt-1 text-sm text-slate-600">Mã xe: {detail.vehicle?.code} · Biển số: {detail.vehicle?.licensePlate||'—'}</p><p className="mt-3 text-sm font-bold">{detail.vehicle?.station?.name}</p><p className="mt-1 text-sm text-slate-600">{detail.vehicle?.station?.address||'—'}</p>{detail.vehicle?.station?.phone&&<p className="mt-1 text-sm text-slate-600">☎ {detail.vehicle.station.phone}</p>}</div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2"><div className="rounded-xl border border-slate-100 p-4"><p className="field-label">Thời gian nhận</p><strong>{timeText(detail.pickupAt)}</strong></div><div className="rounded-xl border border-slate-100 p-4"><p className="field-label">Thời gian trả dự kiến</p><strong>{timeText(detail.returnAt)}</strong></div></div>
+        <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><h3 className="font-extrabold">Chi phí theo đơn</h3><div className="mt-3 space-y-2 text-sm"><div className="flex justify-between"><span>Đơn giá/ngày</span><strong>{money(detail.dailyRateSnapshot)}</strong></div><div className="flex justify-between"><span>Tiền thuê</span><strong>{money(detail.rentalAmount)}</strong></div><div className="flex justify-between"><span>Tiền cọc</span><strong>{money(detail.depositSnapshot)}</strong></div><div className="flex justify-between border-t border-emerald-200 pt-3 font-extrabold"><span>Tổng dự kiến</span><strong>{money(Number(detail.rentalAmount)+Number(detail.depositSnapshot))}</strong></div></div><p className="mt-3 text-xs text-emerald-900/70">Tiền cọc được đối soát khi hoàn tất trả xe theo điều kiện thuê.</p></div>
+        {detail.holdExpiresAt&&detail.status==='PENDING'&&<p className="mt-4 text-sm text-amber-800">Giữ chỗ đến: {timeText(detail.holdExpiresAt)}</p>}
+        {detail.cancelReason&&<p className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">Lý do hủy: {detail.cancelReason}</p>}
+        <div className="mt-6"><h3 className="font-extrabold">Biên bản giao nhận xe</h3>{!handovers.length?<p className="mt-2 text-sm text-slate-500">Chưa có biên bản giao nhận.</p>:<div className="mt-3 space-y-3">{handovers.map(h=><div key={h.id} className="rounded-xl border border-slate-100 p-4"><div className="flex justify-between gap-3"><strong>{h.kind==='PICKUP'?'Lúc nhận xe':'Lúc trả xe'}</strong><span className="text-xs text-slate-500">{timeText(h.createdAt)}</span></div><p className="mt-2 text-sm text-slate-600">Pin: {h.batteryPercent}% · ODO: {h.odometerKm} km</p><p className="mt-1 text-sm text-slate-600">{h.conditionNote}</p></div>)}</div>}</div>
+        <div className="mt-6"><h3 className="font-extrabold">Thanh toán và đối soát</h3>{!payments.length?<p className="mt-2 text-sm text-slate-500">Chưa có giao dịch được nhân viên ghi nhận.</p>:<><div className="mt-3 space-y-2">{payments.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-3 rounded-xl border border-slate-100 p-3 text-sm"><div><strong>{p.purpose}</strong><p className="text-xs text-slate-500">{p.method} · {timeText(p.createdAt)}{p.note?' · '+p.note:''}</p></div><strong className={p.purpose==='REFUND'?'text-rose-600':'text-emerald-700'}>{p.purpose==='REFUND'?'-':'+'}{money(p.amount)}</strong></div>)}</div><p className="mt-3 text-sm text-slate-600">Đã thu/ghi nhận: {money(paymentTotal)} · Đã hoàn: {money(refundTotal)}</p></>}</div>
+      </>}
+      <div className="mt-7 flex flex-wrap justify-end gap-3"><Link to={'/bookings/'+detail.id+'/payments'} className="btn-outline">Mở trang giao dịch</Link><button onClick={()=>setDetail(null)} className="btn-primary">Đóng</button></div>
+    </section></div>}
   </div>;
 }

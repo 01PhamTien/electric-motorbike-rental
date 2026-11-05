@@ -12,6 +12,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { StationsModule } from './modules/stations/stations.module';
 import { UsersModule } from './modules/users/users.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { VehicleModelsModule } from './modules/vehicle-models/vehicle-models.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 
@@ -31,6 +32,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     LocationsModule,
     ReportsModule,
     CustomerCareModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

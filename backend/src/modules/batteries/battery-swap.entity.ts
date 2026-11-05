@@ -5,8 +5,8 @@ import { Vehicle } from '../vehicles/vehicle.entity';
 import { User } from '../users/user.entity';
 
 @Entity('battery_swaps')
-@Index(['stationId', 'createdAt'])
-@Index(['vehicleId', 'createdAt'])
+@Index('IDX_battery_swaps_station_date', ['stationId', 'createdAt'])
+@Index('IDX_battery_swaps_vehicle_date', ['vehicleId', 'createdAt'])
 export class BatterySwap {
   @PrimaryGeneratedColumn() id: number;
   @ManyToOne(() => Vehicle, { onDelete: 'NO ACTION' })

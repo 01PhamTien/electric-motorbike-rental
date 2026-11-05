@@ -91,6 +91,9 @@ export class TransfersService {
       const bookingConflict = await bookingRepo.createQueryBuilder('b')
         .where('b.vehicleId = :vehicleId', { vehicleId: vehicle.id })
         .andWhere('b.status IN (:...statuses)', { statuses: OPEN_BOOKINGS })
+        .andWhere('(b.status <> :pendingStatus OR b.holdExpiresAt IS NULL OR b.holdExpiresAt > :now)', {
+          pendingStatus: BookingStatus.PENDING, now: new Date(),
+        })
         .getOne();
       if (bookingConflict) throw new BadRequestException('Xe đang có đơn thuê chưa kết thúc, không thể điều chuyển');
       const maintenanceConflict = await maintenanceRepo.findOne({ where: { vehicleId: vehicle.id, status: MaintenanceStatus.SCHEDULED } });
@@ -136,7 +139,10 @@ export class TransfersService {
       if (!vehicle || vehicle.stationId !== transfer.sourceStationId) throw new BadRequestException('Xe không còn thuộc trạm đi của yêu cầu');
       if (!vehicle.isActive || vehicle.status !== VehicleStatus.ACTIVE) throw new BadRequestException('Xe không ở trạng thái sẵn sàng để bàn giao');
       const booking = await bookingRepo.createQueryBuilder('b').where('b.vehicleId = :id', { id: vehicle.id })
-        .andWhere('b.status IN (:...statuses)', { statuses: OPEN_BOOKINGS }).getOne();
+        .andWhere('b.status IN (:...statuses)', { statuses: OPEN_BOOKINGS })
+        .andWhere('(b.status <> :pendingStatus OR b.holdExpiresAt IS NULL OR b.holdExpiresAt > :now)', {
+          pendingStatus: BookingStatus.PENDING, now: new Date(),
+        }).getOne();
       if (booking) throw new BadRequestException('Xe đã phát sinh đơn thuê chưa kết thúc');
       const maintenance = await maintenanceRepo.createQueryBuilder('m').where('m.vehicleId = :id', { id: vehicle.id })
         .andWhere('m.status IN (:...statuses)', { statuses: OPEN_MAINTENANCE }).getOne();

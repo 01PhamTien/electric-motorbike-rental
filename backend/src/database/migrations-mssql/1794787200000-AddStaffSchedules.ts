@@ -25,8 +25,8 @@ export class AddStaffSchedules1794787200000 implements MigrationInterface {
         )
       `);
     }
-    await queryRunner.query("IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IDX_staff_schedules_staff_start') CREATE INDEX [IDX_staff_schedules_staff_start] ON [staff_schedules]([staffId],[startAt],[endAt]) INCLUDE ([status],[stationId])");
-    await queryRunner.query("IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IDX_staff_schedules_station_start') CREATE INDEX [IDX_staff_schedules_station_start] ON [staff_schedules]([stationId],[startAt]) INCLUDE ([status],[staffId],[endAt])");
+    await queryRunner.query("IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IDX_staff_schedules_staff_start') CREATE INDEX [IDX_staff_schedules_staff_start] ON [staff_schedules]([staffId],[startAt])");
+    await queryRunner.query("IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IDX_staff_schedules_station_start') CREATE INDEX [IDX_staff_schedules_station_start] ON [staff_schedules]([stationId],[startAt])");
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {

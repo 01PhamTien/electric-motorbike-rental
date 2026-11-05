@@ -77,9 +77,9 @@ export class VehicleTransfer {
   @Column({ type: 'nvarchar', length: 1000, nullable: true }) receiveDamageNotes: string | null;
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) receivePhotoUrls: string | null;
 
-  @CreateDateColumn({ type: 'datetime2' })
+  @CreateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime2' })
+  @UpdateDateColumn({ type: 'datetime2', default: () => 'SYSUTCDATETIME()' })
   updatedAt: Date;
 }

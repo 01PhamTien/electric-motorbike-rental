@@ -1,9 +1,10 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { DataSource, LessThanOrEqual } from 'typeorm';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from './booking-status-history.entity';
 import { Booking } from './booking.entity';
+import { VouchersService } from '../vouchers/vouchers.service';
 
 /**
  * Periodically clears expired holds even when nobody tries to book that vehicle.
@@ -16,7 +17,7 @@ export class BookingExpiryService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly dataSource: DataSource, @Optional() private readonly vouchers?: VouchersService) {}
 
   onModuleInit() {
     const interval = Number(process.env.BOOKING_EXPIRY_INTERVAL_MS || 60_000);
@@ -71,6 +72,7 @@ export class BookingExpiryService implements OnModuleInit, OnModuleDestroy {
 
           booking.status = BookingStatus.EXPIRED;
           await bookings.save(booking);
+          await this.vouchers?.release(manager, booking.id);
           await manager.getRepository(BookingStatusHistory).save({
             bookingId: booking.id,
             fromStatus: BookingStatus.PENDING,

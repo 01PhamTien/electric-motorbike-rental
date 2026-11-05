@@ -27,11 +27,20 @@ export class PaymentsService {
         return previous;
       }
       if ([BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status)) throw new BadRequestException('Đơn đã bị hủy/hết hạn');
+      const all = await repo.findBy({ bookingId });
+      const cents = (value: string | number) => Math.round(Number(value) * 100);
+      const recorded = (purpose: PaymentPurpose) => all
+        .filter(payment => payment.purpose === purpose)
+        .reduce((sum, payment) => sum + cents(payment.amount), 0);
+      const requestedCents = cents(dto.amount);
+
+      if (dto.purpose === PaymentPurpose.RENT && recorded(PaymentPurpose.RENT) + requestedCents > cents(booking.rentalAmount))
+        throw new BadRequestException('Tổng tiền thuê đã ghi nhận không được vượt quá tiền thuê của đơn');
+      if (dto.purpose === PaymentPurpose.DEPOSIT && recorded(PaymentPurpose.DEPOSIT) + requestedCents > cents(booking.depositSnapshot))
+        throw new BadRequestException('Tổng tiền cọc đã ghi nhận không được vượt quá tiền cọc của đơn');
       if (dto.purpose === PaymentPurpose.REFUND) {
-        const all = await repo.findBy({ bookingId });
-        const paidDeposit = all.filter(p => p.purpose === PaymentPurpose.DEPOSIT).reduce((s,p) => s + Number(p.amount), 0);
-        const refunded = all.filter(p => p.purpose === PaymentPurpose.REFUND).reduce((s,p) => s + Number(p.amount), 0);
-        if (dto.amount > Math.round((paidDeposit - refunded) * 100) / 100)
+        const refundableCents = recorded(PaymentPurpose.DEPOSIT) - recorded(PaymentPurpose.REFUND);
+        if (requestedCents > refundableCents)
           throw new BadRequestException('Số hoàn vượt quá số tiền cọc còn lại');
         if (booking.status !== BookingStatus.COMPLETED) throw new BadRequestException('Chỉ hoàn cọc sau khi trả xe');
       }

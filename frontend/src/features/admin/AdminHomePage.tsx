@@ -7,8 +7,11 @@ const items = [
   { to: '/admin/stations', icon: '📍', name: 'Điểm thuê', info: 'Quản lý vị trí, thông tin và trạng thái hoạt động của trạm' },
   { to: '/admin/staff', icon: '👥', name: 'Nhân viên', info: 'Phân công điểm thuê, quản lý tài khoản nhân viên' },
   { to: '/admin/customers', icon: '🪪', name: 'Khách hàng', info: 'Xem danh sách và khóa/mở khóa tài khoản khách hàng' },
+  { to: '/admin/vouchers', icon: '🎟️', name: 'Voucher & khuyến mãi', info: 'Tạo mã giảm giá, giới hạn lượt dùng và xem lịch sử áp dụng' },
   { to: '/operations', icon: '📋', name: 'Đơn thuê', info: 'Xác nhận đơn, giao xe, nhận xe trả' },
   { to: '/maintenance', icon: '🔧', name: 'Bảo dưỡng', info: 'Theo dõi bảo trì và tình trạng xe' },
+  { to: '/operating-costs', icon: '🧾', name: 'Chi phí vận hành', info: 'Ghi nhận điện sạc, vệ sinh, bảo hiểm và chi phí theo xe/trạm' },
+  { to: '/batteries', icon: '🔋', name: 'Kho pin & đổi pin', info: 'Quản lý serial pin, pin đầy, pin đang sạc và lịch sử đổi pin' },
   { to: '/locations', icon: '🧭', name: 'Vị trí xe', info: 'Theo dõi cập nhật vị trí xe' },
   { to: '/admin/dashboard', icon: '📊', name: 'Báo cáo', info: 'Theo dõi hoạt động hệ thống' },
 ] as const;

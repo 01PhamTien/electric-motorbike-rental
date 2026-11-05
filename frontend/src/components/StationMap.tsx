@@ -107,7 +107,7 @@ export function StationMap({ latitude, longitude, name, compact = false, points,
   if (!valid) return <div className="flex h-full w-full items-center justify-center bg-slate-100 p-5 text-center text-sm text-slate-500">Điểm thuê chưa có tọa độ hợp lệ.</div>;
 
   return <div className="relative h-full w-full overflow-hidden bg-[#e1eee8]">
-    <div ref={host} className="absolute inset-0" aria-label={points?.length ? 'Bản đồ tất cả điểm nhận xe' : 'Bản đồ ' + (name ?? 'điểm nhận xe')} role="region" />
+    <div ref={host} className="absolute inset-0" aria-label={points?.length ? 'Bản đồ các điểm nhận xe' : 'Bản đồ ' + (name ?? 'điểm nhận xe')} role="region" />
     {!visible && <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-emerald-50 to-sky-100 text-center text-sm text-emerald-800"><span>📍 {name}</span></div>}
     {unavailable && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-emerald-50 via-white to-sky-100 px-4 text-center">
       <span className="text-4xl" aria-hidden="true">📍</span>

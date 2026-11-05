@@ -1,17 +1,20 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from '../bookings/booking-status-history.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
+import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { Role } from '../../common/enums/role.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { HandoverDto } from './dto';
 import { HandoverKind, HandoverRecord } from './handover.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class HandoversService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly dataSource: DataSource, @Optional() private readonly notifications?: NotificationsService, @Optional() private readonly audit?: AuditService) {}
   async process(current: JwtUser, bookingId: number, kind: HandoverKind, dto: HandoverDto) {
     if (current.role !== Role.ADMIN && current.role !== Role.STAFF) throw new ForbiddenException();
     // Match the vehicle -> booking lock order used by BookingsService.
@@ -21,7 +24,7 @@ export class HandoversService {
       select: { id: true, vehicleId: true },
     });
     if (!candidate) throw new NotFoundException('Không tìm thấy đơn');
-    return this.dataSource.transaction(async manager => {
+    const outcome = await this.dataSource.transaction(async manager => {
       const vehicle = await manager.getRepository(Vehicle).findOne({
         where: { id: candidate.vehicleId },
         lock: { mode: 'pessimistic_write' },
@@ -33,6 +36,10 @@ export class HandoversService {
       });
       if (!booking) throw new NotFoundException('Không tìm thấy đơn');
       if (booking.vehicleId !== vehicle.id) throw new BadRequestException('Xe của đơn đã thay đổi, vui lòng thử lại');
+      if (kind === HandoverKind.PICKUP && vehicle.status !== VehicleStatus.ACTIVE)
+        throw new BadRequestException('Xe hiện không sẵn sàng để bàn giao');
+      if (kind === HandoverKind.PICKUP && (!vehicle.isActive || !vehicle.station?.isActive))
+        throw new BadRequestException('Xe hoặc trạm nhận hiện không hoạt động');
       if (current.role === Role.STAFF && current.stationId !== vehicle.stationId)
         throw new ForbiddenException('Đơn ngoài điểm thuê được phân công');
       const expected = kind === HandoverKind.PICKUP ? BookingStatus.CONFIRMED : BookingStatus.RENTING;
@@ -46,13 +53,25 @@ export class HandoversService {
       }
       const record = await manager.getRepository(HandoverRecord).save(manager.getRepository(HandoverRecord).create({
         bookingId, kind, batteryPercent: dto.batteryPercent, odometerKm: String(dto.odometerKm), conditionNote: dto.conditionNote, staffId: current.sub,
+        inspectionChecklist: dto.inspectionChecklist?.length ? JSON.stringify([...new Set(dto.inspectionChecklist)]) : null,
+        damageNotes: dto.damageNotes?.trim() || null,
+        photoUrls: dto.photoUrls?.length ? JSON.stringify(dto.photoUrls) : null,
       }));
       booking.status = next;
       await manager.getRepository(Booking).save(booking);
+      // A rented vehicle must not appear available for another reservation.
+      // It becomes bookable again only after the return handover is recorded.
+      vehicle.status = kind === HandoverKind.PICKUP ? VehicleStatus.INACTIVE : VehicleStatus.ACTIVE;
+      await manager.getRepository(Vehicle).save(vehicle);
       await manager.getRepository(BookingStatusHistory).save({ bookingId, fromStatus: expected, toStatus: next, performedById: current.sub,
         reason: kind === HandoverKind.PICKUP ? 'Đã giao xe' : 'Đã nhận xe trả' });
-      return { bookingId, status: next, record };
+      return { bookingId, status: next, record, customerId: booking.customerId };
     });
+    await this.audit?.record(current.sub, kind === HandoverKind.PICKUP ? 'VEHICLE_PICKED_UP' : 'VEHICLE_RETURNED', 'BOOKING', bookingId, { batteryPercent: dto.batteryPercent, odometerKm: dto.odometerKm, inspectionChecklist: dto.inspectionChecklist, damageNotes: dto.damageNotes, photoCount: dto.photoUrls?.length ?? 0 });
+    await this.notifications?.create(outcome.customerId, 'HANDOVER', kind === HandoverKind.PICKUP ? 'Đã nhận xe' : 'Đã trả xe',
+      kind === HandoverKind.PICKUP ? 'Đơn thuê #' + bookingId + ' đã được bàn giao xe.' : 'Đơn thuê #' + bookingId + ' đã hoàn tất trả xe.', bookingId);
+    const { customerId: _customerId, ...result } = outcome;
+    return result;
   }
   async list(current: JwtUser, bookingId: number) {
     const booking = await this.dataSource.getRepository(Booking).findOneBy({ id: bookingId });

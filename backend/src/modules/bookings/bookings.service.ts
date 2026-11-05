@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -9,7 +9,13 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from './booking-status-history.entity';
 import { Booking } from './booking.entity';
+import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
+import { VehicleTransfer, VehicleTransferStatus } from '../transfers/vehicle-transfer.entity';
 import { CancelBookingDto, CreateBookingDto } from './dto';
+import { VouchersService } from '../vouchers/vouchers.service';
+import { calculateCancellationFee } from './cancellation-policy';
 
 @Injectable()
 export class BookingsService {
@@ -17,6 +23,9 @@ export class BookingsService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     @InjectRepository(Booking) private readonly bookingRepo: Repository<Booking>,
+    @Optional() private readonly notifications?: NotificationsService,
+    @Optional() private readonly audit?: AuditService,
+    @Optional() private readonly vouchers?: VouchersService,
   ) {}
 
   async create(current: JwtUser, dto: CreateBookingDto) {
@@ -33,6 +42,12 @@ export class BookingsService {
       const vehicle = await vehicleRepo.findOne({ where: { id: dto.vehicleId, isActive: true }, lock: { mode: 'pessimistic_write' } });
       if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
       if (vehicle.status !== VehicleStatus.ACTIVE) throw new BadRequestException('Xe hiện không thể đặt');
+      if (!vehicle.station || !vehicle.station.isActive) throw new BadRequestException('Trạm nhận xe hiện không hoạt động. Vui lòng chọn trạm khác.');
+      const transferInProgress = await manager.getRepository(VehicleTransfer).createQueryBuilder('t')
+        .where('t.vehicleId = :vehicleId', { vehicleId: vehicle.id })
+        .andWhere('t.status IN (:...statuses)', { statuses: [VehicleTransferStatus.PENDING, VehicleTransferStatus.IN_TRANSIT] })
+        .getOne();
+      if (transferInProgress) throw new BadRequestException('Xe đang trong quy trình điều chuyển, vui lòng chọn xe khác.');
 
       // Release expired holds while holding the vehicle row lock, so another
       // booking request cannot race with the cleanup for this vehicle.
@@ -47,6 +62,7 @@ export class BookingsService {
       for (const hold of expiredHolds) {
         hold.status = BookingStatus.EXPIRED;
         await bookingRepo.save(hold);
+        await this.vouchers?.release(manager, hold.id);
         await historyRepo.save(historyRepo.create({
           bookingId: hold.id,
           fromStatus: BookingStatus.PENDING,
@@ -80,6 +96,10 @@ export class BookingsService {
         dailyRateSnapshot: vehicle.dailyRate,
         depositSnapshot: vehicle.depositAmount,
         rentalAmount: String(rentalAmount),
+        baseRentalAmount: String(rentalAmount),
+        discountAmount: '0.00',
+        voucherId: null,
+        voucherCodeSnapshot: null,
         holdExpiresAt,
         status: BookingStatus.PENDING,
       }));
@@ -91,8 +111,93 @@ export class BookingsService {
         performedById: current.sub,
         reason: 'Tạo đơn thuê',
       }));
-      return bookingRepo.findOne({ where: { id: booking.id } });
+      if (dto.voucherCode?.trim()) {
+        if (!this.vouchers) throw new BadRequestException('Chức năng voucher hiện chưa sẵn sàng');
+        const applied = await this.vouchers.redeem(manager, current.sub, booking.id, dto.voucherCode, rentalAmount);
+        booking.rentalAmount = applied.finalRentalAmount;
+        booking.discountAmount = applied.discountAmount;
+        booking.voucherId = applied.voucherId;
+        booking.voucherCodeSnapshot = applied.voucherCode;
+        await bookingRepo.save(booking);
+      }
+
+      const created = await bookingRepo.findOne({ where: { id: booking.id } });
+      await this.audit?.record(current.sub, 'BOOKING_CREATED', 'BOOKING', booking.id, { status: booking.status, vehicleId: vehicle.id });
+      await this.notifications?.create(current.sub, 'BOOKING_CREATED', 'Đặt xe thành công', 'Đơn thuê #' + booking.id + ' đã được tạo và đang chờ xác nhận.', booking.id);
+      return created;
     });
+  }
+
+
+  async listCalendar(current: JwtUser, fromInput: string, toInput: string) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    if (current.role === Role.STAFF && current.stationId == null) throw new ForbiddenException('Nhân viên chưa được phân công trạm');
+    const datePattern = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+    if (!datePattern.test(fromInput) || !datePattern.test(toInput)) {
+      throw new BadRequestException('Ngày bắt đầu và kết thúc phải theo định dạng YYYY-MM-DD');
+    }
+    const parseDate = (value: string, endOfDay = false) => {
+      const [year, month, day] = value.split('-').map(Number);
+      const date = new Date(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+      return date;
+    };
+    const from = parseDate(fromInput);
+    const to = parseDate(toInput, true);
+    if (!from || !to || to < from) {
+      throw new BadRequestException('Khoảng thời gian lịch không hợp lệ');
+    }
+    if (to.getTime() - from.getTime() > 31 * 86_400_000) {
+      throw new BadRequestException('Mỗi lần chỉ xem lịch tối đa 31 ngày');
+    }
+
+    const bookingQb = this.bookingRepo.createQueryBuilder('b')
+      .leftJoinAndSelect('b.vehicle', 'vehicle')
+      .leftJoinAndSelect('vehicle.station', 'station')
+      .leftJoinAndSelect('vehicle.model', 'model')
+      .leftJoinAndSelect('b.customer', 'customer')
+      .where('b.pickupAt <= :to AND b.returnAt >= :from', { from, to })
+      .andWhere('b.status IN (:...statuses)', { statuses: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.RENTING] })
+      .orderBy('b.pickupAt', 'ASC');
+    if (current.role === Role.STAFF) bookingQb.andWhere('vehicle.stationId = :stationId', { stationId: current.stationId });
+    const bookings = await bookingQb.getMany();
+
+    const maintenanceRepo = this.bookingRepo.manager.getRepository(MaintenanceRecord);
+    const maintenanceQb = maintenanceRepo.createQueryBuilder('m')
+      .innerJoin('vehicles', 'v', 'v.id = m.vehicleId')
+      .leftJoin('stations', 'st', 'st.id = v.stationId')
+      .leftJoin('vehicle_models', 'vm', 'vm.id = v.modelId')
+      .select('m.id', 'id')
+      .addSelect('m.vehicleId', 'vehicleId')
+      .addSelect('m.reason', 'reason')
+      .addSelect('m.status', 'status')
+      .addSelect('m.scheduledAt', 'scheduledAt')
+      .addSelect('m.completedAt', 'completedAt')
+      .addSelect('v.code', 'vehicleCode')
+      .addSelect('st.name', 'stationName')
+      .addSelect('vm.brand', 'brand')
+      .addSelect('vm.name', 'modelName')
+      .where('m.scheduledAt >= :from AND m.scheduledAt <= :to', { from, to })
+      .andWhere('m.status IN (:...statuses)', { statuses: [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS] })
+      .orderBy('m.scheduledAt', 'ASC');
+    if (current.role === Role.STAFF) maintenanceQb.andWhere('v.stationId = :stationId', { stationId: current.stationId });
+    const maintenance = await maintenanceQb.getRawMany();
+
+    return [
+      ...bookings.map(b => ({
+        type: 'BOOKING' as const, id: b.id, vehicleId: b.vehicleId,
+        vehicleCode: b.vehicle?.code ?? '', model: b.vehicle?.model?.brand + ' ' + b.vehicle?.model?.name,
+        stationName: b.vehicle?.station?.name ?? '', customerName: b.customer?.fullName ?? '',
+        title: 'Đơn thuê #' + b.id, status: b.status, start: b.pickupAt, end: b.returnAt,
+      })),
+      ...maintenance.map(m => ({
+        type: 'MAINTENANCE' as const, id: m.id, vehicleId: m.vehicleId,
+        vehicleCode: m.vehicleCode ?? '',
+        model: [m.brand, m.modelName].filter(Boolean).join(' '),
+        stationName: m.stationName ?? '',
+        customerName: '', title: m.reason, status: m.status, start: m.scheduledAt, end: m.completedAt,
+      })),
+    ].sort((a, b) => (a.start instanceof Date ? a.start.getTime() : new Date(a.start).getTime()) - (b.start instanceof Date ? b.start.getTime() : new Date(b.start).getTime()));
   }
 
   async listForOperations(current: JwtUser) {
@@ -122,7 +227,13 @@ export class BookingsService {
 
   async cancel(current: JwtUser, id: number, dto: CancelBookingDto) {
     return this.transition(current, id, [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-      BookingStatus.CANCELLED, dto.reason || 'Hủy đơn', dto.reason || null);
+      BookingStatus.CANCELLED, dto.reason || 'Hủy đơn', dto.reason || null, current.role === Role.CUSTOMER ? 'CUSTOMER_CANCELLED' : 'STAFF_CANCELLED');
+  }
+
+  async markNoShow(current: JwtUser, id: number) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    return this.transition(current, id, [BookingStatus.CONFIRMED], BookingStatus.CANCELLED,
+      'Khách không đến nhận xe (No-show)', 'Khách không đến nhận xe', 'NO_SHOW');
   }
 
   private async changeStatus(current: JwtUser, id: number, expected: BookingStatus, next: BookingStatus, reason: string) {
@@ -137,6 +248,7 @@ export class BookingsService {
     next: BookingStatus,
     reason: string,
     cancelReason?: string | null,
+    cancellationType?: 'CUSTOMER_CANCELLED' | 'STAFF_CANCELLED' | 'NO_SHOW',
   ) {
     // All booking writers acquire the vehicle lock first, matching create().
     // This serializes booking transitions with expiry cleanup and availability checks.
@@ -168,9 +280,18 @@ export class BookingsService {
       const fromStatus = booking.status;
       booking.status = isExpired ? BookingStatus.EXPIRED : next;
       if (!isExpired && next === BookingStatus.CANCELLED) {
+        booking.cancellationFeeAmount = calculateCancellationFee({
+          type: cancellationType ?? 'STAFF_CANCELLED',
+          bookingStatus: booking.status,
+          rentalAmount: booking.rentalAmount,
+          depositAmount: booking.depositSnapshot,
+          pickupAt: booking.pickupAt,
+        }).toFixed(2);
+        booking.cancellationType = cancellationType ?? 'STAFF_CANCELLED';
         booking.cancelReason = cancelReason ?? null;
       }
       const saved = await bookings.save(booking);
+      if (isExpired || (next === BookingStatus.CANCELLED && cancellationType !== 'NO_SHOW')) await this.vouchers?.release(manager, id);
       await manager.getRepository(BookingStatusHistory).save({
         bookingId: id,
         fromStatus,
@@ -180,6 +301,13 @@ export class BookingsService {
       });
       return { saved, isExpired };
     });
+    const statusText: Record<BookingStatus, string> = {
+      [BookingStatus.PENDING]: 'đang chờ xác nhận', [BookingStatus.CONFIRMED]: 'đã được xác nhận',
+      [BookingStatus.RENTING]: 'đang thuê', [BookingStatus.COMPLETED]: 'đã hoàn tất',
+      [BookingStatus.CANCELLED]: 'đã bị hủy', [BookingStatus.EXPIRED]: 'đã hết thời hạn giữ chỗ',
+    };
+    await this.audit?.record(current.sub, 'BOOKING_STATUS_CHANGED', 'BOOKING', id, { status: result.saved.status, expired: result.isExpired });
+    await this.notifications?.create(result.saved.customerId, 'BOOKING_STATUS', 'Cập nhật đơn thuê', 'Đơn thuê #' + id + ' ' + statusText[result.saved.status] + '.', id);
     if (result.isExpired) throw new BadRequestException('Đơn đã hết thời hạn giữ chỗ');
     return result.saved;
   }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -24,6 +24,12 @@ export class BookingsController {
   @Roles(Role.CUSTOMER)
   my(@CurrentUser() user: JwtUser) { return this.service.myBookings(user); }
 
+  @Get('calendar')
+  @Roles(Role.ADMIN, Role.STAFF)
+  calendar(@CurrentUser() user: JwtUser, @Query('from') from: string, @Query('to') to: string) {
+    return this.service.listCalendar(user, from, to);
+  }
+
   @Get('operations')
   @Roles(Role.ADMIN, Role.STAFF)
   operations(@CurrentUser() user: JwtUser) { return this.service.listForOperations(user); }
@@ -38,5 +44,11 @@ export class BookingsController {
   @Patch(':id/cancel')
   cancel(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: CancelBookingDto) {
     return this.service.cancel(user, id, dto);
+  }
+
+  @Patch(':id/no-show')
+  @Roles(Role.ADMIN, Role.STAFF)
+  noShow(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.service.markNoShow(user, id);
   }
 }

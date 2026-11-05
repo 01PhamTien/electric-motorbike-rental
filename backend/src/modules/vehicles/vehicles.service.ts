@@ -5,6 +5,7 @@ import { Vehicle } from './vehicle.entity';
 import { VehicleModel } from '../vehicle-models/vehicle-model.entity';
 import { Station } from '../stations/station.entity';
 import { CreateVehicleDto, UpdateVehicleDto } from './dto';
+import { VehicleTransfer, VehicleTransferStatus } from '../transfers/vehicle-transfer.entity';
 
 @Injectable()
 export class VehiclesService {
@@ -24,7 +25,15 @@ export class VehiclesService {
   }
 
   findAll(stationId?: number) {
-    return this.repo.find({ where: stationId ? { stationId, isActive: true } : { isActive: true }, order: { id: 'DESC' } });
+    const qb = this.repo.createQueryBuilder('vehicle')
+      .where('vehicle.isActive = :active', { active: true })
+      .andWhere(qb => 'NOT EXISTS ' + qb.subQuery().select('1').from(VehicleTransfer, 'transfer')
+        .where('transfer.vehicleId = vehicle.id')
+        .andWhere('transfer.status IN (:...transferStatuses)')
+        .getQuery(), { transferStatuses: [VehicleTransferStatus.PENDING, VehicleTransferStatus.IN_TRANSIT] })
+      .orderBy('vehicle.id', 'DESC');
+    if (stationId) qb.andWhere('vehicle.stationId = :stationId', { stationId });
+    return qb.getMany();
   }
 
   async findOne(id: number) {
@@ -44,6 +53,9 @@ export class VehiclesService {
 
   async update(id: number, dto: UpdateVehicleDto) {
     const vehicle = await this.findOne(id);
+    if (dto.stationId !== undefined && dto.stationId !== vehicle.stationId) {
+      throw new BadRequestException('Không đổi trạm trực tiếp trong hồ sơ xe. Hãy sử dụng chức năng điều chuyển để lưu đầy đủ lịch sử bàn giao.');
+    }
     await this.validateReferences(dto.modelId ?? vehicle.modelId, dto.stationId ?? vehicle.stationId);
     Object.assign(vehicle, {
       ...dto,

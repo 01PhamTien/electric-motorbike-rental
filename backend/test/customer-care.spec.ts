@@ -14,6 +14,17 @@ function fixture(status: BookingStatus = BookingStatus.COMPLETED) {
   const reviews = {
     exist: async ({where}:{where:{bookingId:number}}) => reviewRows.some(x=>x.bookingId===where.bookingId),
     find: async () => reviewRows,
+    createQueryBuilder: () => ({
+      select() { return this; },
+      addSelect() { return this; },
+      where() { return this; },
+      getRawOne: async () => ({
+        total: String(reviewRows.length),
+        averageRating: reviewRows.length
+          ? String(reviewRows.reduce((sum, row) => sum + row.rating, 0) / reviewRows.length)
+          : null,
+      }),
+    }),
     findOne: async ({where}:{where:{bookingId:number}}) => reviewRows.find(x=>x.bookingId===where.bookingId) ?? null,
     create: (x:any) => x,
     save: async (x:any) => {const row={id:reviewRows.length+1,...x,createdAt:new Date()};reviewRows.push(row);return row;},
@@ -60,4 +71,17 @@ test('staff must provide a resolution note and may only update issues at their s
   const updated=await service.updateIssue(staff,2,{status:BookingIssueStatus.RESOLVED,resolutionNote:'Đã điều phối xe cứu hộ'} as never);
   assert.equal(updated.status,BookingIssueStatus.RESOLVED);
   await assert.rejects(()=>service.updateIssue({...staff,stationId:4},2,{status:BookingIssueStatus.IN_PROGRESS} as never),/Forbidden/);
+});
+
+test('vehicle review summary returns an aggregate rating and count independently of the displayed page', async () => {
+  const {service,reviewRows}=fixture();
+  reviewRows.push(
+    {id:1,vehicleId:9,rating:5,createdAt:new Date()},
+    {id:2,vehicleId:9,rating:3,createdAt:new Date()},
+    {id:3,vehicleId:9,rating:4,createdAt:new Date()},
+  );
+  const summary=await service.listVehicleReviews(9);
+  assert.equal(summary.total,3);
+  assert.equal(summary.averageRating,4);
+  assert.equal(summary.items.length,3);
 });

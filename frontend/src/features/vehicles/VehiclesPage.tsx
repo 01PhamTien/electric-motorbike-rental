@@ -36,6 +36,10 @@ export function VehiclesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucherPreview, setVoucherPreview] = useState<{code:string;baseRentalAmount:string;discountAmount:string;finalRentalAmount:string}|null>(null);
+  const [voucherMessage, setVoucherMessage] = useState('');
+  const [voucherBusy, setVoucherBusy] = useState(false);
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -57,17 +61,17 @@ export function VehiclesPage() {
 
   const stations = useMemo(() => {
     const unique = new Map<number, {id:number;name:string}>();
-    items.forEach(v => { if (v.station) unique.set(v.station.id, {id:v.station.id,name:v.station.name}); });
+    items.forEach(v => { if (v.station && v.station.isActive !== false) unique.set(v.station.id, {id:v.station.id,name:v.station.name}); });
     return [...unique.values()].sort((a,b) => a.name.localeCompare(b.name));
   }, [items]);
   const filtered = useMemo(() => items.filter(v => {
     const name = [v.model?.brand, v.model?.name, v.code, v.licensePlate].join(' ').toLowerCase();
-    return name.includes(query.trim().toLowerCase()) && (!station || v.station?.name === station) && (availability !== 'ready' || v.status === 'ACTIVE');
+    return v.station?.isActive !== false && name.includes(query.trim().toLowerCase()) && (!station || v.station?.name === station) && (availability !== 'ready' || v.status === 'ACTIVE');
   }), [items, query, station, availability]);
-  const availableAtSelectedStation = useMemo(() => items.filter(v => v.station?.id === selectedStationId && v.status === 'ACTIVE'), [items, selectedStationId]);
+  const availableAtSelectedStation = useMemo(() => items.filter(v => v.station?.id === selectedStationId && v.station?.isActive !== false && v.status === 'ACTIVE'), [items, selectedStationId]);
   const activeCountAtStation = (stationId: number) => items.filter(v => v.station?.id === stationId && v.status === 'ACTIVE').length;
   const closeBooking = () => {
-    setSelected(null); setBookingError(''); setAcceptedTerms(false);
+    setSelected(null); setBookingError(''); setAcceptedTerms(false); setVoucherCode(''); setVoucherPreview(null); setVoucherMessage('');
     if (params.has('vehicle')) { params.delete('vehicle'); setParams(params, { replace: true }); }
   };
   async function openDetails(vehicle: Vehicle) {
@@ -81,24 +85,43 @@ export function VehiclesPage() {
     setSelectedStationId(vehicle.station?.id ?? '');
     setBookingError('');
     setAcceptedTerms(false);
+    setVoucherCode(''); setVoucherPreview(null); setVoucherMessage('');
     setDetails(null);
   }
   const estimatedDays = Math.max(0, Math.ceil((new Date(returnDate).getTime() - new Date(pickup).getTime()) / 86_400_000));
   const rentalTotal = estimatedDays * Number(selected?.dailyRate ?? 0);
   const deposit = Number(selected?.depositAmount ?? 0);
-  const initialDue = rentalTotal + deposit;
+  const activeVoucher = voucherPreview && voucherPreview.code === voucherCode.trim().toUpperCase() && Number(voucherPreview.baseRentalAmount) === rentalTotal ? voucherPreview : null;
+  const discountedRentalTotal = activeVoucher ? Number(activeVoucher.finalRentalAmount) : rentalTotal;
+  const initialDue = discountedRentalTotal + deposit;
   const validPeriod = new Date(pickup).getTime() > Date.now() && new Date(returnDate).getTime() > new Date(pickup).getTime();
+
+
+  async function previewVoucher() {
+    if (!voucherCode.trim()) { setVoucherMessage('Vui lòng nhập mã voucher.'); return; }
+    if (!validPeriod || estimatedDays < 1) { setVoucherMessage('Hãy chọn thời gian thuê hợp lệ trước khi áp dụng voucher.'); return; }
+    setVoucherBusy(true); setVoucherMessage(''); setVoucherPreview(null);
+    try {
+      const { data } = await api.post('/vouchers/preview', { code: voucherCode.trim(), rentalAmount: rentalTotal });
+      setVoucherPreview(data);
+      setVoucherCode(data.code);
+      setVoucherMessage('Áp dụng thành công. Bạn tiết kiệm ' + money(data.discountAmount) + '.');
+    } catch (err) { setVoucherMessage(errorMessage(err)); }
+    finally { setVoucherBusy(false); }
+  }
 
   async function book(event: React.FormEvent) {
     event.preventDefault();
     if (!selected || submitting || authLoading) return;
+    if (selected.station?.isActive === false) { setBookingError('Trạm nhận xe hiện không hoạt động. Vui lòng chọn trạm khác.'); return; }
     if (isOperator) { setBookingError('Chỉ tài khoản khách hàng (CUSTOMER) được tạo đơn thuê. Hãy đăng xuất và đăng nhập tài khoản khách hàng để đặt xe.'); return; }
     if (!user || !localStorage.getItem('accessToken')) { navigate('/login?redirect=' + encodeURIComponent('/vehicles?vehicle=' + selected.id)); return; }
     if (!validPeriod || estimatedDays < 1) { setBookingError('Hãy chọn thời gian nhận trong tương lai và thời gian trả sau thời gian nhận.'); return; }
     if (!acceptedTerms) { setBookingError('Vui lòng xác nhận đã đọc thông tin chi phí và điều kiện đặt xe.'); return; }
     setSubmitting(true); setBookingError('');
     try {
-      await api.post('/bookings', { vehicleId: selected.id, pickupAt: new Date(pickup).toISOString(), returnAt: new Date(returnDate).toISOString() });
+      if (voucherCode.trim() && !activeVoucher) { setBookingError('Voucher chưa được kiểm tra cho mức tiền thuê hiện tại. Vui lòng áp dụng lại hoặc xóa mã.'); return; }
+      await api.post('/bookings', { vehicleId: selected.id, pickupAt: new Date(pickup).toISOString(), returnAt: new Date(returnDate).toISOString(), ...(activeVoucher ? { voucherCode: activeVoucher.code } : {}) });
       navigate('/bookings/my?created=1');
     } catch (err) { setBookingError(errorMessage(err)); }
     finally { setSubmitting(false); }
@@ -120,7 +143,7 @@ export function VehiclesPage() {
 
     {details && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071c21]/70 p-4 backdrop-blur-sm" onMouseDown={e => {if(e.target===e.currentTarget)setDetails(null);}}><section role="dialog" aria-modal="true" aria-labelledby="vehicle-detail-title" className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-[26px] bg-white p-6 shadow-2xl sm:p-8">
       <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">HỒ SƠ PHƯƠNG TIỆN</p><h2 id="vehicle-detail-title" className="mt-2 text-2xl font-extrabold">{details.model?.brand} {details.model?.name}</h2><p className="mt-2 text-sm text-slate-500">{details.code} · {details.station?.name}</p></div><button onClick={()=>setDetails(null)} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Đóng">✕</button></div>
-      <div className="mt-6 grid gap-6 md:grid-cols-[.9fr_1.1fr]"><div className="vehicle-art flex min-h-56 items-center justify-center overflow-hidden rounded-2xl p-4"><ModelPhoto url={details.model?.imageUrl} alt={details.model?.name ?? 'Xe điện'}/></div><div><h3 className="text-lg font-extrabold">Thông tin xe</h3><div className="mt-4 grid grid-cols-2 gap-3 text-sm"><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Hãng</p><strong>{details.model?.brand}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Mã xe</p><strong>{details.code}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Giá thuê/ngày</p><strong>{money(details.dailyRate)}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Tiền cọc</p><strong>{money(details.depositAmount)}</strong></div></div><p className="mt-4 text-sm leading-6 text-slate-600">Điểm nhận: {details.station?.name}. Tình trạng: {details.status === 'ACTIVE' ? 'Sẵn sàng' : details.status}.</p></div></div>
+      <div className="mt-6 grid gap-6 md:grid-cols-[.9fr_1.1fr]"><div className="vehicle-art flex min-h-56 items-center justify-center overflow-hidden rounded-2xl p-4"><ModelPhoto url={details.model?.imageUrl} alt={details.model?.name ?? 'Xe điện'}/></div><div><h3 className="text-lg font-extrabold">Thông tin xe</h3><div className="mt-4 grid grid-cols-2 gap-3 text-sm"><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Hãng</p><strong>{details.model?.brand}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Mã xe</p><strong>{details.code}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Biển số</p><strong>{details.licensePlate || 'Chưa cập nhật'}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Trạng thái</p><strong>{details.status === 'ACTIVE' ? 'Sẵn sàng' : details.status === 'CHARGING' ? 'Đang sạc' : details.status === 'MAINTENANCE' ? 'Bảo dưỡng' : 'Ngừng hoạt động'}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Giá thuê/ngày</p><strong>{money(details.dailyRate)}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Tiền cọc</p><strong>{money(details.depositAmount)}</strong></div></div><p className="mt-4 text-sm leading-6 text-slate-600">Điểm nhận: {details.station?.name}. Tình trạng: {details.status === 'ACTIVE' ? 'Sẵn sàng' : details.status}.</p></div></div>
       <div className="mt-7"><h3 className="text-lg font-extrabold">Thông số kỹ thuật và mô tả</h3><div className="mt-3 whitespace-pre-line rounded-2xl bg-slate-50 p-5 text-sm leading-7 text-slate-700">{details.model?.specifications || 'Thông số và mô tả chi tiết của mẫu xe đang được cập nhật.'}</div></div>
       <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-extrabold text-amber-950">Đánh giá từ khách đã thuê</h3><strong className="text-amber-900">{reviewSummary.averageRating===null?"Chưa có đánh giá":"★ "+reviewSummary.averageRating+"/5"} · {reviewSummary.total} lượt</strong></div>{reviewsLoading?<p className="mt-3 text-sm text-amber-800">Đang tải đánh giá...</p>:!reviews.length?<p className="mt-3 text-sm leading-6 text-amber-800">Chưa có đánh giá xác thực. Chỉ khách đã hoàn thành chuyến thuê mới được gửi đánh giá.</p>:<div className="mt-4 space-y-3">{reviews.map(review=><div key={review.id} className="rounded-xl bg-white/80 p-3"><div className="flex justify-between gap-3"><strong className="text-sm">{review.customer?.fullName||"Khách hàng VoltGo"}</strong><span className="text-amber-600">{"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}</span></div>{review.comment&&<p className="mt-2 text-sm leading-6 text-slate-700">{review.comment}</p>}<p className="mt-1 text-xs text-slate-400">{new Date(review.createdAt).toLocaleDateString("vi-VN")}</p></div>)}</div>}</div>
       <div className="mt-7 flex flex-wrap justify-end gap-3"><button className="btn-outline" onClick={()=>setDetails(null)}>Đóng</button><button disabled={details.status!=='ACTIVE'||isOperator||authLoading} className="btn-primary" onClick={()=>openBooking(details)}>Chọn xe này →</button></div>
@@ -130,15 +153,16 @@ export function VehiclesPage() {
       <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">XÁC NHẬN YÊU CẦU THUÊ XE</p><h2 id="booking-title" className="mt-2 text-2xl font-extrabold">{selected.model?.brand} {selected.model?.name}</h2><p className="mt-2 text-sm text-slate-500">{selected.code}</p></div><button className="rounded-lg bg-slate-100 px-3 py-2 text-slate-600" onClick={closeBooking} aria-label="Đóng">✕</button></div>
       <form onSubmit={book} className="mt-6 space-y-5">
         <div className="grid gap-4 sm:grid-cols-2"><div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-3"><div className="h-20 w-24 shrink-0"><ModelPhoto url={selected.model?.imageUrl} alt={selected.model?.name ?? 'Xe điện'}/></div><div><p className="font-extrabold">{selected.model?.name}</p><p className="mt-1 text-xs text-slate-500">{selected.code}</p><p className="mt-1 text-xs font-bold text-emerald-700">{money(selected.dailyRate)}/ngày</p></div></div>
-          <label><span className="field-label">Trạm nhận xe</span><select required className="field" value={selectedStationId} onChange={e=>{const id=Number(e.target.value);setSelectedStationId(id);const first=items.find(v=>v.station?.id===id&&v.status==='ACTIVE');if(first)setSelected(first);}}>{stations.map(s=>{const count=activeCountAtStation(s.id);return <option key={s.id} value={s.id} disabled={count===0}>{s.name} · {count} xe sẵn sàng</option>;})}</select><span className="mt-1 block text-xs text-slate-500">Chỉ chọn được trạm đang có xe sẵn sàng. Số lượng xe được cập nhật từ danh sách xe hiện tại.</span></label>
+          <label><span className="field-label">Trạm nhận xe</span><select required className="field" value={selectedStationId} onChange={e=>{const id=Number(e.target.value);setSelectedStationId(id);const first=items.find(v=>v.station?.id===id&&v.station?.isActive!==false&&v.status==='ACTIVE');if(first)setSelected(first);}}>{stations.map(s=>{const count=activeCountAtStation(s.id);return <option key={s.id} value={s.id} disabled={count===0}>{s.name} · {count} xe sẵn sàng</option>;})}</select><span className="mt-1 block text-xs text-slate-500">Chỉ chọn được trạm đang có xe sẵn sàng. Số lượng xe được cập nhật từ danh sách xe hiện tại.</span></label>
         </div>
         <label><span className="field-label">Xe tại trạm đã chọn</span><select className="field" value={selected.id} onChange={e=>{const vehicle=availableAtSelectedStation.find(v=>v.id===Number(e.target.value));if(vehicle)setSelected(vehicle);}}>{availableAtSelectedStation.map(v=><option key={v.id} value={v.id}>{v.model?.brand} {v.model?.name} · {v.code} · {money(v.dailyRate)}/ngày</option>)}</select>{!availableAtSelectedStation.length&&<span className="mt-1 block text-xs text-rose-600">Trạm này hiện chưa có xe sẵn sàng.</span>}</label>
         <div className="grid gap-4 sm:grid-cols-2"><label><span className="field-label">Ngày giờ nhận xe</span><input type="datetime-local" required min={localDateTime(0)} className="field" value={pickup} onChange={e=>setPickup(e.target.value)}/></label><label><span className="field-label">Ngày giờ trả xe</span><input type="datetime-local" required min={pickup} className="field" value={returnDate} onChange={e=>setReturnDate(e.target.value)}/></label></div>
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
           <h3 className="font-extrabold text-emerald-950">Bảng kê chi phí dự kiến</h3>
-          <div className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3 text-slate-700"><span>{money(selected.dailyRate)} × {estimatedDays} ngày</span><strong>{money(rentalTotal)}</strong></div><div className="flex justify-between gap-3 text-slate-700"><span>Tiền cọc (hoàn lại theo điều kiện thuê)</span><strong>{money(deposit)}</strong></div><div className="flex justify-between gap-3 border-t border-emerald-200 pt-3 text-base font-extrabold text-emerald-950"><span>Tổng dự kiến cần chuẩn bị</span><strong>{money(initialDue)}</strong></div></div>
+          <div className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3 text-slate-700"><span>{money(selected.dailyRate)} × {estimatedDays} ngày</span><strong>{money(rentalTotal)}</strong></div>{activeVoucher&&<div className="flex justify-between gap-3 text-emerald-800"><span>Voucher {activeVoucher.code}</span><strong>− {money(activeVoucher.discountAmount)}</strong></div>}<div className="flex justify-between gap-3 text-slate-700"><span>Tiền thuê sau giảm</span><strong>{money(discountedRentalTotal)}</strong></div><div className="flex justify-between gap-3 text-slate-700"><span>Tiền cọc (hoàn lại theo điều kiện thuê)</span><strong>{money(deposit)}</strong></div><div className="flex justify-between gap-3 border-t border-emerald-200 pt-3 text-base font-extrabold text-emerald-950"><span>Tổng dự kiến cần chuẩn bị</span><strong>{money(initialDue)}</strong></div></div>
           <p className="mt-3 text-xs leading-5 text-emerald-900/75">Tổng trên gồm tiền thuê và tiền cọc, không phải khoản đã thu. Cọc được đối soát khi trả xe theo tình trạng xe và điều khoản thuê. Phụ phí (nếu có) phải được thông báo và xác nhận riêng.</p>
         </div>
+        <div className="rounded-2xl border border-emerald-100 bg-white p-4"><label><span className="field-label">Mã ưu đãi / Voucher</span><div className="mt-1 flex flex-wrap gap-2"><input maxLength={40} className="field min-w-0 flex-1 uppercase" value={voucherCode} onChange={e=>{setVoucherCode(e.target.value.toUpperCase());setVoucherPreview(null);setVoucherMessage('');}} placeholder="Nhập mã voucher"/><button type="button" disabled={voucherBusy||!voucherCode.trim()||!validPeriod} onClick={()=>void previewVoucher()} className="btn-dark">{voucherBusy?'Đang kiểm tra...':'Áp dụng'}</button></div></label>{voucherMessage&&<p role="status" className={'mt-2 text-xs '+(activeVoucher?'text-emerald-700':'text-rose-700')}>{voucherMessage}</p>}{activeVoucher&&<button type="button" onClick={()=>{setVoucherCode('');setVoucherPreview(null);setVoucherMessage('Đã bỏ voucher.');}} className="mt-2 text-xs font-bold text-slate-500 underline">Bỏ mã giảm giá</button>}</div>
         <div className="rounded-xl border border-sky-100 bg-sky-50 p-4 text-sm leading-6 text-sky-900"><strong>Thanh toán:</strong> Hiện VoltGo ghi nhận thanh toán tại quầy bởi nhân viên. Website chưa kết nối cổng thanh toán trực tuyến, nên thao tác này chỉ gửi yêu cầu đặt xe; chưa trừ tiền hoặc thu tiền cọc.</div>
         <label className="flex items-start gap-3 text-sm leading-6 text-slate-600"><input type="checkbox" className="mt-1" checked={acceptedTerms} onChange={e=>setAcceptedTerms(e.target.checked)}/><span>Tôi đã kiểm tra thông tin xe, trạm nhận, thời gian và bảng kê chi phí dự kiến trước khi gửi yêu cầu.</span></label>
         {bookingError && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{bookingError}</p>}

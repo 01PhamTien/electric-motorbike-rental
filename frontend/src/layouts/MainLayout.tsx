@@ -64,7 +64,7 @@ export function MainLayout() {
         <button className="rounded-xl border border-slate-200 p-3 text-xl lg:hidden" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? '✕' : '☰'}</button>
       </div>
       {menuOpen && <div className="border-t border-slate-100 bg-white px-5 py-4 lg:hidden"><nav aria-label="Điều hướng di động" className="container-page flex flex-col gap-1">
-        {visibleNav.map(item => <NavLink key={item.to} to={item.to} end={'end' in item ? item.end : false} onClick={closeMenu} className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50">{item.label}</NavLink>)}
+        {visibleNav.map(item => <NavLink key={item.to} to={item.to} end={Boolean('end' in item && item.end)} onClick={closeMenu} className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50">{item.label}</NavLink>)}
         {loggedIn && <><Link to="/notifications" onClick={closeMenu} className="rounded-xl px-4 py-3 text-sm text-slate-700">Thông báo</Link><Link to="/profile" onClick={closeMenu} className="rounded-xl px-4 py-3 text-sm text-slate-700">Tài khoản</Link></>}
         {loading ? <span className="p-3 text-xs text-slate-400">Đang tải...</span> : loggedIn ? <button onClick={logout} className="btn-outline mt-2">Đăng xuất</button> : <Link to="/login" onClick={closeMenu} className="btn-primary mt-2">Đăng nhập</Link>}
       </nav></div>}

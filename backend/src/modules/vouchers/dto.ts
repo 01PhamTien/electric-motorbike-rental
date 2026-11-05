@@ -29,3 +29,8 @@ export class UpdateVoucherDto {
   @IsOptional() @IsBoolean() isActive?: boolean;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
 }
+
+export class PreviewVoucherDto {
+  @IsString() @MaxLength(40) code: string;
+  @Type(() => Number) @IsNumber() @Min(0.01) rentalAmount: number;
+}

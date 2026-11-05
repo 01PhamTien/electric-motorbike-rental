@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
 import { api } from '../../services/api';
+import { useAuth } from '../auth/AuthContext';
 
 type CalendarEvent = { type:'BOOKING'|'MAINTENANCE'; id:number; vehicleId:number; vehicleCode:string; model:string; stationName:string; customerName:string; title:string; status:string; start:string; end:string|null };
 function localDateInput(date:Date) { const offset=date.getTimezoneOffset(); return new Date(date.getTime()-offset*60000).toISOString().slice(0,10); }
+type ShiftState = { active: boolean; latest?: { action: string; createdAt: string; details?: string | null } | null };
 type Booking = {
   id: number; status: string; pickupAt: string; returnAt: string;
   rentalAmount: string; depositSnapshot: string; cancellationFeeAmount?:string; cancellationType?:string|null;
@@ -17,7 +19,18 @@ const apiError = (e: unknown) => {
   return Array.isArray(m) ? m.join(', ') : m || 'Thao tác chưa thành công. Vui lòng thử lại.';
 };
 export function OperationsPage() {
+  const { user } = useAuth();
   const [items,setItems] = useState<Booking[]>([]);
+  const [shift,setShift] = useState<ShiftState>({active:false});
+  const [shiftLoading,setShiftLoading] = useState(false);
+  const [shiftSaving,setShiftSaving] = useState(false);
+  const [shiftError,setShiftError] = useState('');
+  const [shiftMessage,setShiftMessage] = useState('');
+  const [shiftSummary,setShiftSummary] = useState('');
+  const [shiftPending,setShiftPending] = useState('');
+  const [shiftVehicles,setShiftVehicles] = useState('0');
+  const [shiftBatteries,setShiftBatteries] = useState('0');
+  const [shiftChecks,setShiftChecks] = useState<string[]>([]);
   const [calendar,setCalendar] = useState<CalendarEvent[]>([]);
   const [calendarFrom,setCalendarFrom] = useState(()=>localDateInput(new Date()));
   const [calendarTo,setCalendarTo] = useState(()=>localDateInput(new Date(Date.now()+6*86_400_000)));
@@ -48,6 +61,28 @@ export function OperationsPage() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); },[load]);
+  useEffect(() => {
+    if (user?.role !== 'STAFF') return;
+    let mounted = true;
+    setShiftLoading(true);
+    api.get('/staff/shifts/me').then(({data}) => { if (mounted) setShift(data); })
+      .catch(e => { if (mounted) setShiftError(apiError(e)); })
+      .finally(() => { if (mounted) setShiftLoading(false); });
+    return () => { mounted = false; };
+  }, [user?.role]);
+  async function submitShift(event: React.FormEvent) {
+    event.preventDefault();
+    const vehicleCount=Number(shiftVehicles), batteryCount=Number(shiftBatteries);
+    if (!shiftSummary.trim() || shiftSummary.trim().length<3) { setShiftError('Vui lòng ghi nội dung bàn giao ít nhất 3 ký tự.'); return; }
+    if (!Number.isInteger(vehicleCount)||vehicleCount<0||!Number.isInteger(batteryCount)||batteryCount<0) { setShiftError('Số lượng xe và pin phải là số nguyên không âm.'); return; }
+    setShiftSaving(true); setShiftError(''); setShiftMessage('');
+    try {
+      const {data}=await api.post('/staff/shifts/'+(shift.active?'end':'start'), { summary:shiftSummary.trim(), pendingTasks:shiftPending.trim()||undefined, checklist:shiftChecks, vehicleCount, batteryCount });
+      setShift(data); setShiftMessage(shift.active?'Đã kết thúc ca và lưu biên bản bàn giao.':'Đã bắt đầu ca làm việc.');
+      setShiftSummary(''); setShiftPending(''); setShiftChecks([]); setShiftVehicles('0'); setShiftBatteries('0');
+    } catch(e) { setShiftError(apiError(e)); }
+    finally { setShiftSaving(false); }
+  }
   async function loadCalendar() {
     if (!calendarFrom || !calendarTo || calendarTo < calendarFrom) { setCalendarError('Vui lòng chọn khoảng ngày hợp lệ.'); return; }
     const span=(new Date(calendarTo+'T00:00:00').getTime()-new Date(calendarFrom+'T00:00:00').getTime())/86_400_000;
@@ -59,6 +94,7 @@ export function OperationsPage() {
   }
   useEffect(() => { void loadCalendar(); }, []);
   const visible = filter === 'ALL' ? items : items.filter(item => item.status === filter);
+  const queue = { pending: items.filter(x=>x.status==='PENDING').length, confirmed: items.filter(x=>x.status==='CONFIRMED').length, renting: items.filter(x=>x.status==='RENTING').length, attention: items.filter(x=>x.status==='PENDING'||x.status==='CONFIRMED').length };
   function beginHandover(id: number, kind: 'pickup' | 'return') {
     setBattery('80'); setOdometer(''); setCondition(kind === 'pickup' ? 'Xe hoạt động bình thường, đã kiểm tra ngoại quan và phụ kiện.' : 'Đã kiểm tra xe khi nhận trả.');
     setCheckedItems([]); setDamageNotes(''); setPhotoUrlsText('');
@@ -100,7 +136,32 @@ export function OperationsPage() {
     } catch(e) { setError(apiError(e)); } finally { setBusy(null); }
   }
   return <div className="container-page py-12 sm:py-16">
-    <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="TRUNG TÂM VẬN HÀNH" title="Điều phối đơn thuê" description="Xác nhận đặt xe, ghi nhận bàn giao và nhận trả phương tiện. Danh sách giới hạn 100 đơn gần nhất theo quyền tài khoản."/><div className="flex flex-wrap gap-2"><Link to="/vehicle-transfers" className="btn-outline">Điều chuyển xe ↗</Link><Link to="/issues" className="btn-outline">Sự cố khách báo ↗</Link><Link to="/maintenance" className="btn-outline">Bảo dưỡng ↗</Link><Link to="/locations" className="btn-outline">Vị trí xe ↗</Link><Link to="/admin/dashboard" className="btn-outline">Báo cáo ↗</Link></div></div>
+    <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="TRUNG TÂM VẬN HÀNH" title="Điều phối đơn thuê" description="Xác nhận đặt xe, ghi nhận bàn giao và nhận trả phương tiện. Danh sách giới hạn 100 đơn gần nhất theo quyền tài khoản."/><div className="flex flex-wrap gap-2"><Link to="/vehicle-transfers" className="btn-outline">Điều chuyển xe ↗</Link><Link to="/issues" className="btn-outline">Sự cố khách báo ↗</Link><Link to="/maintenance" className="btn-outline">Bảo dưỡng ↗</Link><Link to="/locations" className="btn-outline">Vị trí xe ↗</Link>{user?.role==='ADMIN'&&<Link to="/admin/dashboard" className="btn-outline">Báo cáo ↗</Link>}</div></div>
+    {user?.role==='STAFF' && <section className="mt-8 panel p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="eyebrow">QUẢN LÝ CA LÀM VIỆC</p><h2 className="mt-2 text-xl font-extrabold">{shift.active?'Ca làm việc đang diễn ra':'Bắt đầu / bàn giao ca'}</h2><p className="mt-1 text-sm text-slate-500">Lưu dấu thời gian và biên bản bàn giao vào nhật ký hệ thống.</p></div><span className={'rounded-full px-3 py-1.5 text-xs font-bold '+(shift.active?'bg-emerald-100 text-emerald-800':'bg-slate-100 text-slate-600')}>{shiftLoading?'Đang tải trạng thái':shift.active?'ĐANG TRONG CA':'CHƯA VÀO CA'}</span></div>
+      {shift.latest?.createdAt && <p className="mt-3 text-xs text-slate-500">Lần ghi nhận gần nhất: {timeText(shift.latest.createdAt)}</p>}
+      {shiftMessage&&<p role="status" className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{shiftMessage}</p>}
+      {shiftError&&<p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{shiftError}</p>}
+      <form onSubmit={submitShift} className="mt-5 grid gap-4">
+        <label><span className="field-label">{shift.active?'Nội dung bàn giao cuối ca':'Nội dung nhận ca'}</span><textarea required minLength={3} maxLength={500} className="field min-h-20" value={shiftSummary} onChange={e=>setShiftSummary(e.target.value)} placeholder={shift.active?'Tình hình trạm, công việc đã xử lý, vấn đề cần lưu ý...':'Tình trạng trạm, nhân sự, phương tiện và công việc cần tiếp nhận...'}/></label>
+        <div className="grid gap-4 sm:grid-cols-2"><label><span className="field-label">Số xe kiểm kê</span><input type="number" min="0" max="1000" step="1" className="field" value={shiftVehicles} onChange={e=>setShiftVehicles(e.target.value)}/></label><label><span className="field-label">Số pin kiểm kê</span><input type="number" min="0" max="1000" step="1" className="field" value={shiftBatteries} onChange={e=>setShiftBatteries(e.target.value)}/></label></div>
+        <div><span className="field-label">Checklist bàn giao</span><div className="mt-2 grid gap-2 sm:grid-cols-2">{['Đã kiểm tra số lượng và tình trạng xe','Đã kiểm tra pin và bộ sạc','Đã rà soát đơn thuê chờ xử lý','Đã kiểm tra sự cố và lịch bảo dưỡng','Đã bàn giao chìa khóa / thiết bị','Đã kiểm tra vệ sinh và an toàn trạm'].map(label=><label key={label} className="flex items-center gap-2 rounded-lg border border-slate-100 p-3 text-sm"><input type="checkbox" checked={shiftChecks.includes(label)} onChange={e=>setShiftChecks(old=>e.target.checked?[...old,label]:old.filter(x=>x!==label))} className="h-4 w-4 accent-emerald-700"/>{label}</label>)}</div></div>
+        <label><span className="field-label">Công việc tồn đọng / ghi chú</span><textarea maxLength={1000} className="field min-h-20" value={shiftPending} onChange={e=>setShiftPending(e.target.value)} placeholder="Ghi rõ việc chưa xử lý, người cần tiếp nhận hoặc thời hạn..."/></label>
+        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-500">Biên bản được lưu theo tài khoản nhân viên, không thể sửa/xóa sau khi gửi.</p><button disabled={shiftLoading||shiftSaving} className="btn-primary">{shiftSaving?'Đang lưu...':shift.active?'Kết thúc ca & bàn giao':'Bắt đầu ca làm việc'}</button></div>
+      </form>
+    </section>}
+    <section className="mt-8 space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow">CA LÀM VIỆC HÔM NAY</p><h2 className="mt-2 text-xl font-extrabold">Xin chào, {user?.fullName||'nhân viên'}!</h2><p className="mt-1 text-sm text-slate-500">{user?.stationId ? 'Dữ liệu nghiệp vụ được giới hạn theo trạm được phân công.' : user?.role==='ADMIN' ? 'Bạn đang xem phạm vi toàn hệ thống.' : 'Đang tải phạm vi công việc của bạn.'}</p></div><span className="tag">{new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</span></div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[{label:'Đơn chờ xác nhận',value:queue.pending,detail:'Cần kiểm tra yêu cầu',filter:'PENDING',tone:'text-amber-700'},{label:'Chờ bàn giao xe',value:queue.confirmed,detail:'Đơn đã xác nhận',filter:'CONFIRMED',tone:'text-sky-700'},{label:'Xe đang được thuê',value:queue.renting,detail:'Đang trong chuyến thuê',filter:'RENTING',tone:'text-emerald-700'},{label:'Việc cần chú ý',value:queue.attention,detail:'Chờ xác nhận hoặc bàn giao',filter:'ALL',tone:'text-slate-900'}].map(card=><button key={card.label} onClick={()=>setFilter(card.filter)} className="panel p-5 text-left transition hover:-translate-y-0.5 hover:border-emerald-300"><p className="text-sm font-semibold text-slate-500">{card.label}</p><strong className={'mt-3 block text-3xl font-extrabold '+card.tone}>{card.value}</strong><span className="mt-1 block text-xs text-slate-400">{card.detail}</span></button>)}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Link to="/issues" className="rounded-xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">🚨 Tiếp nhận sự cố <span className="float-right">↗</span></Link>
+        <Link to="/maintenance" className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold text-amber-800">🔧 Lịch bảo dưỡng <span className="float-right">↗</span></Link>
+        <Link to="/batteries" className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">🔋 Kho pin & đổi pin <span className="float-right">↗</span></Link>
+        <Link to="/vehicle-transfers" className="rounded-xl border border-sky-100 bg-sky-50 p-4 text-sm font-bold text-sky-800">🔀 Điều chuyển xe <span className="float-right">↗</span></Link>
+      </div>
+    </section>
     <section className="mt-8 panel p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">ĐIỀU PHỐI THEO THỜI GIAN</p><h2 className="mt-2 text-xl font-extrabold">Lịch xe và lịch bảo dưỡng</h2><p className="mt-1 text-sm text-slate-500">Tổng hợp các đơn đang giữ chỗ/đã xác nhận/đang thuê và lịch bảo dưỡng theo trạm được phân quyền.</p></div><div className="flex flex-wrap items-end gap-2"><label><span className="field-label">Từ ngày</span><input className="field" type="date" value={calendarFrom} onChange={e=>setCalendarFrom(e.target.value)}/></label><label><span className="field-label">Đến ngày</span><input className="field" type="date" value={calendarTo} onChange={e=>setCalendarTo(e.target.value)}/></label><button className="btn-dark" onClick={()=>void loadCalendar()} disabled={calendarLoading}>{calendarLoading?'Đang tải...':'Xem lịch'}</button></div></div>{calendarError&&<p role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{calendarError}</p>}{calendarLoading?<div className="mt-5"><LoadingState label="Đang tổng hợp lịch xe..."/></div>:!calendar.length?<p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Không có đơn thuê hoặc lịch bảo dưỡng trong khoảng ngày đã chọn.</p>:<div className="mt-5 space-y-3">{calendar.map(event=><article key={event.type+'-'+event.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-100 p-4"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={'rounded-full px-2.5 py-1 text-[10px] font-extrabold '+(event.type==='BOOKING'?'bg-sky-50 text-sky-800':'bg-amber-50 text-amber-800')}>{event.type==='BOOKING'?'ĐƠN THUÊ':'BẢO DƯỠNG'}</span><span className="text-xs font-bold text-slate-400">#{event.id} · {event.vehicleCode}</span><span className="text-xs text-slate-500">{event.status}</span></div><h3 className="mt-2 truncate font-extrabold">{event.model||event.title}</h3><p className="mt-1 text-xs text-slate-500">{event.stationName}{event.customerName?' · '+event.customerName:''}</p></div><div className="text-right text-sm"><p className="font-bold">{timeText(event.start)}</p><p className="mt-1 text-xs text-slate-500">{event.end?'Đến '+timeText(event.end):'Lịch thực hiện'}</p></div></article>)}</div>}</section>
     <div className="mt-8 flex flex-wrap items-center justify-between gap-4"><div className="flex flex-wrap gap-2">{[{value:'ALL',label:'Tất cả'},...Object.entries(statuses).map(([value,label])=>({value,label}))].map(x => <button key={x.value} onClick={()=>setFilter(x.value)} className={'rounded-full px-4 py-2 text-xs font-extrabold '+(filter===x.value?'bg-[#10373b] text-white':'bg-white text-slate-600')}>{x.label}</button>)}</div><button className="btn-outline" onClick={()=>void load()}>↻ Làm mới</button></div>
     {notice && <div role="status" className="mt-6 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}

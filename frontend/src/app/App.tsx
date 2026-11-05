@@ -1,4 +1,5 @@
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { CustomerBookingsRoute } from './CustomerBookingsRoute';
@@ -24,27 +25,43 @@ import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { AuditLogsPage } from '../features/admin/AuditLogsPage';
 import { VehicleTransfersPage } from '../features/operations/VehicleTransfersPage';
 import { AdminVouchersPage } from '../features/admin/AdminVouchersPage';
+import { StaffSchedulesPage } from '../features/admin/StaffSchedulesPage';
+import { StaffPresencePage } from '../features/admin/StaffPresencePage';
+import { MySchedulePage } from '../features/staff/MySchedulePage';
 import { OperatingCostsPage } from '../features/operating-costs/OperatingCostsPage';
 import { BatteriesPage } from '../features/batteries/BatteriesPage';
+import { useAuth } from '../features/auth/AuthContext';
+
+function RoleLanding() {
+  const { user, loading } = useAuth();
+  if (loading) return <div role="status" className="container-page py-24 text-center text-slate-600">Đang tải không gian làm việc...</div>;
+  if (user?.role === 'ADMIN') return <Navigate to="/admin" replace />;
+  if (user?.role === 'STAFF') return <Navigate to="/operations" replace />;
+  return <HomePage />;
+}
+
+function CustomerOnly({ children }: { children: ReactNode }) {
+  return <RoleRoute allowed={['CUSTOMER']}>{children}</RoleRoute>;
+}
 
 export function App() {
   return <Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route path="/register" element={<RegisterPage />} />
     <Route element={<MainLayout />}>
-      <Route index element={<HomePage />} />
-      <Route path="/stations" element={<StationsPage />} />
-      <Route path="/vehicles" element={<VehiclesPage />} />
-      <Route path="/bookings/my" element={<CustomerBookingsRoute />} />
+      <Route index element={<RoleLanding />} />
+      <Route path="/stations" element={<CustomerOnly><StationsPage /></CustomerOnly>} />
+      <Route path="/vehicles" element={<CustomerOnly><VehiclesPage /></CustomerOnly>} />
+      <Route path="/bookings/my" element={<CustomerOnly><CustomerBookingsRoute /></CustomerOnly>} />
+      <Route path="/bookings/:id/payments" element={<CustomerOnly><PaymentsPage /></CustomerOnly>} />
       <Route path="/locations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><LocationsPage /></RoleRoute>} />
-      <Route path="/bookings/:id/payments" element={<PaymentsPage />} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
       <Route path="/operating-costs" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperatingCostsPage /></RoleRoute>} />
       <Route path="/batteries" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><BatteriesPage /></RoleRoute>} />
       <Route path="/operations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
       <Route path="/vehicle-transfers" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><VehicleTransfersPage /></RoleRoute>} />
       <Route path="/issues" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><IssuesPage /></RoleRoute>} />
-      <Route path="/notifications" element={<RoleRoute allowed={["ADMIN", "STAFF", "CUSTOMER"]}><NotificationsPage /></RoleRoute>} />
+      <Route path="/notifications" element={<RoleRoute allowed={['ADMIN', 'STAFF', 'CUSTOMER']}><NotificationsPage /></RoleRoute>} />
       <Route path="/profile" element={<RoleRoute allowed={['ADMIN', 'STAFF', 'CUSTOMER']}><ProfilePage /></RoleRoute>} />
       <Route path="/admin" element={<RoleRoute allowed={['ADMIN']}><AdminHomePage /></RoleRoute>} />
       <Route path="/admin/vehicles" element={<RoleRoute allowed={['ADMIN']}><AdminVehiclesPage /></RoleRoute>} />
@@ -53,9 +70,12 @@ export function App() {
       <Route path="/admin/customers" element={<RoleRoute allowed={['ADMIN']}><AdminCustomersPage /></RoleRoute>} />
       <Route path="/admin/vouchers" element={<RoleRoute allowed={['ADMIN']}><AdminVouchersPage /></RoleRoute>} />
       <Route path="/admin/staff" element={<RoleRoute allowed={['ADMIN']}><StaffPage /></RoleRoute>} />
-      <Route path="/admin/audit-logs" element={<RoleRoute allowed={["ADMIN"]}><AuditLogsPage /></RoleRoute>} />
+      <Route path="/admin/staff-schedules" element={<RoleRoute allowed={['ADMIN']}><StaffSchedulesPage /></RoleRoute>} />
+      <Route path="/admin/staff-presence" element={<RoleRoute allowed={['ADMIN']}><StaffPresencePage /></RoleRoute>} />
+      <Route path="/my-schedule" element={<RoleRoute allowed={['STAFF']}><MySchedulePage /></RoleRoute>} />
+      <Route path="/admin/audit-logs" element={<RoleRoute allowed={['ADMIN']}><AuditLogsPage /></RoleRoute>} />
       <Route path="/admin/dashboard" element={<RoleRoute allowed={['ADMIN']}><DashboardPage /></RoleRoute>} />
-      <Route path="*" element={<div className="container-page py-32 text-center"><p className="eyebrow">404 · KHÔNG TÌM THẤY</p><h1 className="mt-4 text-4xl font-extrabold">Có vẻ bạn đã rẽ nhầm đường.</h1><p className="mt-3 text-slate-500">Trang này không tồn tại hoặc đã được thay đổi.</p><Link to="/" className="btn-primary mt-8">Về trang chủ →</Link></div>} />
+      <Route path="*" element={<div className="container-page py-32 text-center"><p className="eyebrow">404 · KHÔNG TÌM THẤY</p><h1 className="mt-4 text-4xl font-extrabold">Có vẻ bạn đã rẽ nhầm đường.</h1><p className="mt-3 text-slate-500">Trang này không tồn tại hoặc đã được thay đổi.</p><Link to="/" className="btn-primary mt-8">Về không gian làm việc</Link></div>} />
     </Route>
   </Routes>;
 }

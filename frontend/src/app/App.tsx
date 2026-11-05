@@ -26,6 +26,7 @@ import { AuditLogsPage } from '../features/admin/AuditLogsPage';
 import { VehicleTransfersPage } from '../features/operations/VehicleTransfersPage';
 import { AdminVouchersPage } from '../features/admin/AdminVouchersPage';
 import { StaffSchedulesPage } from '../features/admin/StaffSchedulesPage';
+import { StaffPresencePage } from '../features/admin/StaffPresencePage';
 import { MySchedulePage } from '../features/staff/MySchedulePage';
 import { OperatingCostsPage } from '../features/operating-costs/OperatingCostsPage';
 import { BatteriesPage } from '../features/batteries/BatteriesPage';
@@ -70,6 +71,7 @@ export function App() {
       <Route path="/admin/vouchers" element={<RoleRoute allowed={['ADMIN']}><AdminVouchersPage /></RoleRoute>} />
       <Route path="/admin/staff" element={<RoleRoute allowed={['ADMIN']}><StaffPage /></RoleRoute>} />
       <Route path="/admin/staff-schedules" element={<RoleRoute allowed={['ADMIN']}><StaffSchedulesPage /></RoleRoute>} />
+      <Route path="/admin/staff-presence" element={<RoleRoute allowed={['ADMIN']}><StaffPresencePage /></RoleRoute>} />
       <Route path="/my-schedule" element={<RoleRoute allowed={['STAFF']}><MySchedulePage /></RoleRoute>} />
       <Route path="/admin/audit-logs" element={<RoleRoute allowed={['ADMIN']}><AuditLogsPage /></RoleRoute>} />
       <Route path="/admin/dashboard" element={<RoleRoute allowed={['ADMIN']}><DashboardPage /></RoleRoute>} />

@@ -42,6 +42,60 @@ export class MaintenanceService {
     return qb.getMany();
   }
 
+
+  async upsertSchedule(user: JwtUser, dto: UpsertMaintenanceScheduleDto) {
+    const vehicle = await this.scopedVehicle(user, dto.vehicleId);
+    const existing = await this.schedules.findOne({ where: { vehicleId: vehicle.id } });
+    const schedule = this.schedules.create({
+      ...(existing ?? {}),
+      vehicleId: vehicle.id,
+      intervalKm: dto.intervalKm,
+      intervalDays: dto.intervalDays,
+      warningKm: dto.warningKm ?? 500,
+      warningDays: dto.warningDays ?? 7,
+      lastServiceOdometerKm: String(dto.lastServiceOdometerKm),
+      lastServiceAt: new Date(dto.lastServiceAt),
+      isActive: dto.isActive ?? true,
+      updatedById: user.sub,
+    });
+    return this.schedules.save(schedule);
+  }
+
+  async listSchedules(user: JwtUser) {
+    const qb = this.schedules.createQueryBuilder('s')
+      .innerJoinAndSelect(Vehicle, 'v', 'v.id = s.vehicleId')
+      .orderBy('s.updatedAt', 'DESC');
+    if (user.role === Role.STAFF) {
+      if (!user.stationId) return [];
+      qb.andWhere('v.stationId = :stationId', { stationId: user.stationId });
+    }
+    const schedules = await qb.getMany();
+    const results = await Promise.all(schedules.map(async schedule => {
+      const vehicle = await this.vehicles.findOne({ where: { id: schedule.vehicleId } });
+      if (!vehicle) return null;
+      const latest = await this.handovers.findOne({ where: { booking: { vehicleId: vehicle.id } }, order: { createdAt: 'DESC' } });
+      const currentOdometerKm = latest ? Number(latest.odometerKm) : Number(schedule.lastServiceOdometerKm);
+      const dueOdometerKm = Number(schedule.lastServiceOdometerKm) + schedule.intervalKm;
+      const kmRemaining = dueOdometerKm - currentOdometerKm;
+      const dueAt = new Date(schedule.lastServiceAt.getTime() + schedule.intervalDays * 86_400_000);
+      const daysRemaining = Math.ceil((dueAt.getTime() - Date.now()) / 86_400_000);
+      const overdue = kmRemaining <= 0 || daysRemaining <= 0;
+      const dueSoon = !overdue && (kmRemaining <= schedule.warningKm || daysRemaining <= schedule.warningDays);
+      return {
+        scheduleId: schedule.id, vehicleId: vehicle.id, vehicleCode: vehicle.code,
+        model: vehicle.model ? vehicle.model.brand + ' ' + vehicle.model.name : '',
+        stationName: vehicle.station?.name ?? '',
+        currentOdometerKm, lastServiceOdometerKm: Number(schedule.lastServiceOdometerKm),
+        dueOdometerKm, kmRemaining, dueAt, daysRemaining,
+        intervalKm: schedule.intervalKm, intervalDays: schedule.intervalDays,
+        isActive: schedule.isActive,
+        alert: !schedule.isActive ? 'INACTIVE' : overdue ? 'OVERDUE' : dueSoon ? 'DUE_SOON' : 'OK',
+        lastOdometerAt: latest?.createdAt ?? null,
+      };
+    }));
+    return results.filter(Boolean);
+  }
+
   async create(user: JwtUser, dto: CreateMaintenanceDto) {
     return this.dataSource.transaction(async manager => {
       const vehicleRepo = manager.getRepository(Vehicle);

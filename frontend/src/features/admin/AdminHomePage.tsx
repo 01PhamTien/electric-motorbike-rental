@@ -10,6 +10,7 @@ const items = [
   { to: '/admin/vouchers', icon: '🎟️', name: 'Voucher & khuyến mãi', info: 'Tạo mã giảm giá, giới hạn lượt dùng và xem lịch sử áp dụng' },
   { to: '/operations', icon: '📋', name: 'Đơn thuê', info: 'Xác nhận đơn, giao xe, nhận xe trả' },
   { to: '/maintenance', icon: '🔧', name: 'Bảo dưỡng', info: 'Theo dõi bảo trì và tình trạng xe' },
+  { to: '/operating-costs', icon: '🧾', name: 'Chi phí vận hành', info: 'Ghi nhận điện sạc, vệ sinh, bảo hiểm và chi phí theo xe/trạm' },
   { to: '/locations', icon: '🧭', name: 'Vị trí xe', info: 'Theo dõi cập nhật vị trí xe' },
   { to: '/admin/dashboard', icon: '📊', name: 'Báo cáo', info: 'Theo dõi hoạt động hệ thống' },
 ] as const;

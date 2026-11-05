@@ -59,6 +59,12 @@ export class Booking {
   @Column({ type: 'varchar', length: 255, nullable: true })
   cancelReason: string | null;
 
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  cancellationFeeAmount: string;
+
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  cancellationType: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

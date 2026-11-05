@@ -17,6 +17,7 @@ type Overview = {
   customers: {uniqueInPeriod:number;newInPeriod:number;returningInPeriod:number;topCustomers:Array<{customerId:number;name:string;bookings:number;completed:number;bookingValue:number;firstBookingAt:string}>};
   maintenance: {completedRecords:number;recordedCost:number;byVehicle:Array<{vehicleId:number;code:string;station:string;records:number;recordedCost:number}>};
   fleetUtilization: {periodStart:string;periodEnd:string;periodDays:number;activeFleetCount:number;bookedVehicleDays:number;availableFleetDays:number;utilizationRate:number;idleFleetDays:number;byVehicle:Array<{vehicleId:number;code:string;bookedDays:number;idleDays:number;bookings:number;utilizationRate:number}>;note:string};
+  operatingCosts: {totalCost:number;chargingKwh:number;records:number;byCategory:Array<{category:string;amount:number}>;byVehicle:Array<{vehicleId:number;code:string;amount:number;energyKwh:number;records:number}>;byStation:Array<{stationId:number;name:string;amount:number;energyKwh:number;records:number}>;trackedCostTotal:number;contributionAfterTrackedCosts:number;note:string};
   monthly: Array<{month:string;rentCollected:number;extrasCollected:number;refunds:number;netCashIn:number;bookings:number}>;
   topVehicles: Array<{vehicleId:number;code:string;model:string;station:string;bookings:number;completed:number;bookingValue:number}>;
   stations: Array<{stationId:number;name:string;bookings:number;completed:number;renting:number;bookingValue:number}>;
@@ -87,6 +88,19 @@ export function DashboardPage() {
       ['Ma xe','Ngay duoc thue','Ngay nhan roi','So don','Ty le khai thac (%)'],
       ...data.fleetUtilization.byVehicle.map(v=>[v.code,v.bookedDays,v.idleDays,v.bookings,v.utilizationRate]),
       [],
+      ['CHI PHI VAN HANH'],
+      ['Tong chi phi van hanh',data.operatingCosts.totalCost],
+      ['San luong dien sac (kWh)',data.operatingCosts.chargingKwh],
+      ['So phieu chi phi',data.operatingCosts.records],
+      ['Nhom chi phi','So tien (VND)'],
+      ...data.operatingCosts.byCategory.map(c=>[c.category,c.amount]),
+      ['Ma xe','Chi phi van hanh (VND)','Dien sac (kWh)','So phieu'],
+      ...data.operatingCosts.byVehicle.map(v=>[v.code,v.amount,v.energyKwh,v.records]),
+      ['Tram','Chi phi van hanh (VND)','Dien sac (kWh)','So phieu'],
+      ...data.operatingCosts.byStation.map(v=>[v.name,v.amount,v.energyKwh,v.records]),
+      ['Tong chi phi da theo doi (bao gom bao duong)',data.operatingCosts.trackedCostTotal],
+      ['Phan dong gop sau chi phi da theo doi',data.operatingCosts.contributionAfterTrackedCosts],
+      [],
       ['CHI PHI BAO DUONG'],
       ['Phieu da hoan thanh',data.maintenance.completedRecords],
       ['Chi phi bao duong da ghi nhan',data.maintenance.recordedCost],
@@ -146,6 +160,25 @@ export function DashboardPage() {
           <tbody className="divide-y divide-slate-100">{data.fleetUtilization.byVehicle.map(v=><tr key={v.vehicleId}><td className="px-7 py-4 font-bold">{v.code}</td><td className="px-4 py-4">{v.bookedDays}</td><td className="px-4 py-4">{v.idleDays}</td><td className="px-4 py-4">{v.bookings}</td><td className="px-7 py-4 text-right font-semibold">{v.utilizationRate.toLocaleString('vi-VN')}%</td></tr>)}{!data.fleetUtilization.byVehicle.length&&<tr><td colSpan={5} className="px-7 py-8 text-center text-slate-400">Chưa có lượt thuê giao nhau với kỳ báo cáo.</td></tr>}</tbody>
         </table></div>
         <p className="px-7 pb-6 text-xs leading-5 text-slate-400">{data.fleetUtilization.note}</p>
+      </section>
+      <section className="panel mt-7 overflow-hidden">
+        <div className="flex flex-wrap items-end justify-between gap-4 p-7">
+          <div><h2 className="text-xl font-extrabold">Chi phí vận hành đội xe</h2><p className="mt-2 text-sm text-slate-500">Các khoản điện sạc, vệ sinh, bảo hiểm, đăng ký, bãi đỗ và chi phí khác đã được nhân viên ghi nhận.</p></div>
+          <div className="text-right"><p className="text-xs font-semibold text-slate-500">Tổng chi phí vận hành</p><strong className="mt-1 block text-2xl text-amber-800">{money(data.operatingCosts.totalCost)}</strong><p className="mt-1 text-xs text-slate-400">{data.operatingCosts.records} phiếu · {data.operatingCosts.chargingKwh} kWh</p></div>
+        </div>
+        <div className="grid gap-3 px-7 pb-6 sm:grid-cols-2">
+          <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Tổng chi phí đã theo dõi, gồm bảo dưỡng</p><strong className="mt-1 block text-xl">{money(data.operatingCosts.trackedCostTotal)}</strong></div>
+          <div className="rounded-xl bg-emerald-50 p-4"><p className="text-xs text-emerald-800">Phần đóng góp sau chi phí đã theo dõi</p><strong className="mt-1 block text-xl text-emerald-900">{money(data.operatingCosts.contributionAfterTrackedCosts)}</strong></div>
+        </div>
+        <div className="grid gap-6 border-t border-slate-100 p-7 lg:grid-cols-2">
+          <div><h3 className="font-bold">Theo nhóm chi phí</h3><div className="mt-4 space-y-3">{data.operatingCosts.byCategory.map(c=><div key={c.category} className="flex items-center justify-between gap-3 text-sm"><span>{({CHARGING:'Điện sạc',CLEANING:'Vệ sinh',INSURANCE:'Bảo hiểm',REGISTRATION:'Đăng ký',PARKING:'Bãi đỗ',OTHER:'Khác'} as Record<string,string>)[c.category] ?? c.category}</span><strong>{money(c.amount)}</strong></div>)}{!data.operatingCosts.byCategory.length&&<p className="text-sm text-slate-400">Chưa có chi phí vận hành trong kỳ.</p>}</div></div>
+          <div><h3 className="font-bold">Theo trạm</h3><div className="mt-4 space-y-3">{data.operatingCosts.byStation.map(c=><div key={c.stationId} className="flex items-center justify-between gap-3 text-sm"><span>{c.name} <span className="text-xs text-slate-400">· {c.records} phiếu</span></span><strong>{money(c.amount)}</strong></div>)}{!data.operatingCosts.byStation.length&&<p className="text-sm text-slate-400">Chưa có chi phí theo trạm.</p>}</div></div>
+        </div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-7 py-4">Mã xe</th><th className="px-4 py-4">Chi phí</th><th className="px-4 py-4">Điện sạc</th><th className="px-7 py-4 text-right">Số phiếu</th></tr></thead>
+          <tbody className="divide-y divide-slate-100">{data.operatingCosts.byVehicle.map(v=><tr key={v.vehicleId}><td className="px-7 py-4 font-bold">{v.code}</td><td className="px-4 py-4">{money(v.amount)}</td><td className="px-4 py-4">{v.energyKwh} kWh</td><td className="px-7 py-4 text-right">{v.records}</td></tr>)}{!data.operatingCosts.byVehicle.length&&<tr><td colSpan={4} className="px-7 py-8 text-center text-slate-400">Chưa có chi phí gắn với xe trong kỳ.</td></tr>}</tbody>
+        </table></div>
+        <p className="px-7 pb-6 text-xs leading-5 text-slate-400">{data.operatingCosts.note}</p>
       </section>
       <section className="panel mt-7 overflow-hidden">
         <div className="flex flex-wrap items-end justify-between gap-4 p-7">

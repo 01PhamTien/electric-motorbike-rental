@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
 
 @Injectable()
@@ -16,7 +16,7 @@ export class NotificationsService {
   }
 
   unreadCount(userId: number) {
-    return this.repo.count({ where: { userId, readAt: null } });
+    return this.repo.count({ where: { userId, readAt: IsNull() } });
   }
 
   async markRead(userId: number, id: number) {

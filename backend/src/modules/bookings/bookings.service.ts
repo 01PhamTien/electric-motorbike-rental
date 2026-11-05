@@ -9,6 +9,7 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from './booking-status-history.entity';
 import { Booking } from './booking.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CancelBookingDto, CreateBookingDto } from './dto';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class BookingsService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     @InjectRepository(Booking) private readonly bookingRepo: Repository<Booking>,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(current: JwtUser, dto: CreateBookingDto) {
@@ -92,7 +94,9 @@ export class BookingsService {
         performedById: current.sub,
         reason: 'Tạo đơn thuê',
       }));
-      return bookingRepo.findOne({ where: { id: booking.id } });
+      const created = await bookingRepo.findOne({ where: { id: booking.id } });
+      await this.notifications.create(current.sub, 'BOOKING_CREATED', 'Đặt xe thành công', 'Đơn thuê #' + booking.id + ' đã được tạo và đang chờ xác nhận.', booking.id);
+      return created;
     });
   }
 
@@ -181,6 +185,12 @@ export class BookingsService {
       });
       return { saved, isExpired };
     });
+    const statusText: Record<BookingStatus, string> = {
+      [BookingStatus.PENDING]: 'đang chờ xác nhận', [BookingStatus.CONFIRMED]: 'đã được xác nhận',
+      [BookingStatus.RENTING]: 'đang thuê', [BookingStatus.COMPLETED]: 'đã hoàn tất',
+      [BookingStatus.CANCELLED]: 'đã bị hủy', [BookingStatus.EXPIRED]: 'đã hết thời hạn giữ chỗ',
+    };
+    await this.notifications.create(result.saved.customerId, 'BOOKING_STATUS', 'Cập nhật đơn thuê', 'Đơn thuê #' + id + ' ' + statusText[result.saved.status] + '.', id);
     if (result.isExpired) throw new BadRequestException('Đơn đã hết thời hạn giữ chỗ');
     return result.saved;
   }

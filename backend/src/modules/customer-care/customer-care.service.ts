@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
@@ -21,9 +21,19 @@ export class CustomerCareService {
   async listVehicleReviews(vehicleId: number) {
     const vehicle = await this.ds.getRepository(Vehicle).findOneBy({ id: vehicleId });
     if (!vehicle) throw new NotFoundException('Không tìm thấy xe');
-    const items = await this.reviews.find({ where: { vehicleId }, order: { createdAt: 'DESC' }, take: 100 });
-    const averageRating = items.length ? Number((items.reduce((sum, item) => sum + item.rating, 0) / items.length).toFixed(1)) : null;
-    return { items, total: items.length, averageRating };
+    const [items, aggregate] = await Promise.all([
+      this.reviews.find({ where: { vehicleId }, order: { createdAt: 'DESC' }, take: 100 }),
+      this.reviews.createQueryBuilder('review')
+        .select('COUNT(review.id)', 'total')
+        .addSelect('AVG(review.rating)', 'averageRating')
+        .where('review.vehicleId = :vehicleId', { vehicleId })
+        .getRawOne<{ total: string; averageRating: string | null }>(),
+    ]);
+    return {
+      items,
+      total: Number(aggregate?.total ?? 0),
+      averageRating: aggregate?.averageRating == null ? null : Number(Number(aggregate.averageRating).toFixed(1)),
+    };
   }
 
   async reviewForBooking(current: JwtUser, bookingId: number) {
@@ -39,11 +49,20 @@ export class CustomerCareService {
     if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
     if (booking.customerId !== current.sub) throw new ForbiddenException();
     if (booking.status !== BookingStatus.COMPLETED) throw new BadRequestException('Chỉ có thể đánh giá sau khi đã hoàn tất trả xe');
-    if (await this.reviews.exist({ where: { bookingId } })) throw new BadRequestException('Đơn thuê này đã được đánh giá');
-    return this.reviews.save(this.reviews.create({
-      bookingId, vehicleId: booking.vehicleId, customerId: current.sub,
-      rating: dto.rating, comment: dto.comment?.trim() || null,
-    }));
+    if (await this.reviews.exist({ where: { bookingId } })) throw new ConflictException('Đơn thuê này đã được đánh giá');
+    try {
+      return await this.reviews.save(this.reviews.create({
+        bookingId, vehicleId: booking.vehicleId, customerId: current.sub,
+        rating: dto.rating, comment: dto.comment?.trim() || null,
+      }));
+    } catch (error) {
+      // The unique booking index is the final guard against concurrent duplicate submissions.
+      const driverError = (error as { driverError?: { code?: string; number?: number } })?.driverError;
+      if (driverError?.code === 'ER_DUP_ENTRY' || driverError?.number === 2601 || driverError?.number === 2627) {
+        throw new ConflictException('Đơn thuê này đã được đánh giá');
+      }
+      throw error;
+    }
   }
 
   private async accessibleBooking(current: JwtUser, bookingId: number) {

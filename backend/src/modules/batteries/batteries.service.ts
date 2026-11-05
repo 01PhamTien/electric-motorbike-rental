@@ -196,7 +196,10 @@ export class BatteriesService {
   async redeemReservation(user:JwtUser,id:number,dto:RedeemBatteryReservationDto) {
     const result=await this.dataSource.transaction(async manager=>{
       const reservationRepo=manager.getRepository(BatteryReservation),batteryRepo=manager.getRepository(Battery);
-      const vehicleRepo=manager.getRepository(Vehicle),swapRepo=manager.getRepository(BatterySwap);
+      const vehicleRepo=manager.getRepository(Vehicle),swapRepo=manager.getRepository(BatterySwap),stationRepo=manager.getRepository(Station);
+      const reservationHint=await reservationRepo.findOne({where:{id}});
+      if(!reservationHint) throw new NotFoundException('Không tìm thấy lượt giữ pin');
+      await stationRepo.findOne({where:{id:reservationHint.stationId},lock:{mode:'pessimistic_write'}});
       const reservation=await reservationRepo.findOne({where:{id},lock:{mode:'pessimistic_write'}});
       if(!reservation) throw new NotFoundException('Không tìm thấy lượt giữ pin');
       this.assertStation(user,reservation.stationId);

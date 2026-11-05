@@ -47,6 +47,20 @@ export class VehicleTransfer {
   @Column({ type: 'datetime2', nullable: true })
   cancelledAt: Date | null;
 
+  @Column({ type: 'int', nullable: true }) dispatchBatteryPercent: number | null;
+  @Column({ type: 'decimal', precision: 12, scale: 1, nullable: true }) dispatchOdometerKm: string | null;
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) dispatchConditionNote: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) dispatchChecklist: string | null;
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) dispatchDamageNotes: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) dispatchPhotoUrls: string | null;
+
+  @Column({ type: 'int', nullable: true }) receiveBatteryPercent: number | null;
+  @Column({ type: 'decimal', precision: 12, scale: 1, nullable: true }) receiveOdometerKm: string | null;
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) receiveConditionNote: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) receiveChecklist: string | null;
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) receiveDamageNotes: string | null;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) receivePhotoUrls: string | null;
+
   @CreateDateColumn({ type: 'datetime2' })
   createdAt: Date;
 

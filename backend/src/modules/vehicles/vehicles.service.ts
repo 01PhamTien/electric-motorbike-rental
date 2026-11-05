@@ -5,6 +5,7 @@ import { Vehicle } from './vehicle.entity';
 import { VehicleModel } from '../vehicle-models/vehicle-model.entity';
 import { Station } from '../stations/station.entity';
 import { CreateVehicleDto, UpdateVehicleDto } from './dto';
+import { VehicleTransfer, VehicleTransferStatus } from '../transfers/vehicle-transfer.entity';
 
 @Injectable()
 export class VehiclesService {
@@ -12,6 +13,7 @@ export class VehiclesService {
     @InjectRepository(Vehicle) private readonly repo: Repository<Vehicle>,
     @InjectRepository(VehicleModel) private readonly models: Repository<VehicleModel>,
     @InjectRepository(Station) private readonly stations: Repository<Station>,
+    @InjectRepository(VehicleTransfer) private readonly transfers: Repository<VehicleTransfer>,
   ) {}
 
   findAllForAdmin() {
@@ -24,7 +26,15 @@ export class VehiclesService {
   }
 
   findAll(stationId?: number) {
-    return this.repo.find({ where: stationId ? { stationId, isActive: true } : { isActive: true }, order: { id: 'DESC' } });
+    const qb = this.repo.createQueryBuilder('vehicle')
+      .where('vehicle.isActive = :active', { active: true })
+      .andWhere(qb => 'NOT EXISTS ' + qb.subQuery().select('1').from(VehicleTransfer, 'transfer')
+        .where('transfer.vehicleId = vehicle.id')
+        .andWhere('transfer.status IN (:...transferStatuses)')
+        .getQuery(), { transferStatuses: [VehicleTransferStatus.PENDING, VehicleTransferStatus.IN_TRANSIT] })
+      .orderBy('vehicle.id', 'DESC');
+    if (stationId) qb.andWhere('vehicle.stationId = :stationId', { stationId });
+    return qb.getMany();
   }
 
   async findOne(id: number) {

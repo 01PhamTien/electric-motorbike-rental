@@ -12,6 +12,22 @@ export class AuditService {
   }
   list(limit = 100) { return this.repo.find({ order: { createdAt: 'DESC' }, take: Math.min(Math.max(limit, 1), 200) }); }
 
+  async listShifts(filters: { from?: string; to?: string; staffId?: number; stationId?: number; limit?: number }) {
+    const query = this.repo.createQueryBuilder('log')
+      .leftJoinAndSelect('log.actor', 'actor')
+      .leftJoinAndSelect('actor.station', 'station')
+      .where('log.targetType = :targetType', { targetType: 'SHIFT' })
+      .orderBy('log.createdAt', 'DESC')
+      .addOrderBy('log.id', 'DESC')
+      .take(Math.min(Math.max(filters.limit || 100, 1), 200));
+
+    if (filters.from) query.andWhere('log.createdAt >= :from', { from: new Date(filters.from + 'T00:00:00.000Z') });
+    if (filters.to) query.andWhere('log.createdAt < :to', { to: new Date(new Date(filters.to + 'T00:00:00.000Z').getTime() + 86_400_000) });
+    if (filters.staffId) query.andWhere('log.actorId = :staffId', { staffId: filters.staffId });
+    if (filters.stationId) query.andWhere('actor.stationId = :stationId', { stationId: filters.stationId });
+    return query.getMany();
+  }
+
   async getMyShift(actorId: number) {
     const latest = await this.repo.findOne({
       where: { actorId, targetType: 'SHIFT' },

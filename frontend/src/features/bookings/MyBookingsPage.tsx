@@ -80,7 +80,17 @@ export function MyBookingsPage() {
     setDetailLoading(false);
   }
   async function cancel(booking: Booking) {
-    if (!window.confirm('Bạn có chắc muốn hủy đơn #' + booking.id + '?')) return;
+    const now = Date.now();
+    const pickup = new Date(booking.pickupAt).getTime();
+    if (now >= pickup) { setError('Đã đến giờ nhận xe. Vui lòng liên hệ nhân viên để được hỗ trợ.'); return; }
+    const hoursUntilPickup = (pickup - now) / 3_600_000;
+    const fee = booking.status === 'CONFIRMED' && hoursUntilPickup < 24
+      ? Math.min(Math.round(Number(booking.rentalAmount) * 0.20 * 100) / 100, Number(booking.depositSnapshot))
+      : 0;
+    const policy = fee > 0
+      ? 'Do hủy trong vòng 24 giờ trước giờ nhận xe, phí hủy dự kiến là ' + money(fee) + ' (20% tiền thuê, tối đa bằng tiền cọc).'
+      : 'Đơn này được hủy miễn phí theo chính sách hiện tại.';
+    if (!window.confirm('Bạn có chắc muốn hủy đơn #' + booking.id + '?\\n\\n' + policy + '\\n\\nPhí được ghi nhận để nhân viên đối soát thủ công; hệ thống không tự động thu tiền.')) return;
     setBusyId(booking.id); setError('');
     try { await api.patch('/bookings/' + booking.id + '/cancel', { reason: 'Khách hàng chủ động hủy' }); await load(); }
     catch (err) { setError(getError(err)); }

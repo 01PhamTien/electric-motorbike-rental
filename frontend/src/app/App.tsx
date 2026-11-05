@@ -25,6 +25,8 @@ import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { AuditLogsPage } from '../features/admin/AuditLogsPage';
 import { VehicleTransfersPage } from '../features/operations/VehicleTransfersPage';
 import { AdminVouchersPage } from '../features/admin/AdminVouchersPage';
+import { StaffSchedulesPage } from '../features/admin/StaffSchedulesPage';
+import { MySchedulePage } from '../features/staff/MySchedulePage';
 import { OperatingCostsPage } from '../features/operating-costs/OperatingCostsPage';
 import { BatteriesPage } from '../features/batteries/BatteriesPage';
 import { useAuth } from '../features/auth/AuthContext';
@@ -67,6 +69,8 @@ export function App() {
       <Route path="/admin/customers" element={<RoleRoute allowed={['ADMIN']}><AdminCustomersPage /></RoleRoute>} />
       <Route path="/admin/vouchers" element={<RoleRoute allowed={['ADMIN']}><AdminVouchersPage /></RoleRoute>} />
       <Route path="/admin/staff" element={<RoleRoute allowed={['ADMIN']}><StaffPage /></RoleRoute>} />
+      <Route path="/admin/staff-schedules" element={<RoleRoute allowed={['ADMIN']}><StaffSchedulesPage /></RoleRoute>} />
+      <Route path="/my-schedule" element={<RoleRoute allowed={['STAFF']}><MySchedulePage /></RoleRoute>} />
       <Route path="/admin/audit-logs" element={<RoleRoute allowed={['ADMIN']}><AuditLogsPage /></RoleRoute>} />
       <Route path="/admin/dashboard" element={<RoleRoute allowed={['ADMIN']}><DashboardPage /></RoleRoute>} />
       <Route path="*" element={<div className="container-page py-32 text-center"><p className="eyebrow">404 · KHÔNG TÌM THẤY</p><h1 className="mt-4 text-4xl font-extrabold">Có vẻ bạn đã rẽ nhầm đường.</h1><p className="mt-3 text-slate-500">Trang này không tồn tại hoặc đã được thay đổi.</p><Link to="/" className="btn-primary mt-8">Về không gian làm việc</Link></div>} />

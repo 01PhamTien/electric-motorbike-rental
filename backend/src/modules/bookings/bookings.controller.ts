@@ -45,4 +45,10 @@ export class BookingsController {
   cancel(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: CancelBookingDto) {
     return this.service.cancel(user, id, dto);
   }
+
+  @Patch(':id/no-show')
+  @Roles(Role.ADMIN, Role.STAFF)
+  noShow(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.service.markNoShow(user, id);
+  }
 }

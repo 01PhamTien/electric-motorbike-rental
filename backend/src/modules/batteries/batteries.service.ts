@@ -186,7 +186,6 @@ export class BatteriesService {
       this.assertStation(user,reservation.stationId);
       if(reservation.status!==BatteryReservationStatus.RESERVED) throw new BadRequestException('Lượt giữ pin không còn hiệu lực');
       if(reservation.expiresAt<=new Date()){
-        reservation.status=BatteryReservationStatus.EXPIRED;await reservationRepo.save(reservation);
         throw new BadRequestException('Lượt giữ pin đã hết hạn. Vui lòng tạo lượt giữ mới.');
       }
       const vehicle=await vehicleRepo.findOne({where:{id:reservation.vehicleId},lock:{mode:'pessimistic_write'}});

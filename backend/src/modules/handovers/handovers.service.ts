@@ -53,6 +53,9 @@ export class HandoversService {
       }
       const record = await manager.getRepository(HandoverRecord).save(manager.getRepository(HandoverRecord).create({
         bookingId, kind, batteryPercent: dto.batteryPercent, odometerKm: String(dto.odometerKm), conditionNote: dto.conditionNote, staffId: current.sub,
+        inspectionChecklist: dto.inspectionChecklist?.length ? JSON.stringify([...new Set(dto.inspectionChecklist)]) : null,
+        damageNotes: dto.damageNotes?.trim() || null,
+        photoUrls: dto.photoUrls?.length ? JSON.stringify(dto.photoUrls) : null,
       }));
       booking.status = next;
       await manager.getRepository(Booking).save(booking);
@@ -64,7 +67,7 @@ export class HandoversService {
         reason: kind === HandoverKind.PICKUP ? 'Đã giao xe' : 'Đã nhận xe trả' });
       return { bookingId, status: next, record, customerId: booking.customerId };
     });
-    await this.audit?.record(current.sub, kind === HandoverKind.PICKUP ? 'VEHICLE_PICKED_UP' : 'VEHICLE_RETURNED', 'BOOKING', bookingId, { batteryPercent: dto.batteryPercent, odometerKm: dto.odometerKm });
+    await this.audit?.record(current.sub, kind === HandoverKind.PICKUP ? 'VEHICLE_PICKED_UP' : 'VEHICLE_RETURNED', 'BOOKING', bookingId, { batteryPercent: dto.batteryPercent, odometerKm: dto.odometerKm, inspectionChecklist: dto.inspectionChecklist, damageNotes: dto.damageNotes, photoCount: dto.photoUrls?.length ?? 0 });
     await this.notifications?.create(outcome.customerId, 'HANDOVER', kind === HandoverKind.PICKUP ? 'Đã nhận xe' : 'Đã trả xe',
       kind === HandoverKind.PICKUP ? 'Đơn thuê #' + bookingId + ' đã được bàn giao xe.' : 'Đơn thuê #' + bookingId + ' đã hoàn tất trả xe.', bookingId);
     const { customerId: _customerId, ...result } = outcome;

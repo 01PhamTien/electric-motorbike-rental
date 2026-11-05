@@ -34,6 +34,10 @@ export class HandoversService {
       });
       if (!booking) throw new NotFoundException('Không tìm thấy đơn');
       if (booking.vehicleId !== vehicle.id) throw new BadRequestException('Xe của đơn đã thay đổi, vui lòng thử lại');
+      if (kind === HandoverKind.PICKUP && vehicle.status !== VehicleStatus.ACTIVE)
+        throw new BadRequestException('Xe hiện không sẵn sàng để bàn giao');
+      if (kind === HandoverKind.PICKUP && (!vehicle.isActive || !vehicle.station?.isActive))
+        throw new BadRequestException('Xe hoặc trạm nhận hiện không hoạt động');
       if (current.role === Role.STAFF && current.stationId !== vehicle.stationId)
         throw new ForbiddenException('Đơn ngoài điểm thuê được phân công');
       const expected = kind === HandoverKind.PICKUP ? BookingStatus.CONFIRMED : BookingStatus.RENTING;

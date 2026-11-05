@@ -8,6 +8,10 @@ import { Station } from '../stations/station.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { Battery, BatteryStatus } from './battery.entity';
 import { BatterySwap } from './battery-swap.entity';
+import { BatteryReservation, BatteryReservationStatus } from './battery-reservation.entity';
+import { Booking } from '../bookings/booking.entity';
+import { BookingStatus } from '../../common/enums/booking-status.enum';
+import { CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
 import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto } from './batteries.dto';
 
 @Injectable()
@@ -16,6 +20,7 @@ export class BatteriesService {
     private readonly dataSource: DataSource,
     @InjectRepository(Battery) private readonly batteries: Repository<Battery>,
     @InjectRepository(BatterySwap) private readonly swaps: Repository<BatterySwap>,
+    @InjectRepository(BatteryReservation) private readonly reservations: Repository<BatteryReservation>,
     @InjectRepository(Station) private readonly stations: Repository<Station>,
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
     @Optional() private readonly audit?: AuditService,
@@ -112,6 +117,101 @@ export class BatteriesService {
     return saved;
   }
 
+
+  async reserve(user:JwtUser,dto:CreateBatteryReservationDto) {
+    const reservation=await this.dataSource.transaction(async manager=>{
+      const stationRepo=manager.getRepository(Station),bookingRepo=manager.getRepository(Booking);
+      const batteryRepo=manager.getRepository(Battery),reservationRepo=manager.getRepository(BatteryReservation);
+      const station=await stationRepo.findOne({where:{id:dto.stationId,isActive:true},lock:{mode:'pessimistic_write'}});
+      if(!station) throw new NotFoundException('Trạm đổi pin không tồn tại hoặc đã ngừng hoạt động');
+      const booking=await bookingRepo.findOne({where:{id:dto.bookingId,customerId:user.sub},lock:{mode:'pessimistic_write'}});
+      if(!booking) throw new NotFoundException('Không tìm thấy đơn thuê của bạn');
+      if(booking.status!==BookingStatus.RENTING) throw new BadRequestException('Chỉ đơn thuê đang sử dụng xe mới được đặt trước pin');
+      if(booking.vehicle?.stationId!==station.id) throw new BadRequestException('Xe thuê hiện không ở trạm này. Vui lòng chọn trạm hiện tại của xe.');
+      const now=new Date();
+      await reservationRepo.createQueryBuilder().update(BatteryReservation)
+        .set({status:BatteryReservationStatus.EXPIRED})
+        .where('stationId = :stationId AND status = :status AND expiresAt <= :now',{stationId:station.id,status:BatteryReservationStatus.RESERVED,now}).execute();
+      const existing=await reservationRepo.findOne({where:{customerId:user.sub,status:BatteryReservationStatus.RESERVED}});
+      if(existing&&existing.expiresAt>now) throw new ConflictException('Bạn đang có một lượt giữ pin. Hãy sử dụng hoặc hủy lượt giữ hiện tại trước.');
+      const available=await batteryRepo.count({where:{stationId:station.id,status:BatteryStatus.FULL,vehicleId:null}});
+      const held=await reservationRepo.createQueryBuilder('r').where('r.stationId = :stationId',{stationId:station.id})
+        .andWhere('r.status = :status',{status:BatteryReservationStatus.RESERVED})
+        .andWhere('r.expiresAt > :now',{now}).getCount();
+      if(available-held<=0) throw new ConflictException('Trạm hiện đã hết pin có thể giữ trước. Vui lòng chọn trạm khác.');
+      return reservationRepo.save(reservationRepo.create({
+        customerId:user.sub,stationId:station.id,bookingId:booking.id,vehicleId:booking.vehicleId,
+        status:BatteryReservationStatus.RESERVED,expiresAt:new Date(now.getTime()+10*60_000),
+        redeemedAt:null,cancelledAt:null,redeemedById:null,batterySwapId:null,
+      }));
+    });
+    await this.audit?.record(user.sub,'BATTERY_RESERVED','BATTERY_RESERVATION',reservation.id,{stationId:reservation.stationId,bookingId:reservation.bookingId,expiresAt:reservation.expiresAt});
+    return reservation;
+  }
+
+  async myReservations(user:JwtUser) {
+    return this.reservations.find({where:{customerId:user.sub},relations:{station:true,vehicle:true},order:{createdAt:'DESC'},take:50});
+  }
+
+  async listReservations(user:JwtUser,stationId?:number) {
+    const qb=this.reservations.createQueryBuilder('r').leftJoinAndSelect('r.station','station')
+      .leftJoinAndSelect('r.vehicle','vehicle').leftJoinAndSelect('r.booking','booking')
+      .orderBy('r.createdAt','DESC').take(200);
+    if(stationId){this.assertStation(user,stationId);qb.andWhere('r.stationId = :stationId',{stationId});}
+    else if(user.role===Role.STAFF){if(user.stationId==null)return [];qb.andWhere('r.stationId = :stationId',{stationId:user.stationId});}
+    return qb.getMany();
+  }
+
+  async cancelReservation(user:JwtUser,id:number) {
+    const result=await this.dataSource.transaction(async manager=>{
+      const repo=manager.getRepository(BatteryReservation);
+      const reservation=await repo.findOne({where:{id},lock:{mode:'pessimistic_write'}});
+      if(!reservation) throw new NotFoundException('Không tìm thấy lượt giữ pin');
+      if(reservation.customerId!==user.sub) throw new ForbiddenException('Bạn không có quyền hủy lượt giữ pin này');
+      if(reservation.status!==BatteryReservationStatus.RESERVED) throw new BadRequestException('Lượt giữ pin này không còn hiệu lực');
+      reservation.status=reservation.expiresAt<=new Date()?BatteryReservationStatus.EXPIRED:BatteryReservationStatus.CANCELLED;
+      reservation.cancelledAt=new Date();
+      return repo.save(reservation);
+    });
+    await this.audit?.record(user.sub,'BATTERY_RESERVATION_CANCELLED','BATTERY_RESERVATION',id);
+    return result;
+  }
+
+  async redeemReservation(user:JwtUser,id:number,dto:RedeemBatteryReservationDto) {
+    const result=await this.dataSource.transaction(async manager=>{
+      const reservationRepo=manager.getRepository(BatteryReservation),batteryRepo=manager.getRepository(Battery);
+      const vehicleRepo=manager.getRepository(Vehicle),swapRepo=manager.getRepository(BatterySwap);
+      const reservation=await reservationRepo.findOne({where:{id},lock:{mode:'pessimistic_write'}});
+      if(!reservation) throw new NotFoundException('Không tìm thấy lượt giữ pin');
+      this.assertStation(user,reservation.stationId);
+      if(reservation.status!==BatteryReservationStatus.RESERVED) throw new BadRequestException('Lượt giữ pin không còn hiệu lực');
+      if(reservation.expiresAt<=new Date()){
+        reservation.status=BatteryReservationStatus.EXPIRED;await reservationRepo.save(reservation);
+        throw new BadRequestException('Lượt giữ pin đã hết hạn. Vui lòng tạo lượt giữ mới.');
+      }
+      const vehicle=await vehicleRepo.findOne({where:{id:reservation.vehicleId},lock:{mode:'pessimistic_write'}});
+      if(!vehicle||vehicle.stationId!==reservation.stationId||!vehicle.isActive) throw new BadRequestException('Xe thuê không còn ở trạm giữ pin');
+      const replacement=await batteryRepo.findOne({where:{id:dto.replacementBatteryId},lock:{mode:'pessimistic_write'}});
+      if(!replacement||replacement.status!==BatteryStatus.FULL||replacement.vehicleId!==null||replacement.stationId!==reservation.stationId)
+        throw new BadRequestException('Pin thay thế không còn sẵn sàng tại trạm này');
+      const removed=await batteryRepo.findOne({where:{vehicleId:vehicle.id,status:BatteryStatus.INSTALLED},lock:{mode:'pessimistic_write'}});
+      if(!removed||removed.stationId!==reservation.stationId) throw new BadRequestException('Không tìm thấy pin hợp lệ đang lắp trên xe');
+      removed.status=BatteryStatus.CHARGING;removed.vehicleId=null;
+      replacement.status=BatteryStatus.INSTALLED;replacement.vehicleId=vehicle.id;
+      await batteryRepo.save(removed);await batteryRepo.save(replacement);
+      const swap=await swapRepo.save(swapRepo.create({
+        vehicleId:vehicle.id,stationId:reservation.stationId,removedBatteryId:removed.id,
+        installedBatteryId:replacement.id,performedById:user.sub,note:dto.note?.trim()||'Đổi pin theo lượt giữ trước #'+reservation.id,
+      }));
+      reservation.status=BatteryReservationStatus.REDEEMED;reservation.redeemedAt=new Date();
+      reservation.redeemedById=user.sub;reservation.batterySwapId=swap.id;
+      await reservationRepo.save(reservation);
+      return {reservation,swap,removedBattery:removed,installedBattery:replacement};
+    });
+    await this.audit?.record(user.sub,'BATTERY_RESERVATION_REDEEMED','BATTERY_RESERVATION',id,{swapId:result.swap.id,vehicleId:result.swap.vehicleId});
+    return result;
+  }
+
   async publicAvailability() {
     const rows=await this.batteries.createQueryBuilder('battery')
       .select('battery.stationId','stationId')
@@ -120,10 +220,15 @@ export class BatteriesService {
       .andWhere('battery.vehicleId IS NULL')
       .groupBy('battery.stationId')
       .getRawMany();
-    return rows.map((row:{stationId:string|number;availableBatteryCount:string|number})=>({
-      stationId:Number(row.stationId),availableBatteryCount:Number(row.availableBatteryCount),
-      supportsBatterySwap:Number(row.availableBatteryCount)>0,
-    }));
+    const now=new Date();
+    const holds=await this.reservations.createQueryBuilder('r').select('r.stationId','stationId')
+      .addSelect('COUNT(*)','heldCount').where('r.status = :status',{status:BatteryReservationStatus.RESERVED})
+      .andWhere('r.expiresAt > :now',{now}).groupBy('r.stationId').getRawMany();
+    const heldByStation=new Map(holds.map((r:{stationId:string|number;heldCount:string|number})=>[Number(r.stationId),Number(r.heldCount)]));
+    return rows.map((row:{stationId:string|number;availableBatteryCount:string|number})=>{
+      const stationId=Number(row.stationId),availableBatteryCount=Math.max(0,Number(row.availableBatteryCount)-(heldByStation.get(stationId)??0));
+      return {stationId,availableBatteryCount,supportsBatterySwap:availableBatteryCount>0};
+    });
   }
 
   async history(user: JwtUser, stationId?: number) {

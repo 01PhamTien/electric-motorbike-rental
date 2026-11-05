@@ -22,6 +22,7 @@ import { AdminCustomersPage } from '../features/admin/AdminCustomersPage';
 import { MainLayout } from '../layouts/MainLayout';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { AuditLogsPage } from '../features/admin/AuditLogsPage';
+import { VehicleTransfersPage } from '../features/operations/VehicleTransfersPage';
 
 export function App() {
   return <Routes>
@@ -36,6 +37,7 @@ export function App() {
       <Route path="/bookings/:id/payments" element={<PaymentsPage />} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
       <Route path="/operations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
+      <Route path="/vehicle-transfers" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><VehicleTransfersPage /></RoleRoute>} />
       <Route path="/issues" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><IssuesPage /></RoleRoute>} />
       <Route path="/notifications" element={<RoleRoute allowed={["ADMIN", "STAFF", "CUSTOMER"]}><NotificationsPage /></RoleRoute>} />
       <Route path="/profile" element={<RoleRoute allowed={['ADMIN', 'STAFF', 'CUSTOMER']}><ProfilePage /></RoleRoute>} />

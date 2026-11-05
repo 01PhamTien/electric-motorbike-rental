@@ -24,6 +24,7 @@ import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { AuditLogsPage } from '../features/admin/AuditLogsPage';
 import { VehicleTransfersPage } from '../features/operations/VehicleTransfersPage';
 import { AdminVouchersPage } from '../features/admin/AdminVouchersPage';
+import { OperatingCostsPage } from '../features/operating-costs/OperatingCostsPage';
 
 export function App() {
   return <Routes>
@@ -37,6 +38,7 @@ export function App() {
       <Route path="/locations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><LocationsPage /></RoleRoute>} />
       <Route path="/bookings/:id/payments" element={<PaymentsPage />} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
+      <Route path="/operating-costs" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperatingCostsPage /></RoleRoute>} />
       <Route path="/operations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
       <Route path="/vehicle-transfers" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><VehicleTransfersPage /></RoleRoute>} />
       <Route path="/issues" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><IssuesPage /></RoleRoute>} />

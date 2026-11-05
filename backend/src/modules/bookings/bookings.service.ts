@@ -173,7 +173,7 @@ export class BookingsService {
         stationName: m.stationName ?? '',
         customerName: '', title: m.reason, status: m.status, start: m.scheduledAt, end: m.completedAt,
       })),
-    ].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    ].sort((a, b) => (a.start instanceof Date ? a.start.getTime() : new Date(a.start).getTime()) - (b.start instanceof Date ? b.start.getTime() : new Date(b.start).getTime()));
   }
 
   async listForOperations(current: JwtUser) {

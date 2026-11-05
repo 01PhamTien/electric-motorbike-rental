@@ -14,6 +14,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { VehicleTransfer, VehicleTransferStatus } from '../transfers/vehicle-transfer.entity';
 import { CancelBookingDto, CreateBookingDto } from './dto';
+import { VouchersService } from '../vouchers/vouchers.service';
 
 @Injectable()
 export class BookingsService {
@@ -23,6 +24,7 @@ export class BookingsService {
     @InjectRepository(Booking) private readonly bookingRepo: Repository<Booking>,
     @Optional() private readonly notifications?: NotificationsService,
     @Optional() private readonly audit?: AuditService,
+    @Optional() private readonly vouchers?: VouchersService,
   ) {}
 
   async create(current: JwtUser, dto: CreateBookingDto) {
@@ -92,6 +94,10 @@ export class BookingsService {
         dailyRateSnapshot: vehicle.dailyRate,
         depositSnapshot: vehicle.depositAmount,
         rentalAmount: String(rentalAmount),
+        baseRentalAmount: String(rentalAmount),
+        discountAmount: '0.00',
+        voucherId: null,
+        voucherCodeSnapshot: null,
         holdExpiresAt,
         status: BookingStatus.PENDING,
       }));
@@ -103,6 +109,16 @@ export class BookingsService {
         performedById: current.sub,
         reason: 'Tạo đơn thuê',
       }));
+      if (dto.voucherCode?.trim()) {
+        if (!this.vouchers) throw new BadRequestException('Chức năng voucher hiện chưa sẵn sàng');
+        const applied = await this.vouchers.redeem(manager, current.sub, booking.id, dto.voucherCode, rentalAmount);
+        booking.rentalAmount = applied.finalRentalAmount;
+        booking.discountAmount = applied.discountAmount;
+        booking.voucherId = applied.voucherId;
+        booking.voucherCodeSnapshot = applied.voucherCode;
+        await bookingRepo.save(booking);
+      }
+
       const created = await bookingRepo.findOne({ where: { id: booking.id } });
       await this.audit?.record(current.sub, 'BOOKING_CREATED', 'BOOKING', booking.id, { status: booking.status, vehicleId: vehicle.id });
       await this.notifications?.create(current.sub, 'BOOKING_CREATED', 'Đặt xe thành công', 'Đơn thuê #' + booking.id + ' đã được tạo và đang chờ xác nhận.', booking.id);

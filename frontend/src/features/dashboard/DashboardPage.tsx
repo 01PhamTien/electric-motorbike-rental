@@ -15,6 +15,7 @@ type Overview = {
     note: string;
   };
   customers: {uniqueInPeriod:number;newInPeriod:number;returningInPeriod:number;topCustomers:Array<{customerId:number;name:string;bookings:number;completed:number;bookingValue:number;firstBookingAt:string}>};
+  maintenance: {completedRecords:number;recordedCost:number;byVehicle:Array<{vehicleId:number;code:string;station:string;records:number;recordedCost:number}>};
   monthly: Array<{month:string;rentCollected:number;extrasCollected:number;refunds:number;netCashIn:number;bookings:number}>;
   topVehicles: Array<{vehicleId:number;code:string;model:string;station:string;bookings:number;completed:number;bookingValue:number}>;
   stations: Array<{stationId:number;name:string;bookings:number;completed:number;renting:number;bookingValue:number}>;
@@ -77,6 +78,12 @@ export function DashboardPage() {
       ['Tram','So don','Da hoan thanh','Dang thue','Gia tri don thue (VND)'],
       ...data.stations.map(s=>[s.name,s.bookings,s.completed,s.renting,s.bookingValue]),
       [],
+      ['CHI PHI BAO DUONG'],
+      ['Phieu da hoan thanh',data.maintenance.completedRecords],
+      ['Chi phi bao duong da ghi nhan',data.maintenance.recordedCost],
+      ['Ma xe','Tram','So phieu hoan thanh','Chi phi da ghi nhan'],
+      ...data.maintenance.byVehicle.map(v=>[v.code,v.station,v.records,v.recordedCost]),
+      [],
       ['TOP XE'],
       ['Ma xe','Mau xe','Tram','So don','Da hoan thanh','Gia tri don thue (VND)'],
       ...data.topVehicles.map(v=>[v.code,v.model,v.station,v.bookings,v.completed,v.bookingValue]),
@@ -127,6 +134,16 @@ export function DashboardPage() {
         <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-7 py-4">Khách hàng</th><th className="px-4 py-4">Số đơn</th><th className="px-4 py-4">Hoàn thành</th><th className="px-7 py-4 text-right">Giá trị đơn</th></tr></thead>
           <tbody className="divide-y divide-slate-100">{data.customers.topCustomers.map(c=><tr key={c.customerId}><td className="px-7 py-4 font-bold">{c.name}</td><td className="px-4 py-4">{c.bookings}</td><td className="px-4 py-4">{c.completed}</td><td className="px-7 py-4 text-right font-semibold">{money(c.bookingValue)}</td></tr>)}{!data.customers.topCustomers.length&&<tr><td colSpan={4} className="px-7 py-8 text-center text-slate-400">Chưa có khách hàng phát sinh đơn trong kỳ.</td></tr>}</tbody>
+        </table></div>
+      </section>
+      <section className="panel mt-7 overflow-hidden">
+        <div className="flex flex-wrap items-end justify-between gap-4 p-7">
+          <div><h2 className="text-xl font-extrabold">Chi phí bảo dưỡng đội xe</h2><p className="mt-2 text-sm text-slate-500">Chỉ tính phiếu đã hoàn thành trong kỳ; không cộng phiếu đang xử lý hoặc đã hủy.</p></div>
+          <div className="text-right"><p className="text-xs font-semibold text-slate-500">Tổng chi phí đã ghi nhận</p><strong className="mt-1 block text-2xl text-amber-800">{money(data.maintenance.recordedCost)}</strong><p className="mt-1 text-xs text-slate-400">{data.maintenance.completedRecords} phiếu hoàn thành</p></div>
+        </div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-7 py-4">Phương tiện</th><th className="px-4 py-4">Trạm hiện tại</th><th className="px-4 py-4">Số phiếu</th><th className="px-7 py-4 text-right">Chi phí</th></tr></thead>
+          <tbody className="divide-y divide-slate-100">{data.maintenance.byVehicle.map(v=><tr key={v.vehicleId}><td className="px-7 py-4 font-bold">{v.code}</td><td className="px-4 py-4">{v.station}</td><td className="px-4 py-4">{v.records}</td><td className="px-7 py-4 text-right font-semibold">{money(v.recordedCost)}</td></tr>)}{!data.maintenance.byVehicle.length&&<tr><td colSpan={4} className="px-7 py-8 text-center text-slate-400">Chưa có phiếu bảo dưỡng hoàn thành trong kỳ.</td></tr>}</tbody>
         </table></div>
       </section>
       <div className="mt-7 grid gap-6 lg:grid-cols-2">

@@ -12,6 +12,10 @@ import { AuditService } from './audit.service';
 @Controller('admin/audit-logs')
 export class AuditController {
   constructor(private readonly service: AuditService) {}
+  @Get('staff-presence') @Roles(Role.ADMIN) staffPresence() {
+    return this.service.staffPresence();
+  }
+
   @Get('shifts') @Roles(Role.ADMIN) listShifts(
     @Query('from') from?: string,
     @Query('to') to?: string,

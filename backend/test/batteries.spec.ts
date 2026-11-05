@@ -20,10 +20,12 @@ function fixture(){
       return null;
     },
     save:async(value:any)=>value,
+    count:async()=>2,
   };
   const swapRepo:any={create:(value:any)=>value,save:async(value:any)=>{const saved={...value,id:swaps.length+1};swaps.push(saved);return saved;}};
   const vehicleRepo:any={findOne:async()=>vehicle};
-  const reservationRepo:any={findOne:async()=>null,create:(value:any)=>value,save:async(value:any)=>value,createQueryBuilder:()=>({update:()=>({set:()=>({where:()=>({execute:async()=>({})})})}),select:()=>({addSelect:()=>({where:()=>({andWhere:()=>({andWhere:()=>({groupBy:()=>({getRawMany:async()=>[]})})})})})})})};
+  const reservationQuery:any={where:()=>reservationQuery,andWhere:()=>reservationQuery,getCount:async()=>0,update:()=>({set:()=>({where:()=>({execute:async()=>({})})})}),select:()=>({addSelect:()=>({where:()=>({andWhere:()=>({andWhere:()=>({groupBy:()=>({getRawMany:async()=>[]})})})})})})};
+  const reservationRepo:any={findOne:async()=>null,create:(value:any)=>value,save:async(value:any)=>value,createQueryBuilder:()=>reservationQuery};
   const stationRepo:any={findOne:async()=>({id:2,isActive:true})};
   const manager:any={getRepository:(entity:any)=>entity===Battery?batteryRepo:entity===BatterySwap?swapRepo:entity===BatteryReservation?reservationRepo:entity===Vehicle?vehicleRepo:stationRepo};
   const dataSource:any={transaction:async(fn:any)=>fn(manager)};

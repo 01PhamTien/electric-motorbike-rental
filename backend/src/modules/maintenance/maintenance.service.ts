@@ -63,7 +63,7 @@ export class MaintenanceService {
 
   async listSchedules(user: JwtUser) {
     const qb = this.schedules.createQueryBuilder('s')
-      .innerJoinAndSelect(Vehicle, 'v', 'v.id = s.vehicleId')
+      .innerJoin(Vehicle, 'v', 'v.id = s.vehicleId')
       .orderBy('s.updatedAt', 'DESC');
     if (user.role === Role.STAFF) {
       if (!user.stationId) return [];

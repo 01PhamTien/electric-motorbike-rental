@@ -38,6 +38,18 @@ export class Booking {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   rentalAmount: string;
 
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  baseRentalAmount: string | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  discountAmount: string;
+
+  @Column({ type: 'int', nullable: true })
+  voucherId: number | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  voucherCodeSnapshot: string | null;
+
   @Column({ type: 'datetime', nullable: true })
   holdExpiresAt: Date | null;
 

@@ -85,6 +85,7 @@ export class BatteriesService {
       if(replacement.stationId!==vehicle.stationId) throw new BadRequestException('Pin thay thế phải có sẵn tại trạm hiện tại của xe');
       const removed=await batteryRepo.findOne({where:{vehicleId:vehicle.id,status:BatteryStatus.INSTALLED},lock:{mode:'pessimistic_write'}});
       if(!removed) throw new BadRequestException('Xe chưa có pin được ghi nhận trong hệ thống');
+      if(removed.stationId!==vehicle.stationId) throw new BadRequestException('Pin đang lắp trên xe không thuộc trạm hiện tại; cần kiểm kê trước khi đổi');
       removed.status=BatteryStatus.CHARGING;removed.vehicleId=null;
       replacement.status=BatteryStatus.INSTALLED;replacement.vehicleId=vehicle.id;
       await batteryRepo.save(removed);await batteryRepo.save(replacement);

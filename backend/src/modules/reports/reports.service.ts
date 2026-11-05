@@ -7,6 +7,7 @@ import { Vehicle } from '../vehicles/vehicle.entity';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { PaymentPurpose, PaymentTransaction } from '../payments/payment.entity';
 import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
+import { OperatingCost, OperatingCostCategory } from '../operating-costs/operating-cost.entity';
 
 type PaymentRow = Pick<PaymentTransaction, 'purpose' | 'amount' | 'createdAt'>;
 const cents = (value: string | number) => Math.round(Number(value) * 100);
@@ -19,6 +20,7 @@ export class ReportsService {
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
     @InjectRepository(PaymentTransaction) private readonly payments: Repository<PaymentTransaction>,
     @InjectRepository(MaintenanceRecord) private readonly maintenance: Repository<MaintenanceRecord>,
+    @InjectRepository(OperatingCost) private readonly operatingCosts: Repository<OperatingCost>,
   ) {}
 
   private parseDate(value: string | undefined, name: string, end = false): Date | undefined {
@@ -150,6 +152,61 @@ export class ReportsService {
       })
       .sort((a,b) => b.recordedCost - a.recordedCost).slice(0,10);
 
+    const operatingCostQuery = this.operatingCosts.createQueryBuilder('cost')
+      .leftJoinAndSelect('cost.station', 'costStation')
+      .leftJoinAndSelect('cost.vehicle', 'costVehicle');
+    if (start) operatingCostQuery.andWhere('cost.occurredAt >= :from', { from: start });
+    if (end) operatingCostQuery.andWhere('cost.occurredAt <= :to', { to: end });
+    const operatingCostRows = await operatingCostQuery.getMany();
+    const operatingCategoryTotals = new Map<OperatingCostCategory, number>();
+    const operatingVehicleTotals = new Map<number, { vehicleId:number; code:string; amountCents:number; energyKwh:number; records:number }>();
+    const operatingStationTotals = new Map<number, { stationId:number; name:string; amountCents:number; energyKwh:number; records:number }>();
+    let operatingCostCents = 0;
+    let chargingKwh = 0;
+    for (const record of operatingCostRows) {
+      const amount = cents(record.amount);
+      operatingCostCents += amount;
+      operatingCategoryTotals.set(record.category, (operatingCategoryTotals.get(record.category) ?? 0) + amount);
+      const kwh = Number(record.energyKwh ?? 0);
+      if (record.category === OperatingCostCategory.CHARGING) chargingKwh += kwh;
+      if (record.vehicleId && record.vehicle) {
+        const item = operatingVehicleTotals.get(record.vehicleId) ?? {
+          vehicleId:record.vehicleId, code:record.vehicle.code, amountCents:0, energyKwh:0, records:0,
+        };
+        item.amountCents += amount;
+        item.energyKwh += kwh;
+        item.records += 1;
+        operatingVehicleTotals.set(record.vehicleId,item);
+      }
+      const station = record.station;
+      if (station) {
+        const item = operatingStationTotals.get(station.id) ?? {
+          stationId:station.id, name:station.name, amountCents:0, energyKwh:0, records:0,
+        };
+        item.amountCents += amount;
+        item.energyKwh += kwh;
+        item.records += 1;
+        operatingStationTotals.set(station.id,item);
+      }
+    }
+    const operatingCostReport = {
+      totalCost: money(operatingCostCents),
+      chargingKwh: Number(chargingKwh.toFixed(3)),
+      records: operatingCostRows.length,
+      byCategory: [...operatingCategoryTotals.entries()].map(([category,amount])=>({category,amount:money(amount)})).sort((a,b)=>b.amount-a.amount),
+      byVehicle: [...operatingVehicleTotals.values()].map(item=>({
+        vehicleId:item.vehicleId, code:item.code, amount:money(item.amountCents),
+        energyKwh:Number(item.energyKwh.toFixed(3)), records:item.records,
+      })).sort((a,b)=>b.amount-a.amount).slice(0,20),
+      byStation: [...operatingStationTotals.values()].map(item=>({
+        stationId:item.stationId, name:item.name, amount:money(item.amountCents),
+        energyKwh:Number(item.energyKwh.toFixed(3)), records:item.records,
+      })).sort((a,b)=>b.amount-a.amount),
+      trackedCostTotal: money(operatingCostCents + maintenanceCostCents),
+      contributionAfterTrackedCosts: money(rentCollected + extrasCollected - operatingCostCents - maintenanceCostCents),
+      note: 'Chi phí đã theo dõi gồm phiếu bảo dưỡng hoàn thành và khoản vận hành đã ghi nhận. Chỉ số sau chi phí là phần đóng góp sau các chi phí đã nhập, chưa phải lợi nhuận ròng; chưa gồm lương, khấu hao, thuê mặt bằng, thuế và chi phí khác chưa ghi nhận.',
+    };
+
     const monthly = new Map<string, { rent: number; extra: number; refund: number; bookings: number }>();
     for (const row of periodPayments) {
       const date = new Date(row.createdAt);
@@ -240,6 +297,7 @@ export class ReportsService {
       },
       customers: { uniqueInPeriod: customerStats.size, newInPeriod: newCustomers, returningInPeriod: returningCustomers, topCustomers },
       maintenance: { completedRecords: maintenanceRows.length, recordedCost: money(maintenanceCostCents), byVehicle: maintenanceByVehicleReport },
+      operatingCosts: operatingCostReport,
       fleetUtilization,
       monthly: months,
       topVehicles: [...vehicleStats.values()].sort((a, b) => b.bookings - a.bookings).slice(0, 10).map(item => ({ ...item, bookingValue: money(item.bookingValue) })),

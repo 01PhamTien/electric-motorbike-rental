@@ -17,20 +17,24 @@ function defaultSchedule() {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 export function MaintenancePage() {
-  const [records,setRecords] = useState<Maintenance[]>([]);\n  const [alerts,setAlerts] = useState<MaintenanceAlert[]>([]);
+  const [records,setRecords] = useState<Maintenance[]>([]);
+  const [alerts,setAlerts] = useState<MaintenanceAlert[]>([]);
   const [vehicles,setVehicles] = useState<Vehicle[]>([]);
   const [loading,setLoading] = useState(true);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
   const [notice,setNotice] = useState('');
-  const [showForm,setShowForm] = useState(false);\n  const [showScheduleForm,setShowScheduleForm] = useState(false);\n  const [scheduleForm,setScheduleForm] = useState({vehicleId:'',intervalKm:'3000',intervalDays:'90',warningKm:'500',warningDays:'7',lastServiceOdometerKm:'0',lastServiceAt:new Date().toISOString().slice(0,10),isActive:true});
+  const [showForm,setShowForm] = useState(false);
+  const [showScheduleForm,setShowScheduleForm] = useState(false);
+  const [scheduleForm,setScheduleForm] = useState({vehicleId:'',intervalKm:'3000',intervalDays:'90',warningKm:'500',warningDays:'7',lastServiceOdometerKm:'0',lastServiceAt:new Date().toISOString().slice(0,10),isActive:true});
   const [form,setForm] = useState({ vehicleId: '', scheduledAt: defaultSchedule(), reason:'', description:'', cost:'0' });
   async function load() {
     setLoading(true);
     try {
       const [maintenance, fleet, schedules] = await Promise.all([api.get('/maintenance-records'),api.get('/vehicles'),api.get('/maintenance-records/schedules')]);
       setRecords(Array.isArray(maintenance.data) ? maintenance.data : maintenance.data?.items ?? []);
-      setVehicles(Array.isArray(fleet.data) ? fleet.data : fleet.data?.items ?? []);\n      setAlerts(Array.isArray(schedules.data) ? schedules.data : schedules.data?.items ?? []);
+      setVehicles(Array.isArray(fleet.data) ? fleet.data : fleet.data?.items ?? []);
+      setAlerts(Array.isArray(schedules.data) ? schedules.data : schedules.data?.items ?? []);
       setError('');
     } catch(err) { setError(errorText(err)); }
     finally { setLoading(false); }

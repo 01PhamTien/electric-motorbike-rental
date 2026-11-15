@@ -194,12 +194,11 @@ export class BatteriesService {
         const session = await sessionRepo.findOne({
           where: { batteryId, completedAt: IsNull() }, lock: { mode: 'pessimistic_write' },
         });
-        if (session) {
-          session.completedAt = new Date();
-          session.completedById = user.sub;
-          session.completionNote = dto.note?.trim() || 'Dừng sạc để chuyển pin sang bảo dưỡng';
-          await sessionRepo.save(session);
-        }
+        if (!session) throw new ConflictException('Không tìm thấy phiên sạc đang mở của pin');
+        session.completedAt = new Date();
+        session.completedById = user.sub;
+        session.completionNote = dto.note?.trim() || 'Dừng sạc để chuyển pin sang bảo dưỡng';
+        await sessionRepo.save(session);
       }
       battery.status = target;
       if (dto.note?.trim()) battery.note = dto.note.trim();

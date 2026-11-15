@@ -113,9 +113,8 @@ export function BatteriesPage(){
   function exportOperatingCosts(){
     const header=['ID','Serial pin','Trạm','Loại chi phí','Thành tiền (VND)','Điện năng (kWh)','Đơn giá (VND/kWh)','Ngày phát sinh','Ghi chú'];
     const rows=operatingCosts.map(x=>[x.id,x.battery?.serialNumber??x.batteryId,x.station?.name??x.stationId,x.costType,x.amount,x.energyKwh??'',x.unitPrice??'',x.occurredAt,x.note??'']);
-    const csv=[header,...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\\r\
-');
-    const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+    const csv=[header,...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download='battery-operating-costs.csv';a.click();URL.revokeObjectURL(url);
   }
   async function loadHealthHistory(id:number){setHistoryBatteryId(id);try{const r=await api.get('/batteries/'+id+'/health-history');setHealthHistory(Array.isArray(r.data)?r.data:[]);}catch(e){setError(errText(e));}}

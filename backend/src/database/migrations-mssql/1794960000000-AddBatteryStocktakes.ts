@@ -21,7 +21,7 @@ export class AddBatteryStocktakes1794960000000 implements MigrationInterface {
       CREATE TABLE [battery_stocktake_items](
         [id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_battery_stocktake_items] PRIMARY KEY,
         [stocktakeId] int NOT NULL,[batteryId] int NULL,[serialSnapshot] varchar(80) NOT NULL,
-        [systemStatus] varchar(20) NOT NULL,[systemVehicleId] int NULL,[exempt] bit NOT NULL CONSTRAINT [DF_battery_stocktake_items_exempt] DEFAULT 0,
+        [systemStatus] varchar(20) NOT NULL,[systemVehicleId] int NULL,[systemUpdatedAt] datetime2 NOT NULL,[exempt] bit NOT NULL CONSTRAINT [DF_battery_stocktake_items_exempt] DEFAULT 0,
         [countStatus] varchar(20) NOT NULL CONSTRAINT [DF_battery_stocktake_items_count] DEFAULT 'PENDING',
         [observedStatus] varchar(20) NULL,[note] nvarchar(500) NULL,
         [createdAt] datetime2 NOT NULL CONSTRAINT [DF_battery_stocktake_items_createdAt] DEFAULT SYSUTCDATETIME(),

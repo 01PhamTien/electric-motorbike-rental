@@ -29,6 +29,13 @@ test('SQL Server: battery inventory and swap history schema are migrated',async(
     for(const name of ['customerId','stationId','bookingId','vehicleId','status','expiresAt','redeemedAt','cancelledAt','redeemedById','batterySwapId']){
       assert.ok(reservationColumns.has(name),'Missing battery_reservations column: '+name);
     }
+    const chargingRows=await dataSource.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='battery_charging_sessions'");
+    const chargingColumns=new Set(chargingRows.map((row:{COLUMN_NAME:string})=>row.COLUMN_NAME));
+    for(const name of ['batteryId','stationId','startedById','completedById','startedAt','completedAt','status','note']){
+      assert.ok(chargingColumns.has(name),'Missing battery_charging_sessions column: '+name);
+    }
+    const chargingIndexes=await dataSource.query("SELECT name FROM sys.indexes WHERE object_id=OBJECT_ID('battery_charging_sessions')");
+    assert.ok(chargingIndexes.some((row:{name:string})=>row.name==='IDX_battery_charging_sessions_battery_status'));
     const indexes=await dataSource.query("SELECT name FROM sys.indexes WHERE object_id=OBJECT_ID('batteries')");
     assert.ok(indexes.some((row:{name:string})=>row.name==='IDX_batteries_station_status'));
   }finally{await dataSource.destroy();}

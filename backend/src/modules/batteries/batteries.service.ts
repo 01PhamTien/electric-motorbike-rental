@@ -31,6 +31,7 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     if (process.env.BATTERY_RESERVATION_EXPIRY_ENABLED === 'false') return;
+    this.reservationTtlMinutes();
     const intervalMs = Number(process.env.BATTERY_RESERVATION_EXPIRY_INTERVAL_MS ?? 60_000);
     if (!Number.isInteger(intervalMs) || intervalMs < 5_000) {
       throw new Error('BATTERY_RESERVATION_EXPIRY_INTERVAL_MS must be an integer >= 5000');

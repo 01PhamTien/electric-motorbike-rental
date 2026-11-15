@@ -8,7 +8,7 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BatteryStatus } from './battery.entity';
 import { BatteriesService } from './batteries.service';
-import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto, CompleteBatteryChargingDto, UpdateBatteryStatusDto, BatteryChargeHistoryQueryDto } from './batteries.dto';
+import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto, CompleteBatteryChargingDto, UpdateBatteryStatusDto, BatteryChargeHistoryQueryDto, UpdateBatteryHealthDto } from './batteries.dto';
 
 @ApiTags('Batteries and swaps')
 @ApiBearerAuth()
@@ -40,6 +40,7 @@ export class BatteriesController {
   @Post('swap') swap(@CurrentUser() user:JwtUser,@Body() dto:SwapBatteryDto){return this.service.swap(user,dto);}
   @Get('swaps/history') history(@CurrentUser() user:JwtUser,@Query('stationId') stationId?:string){return this.service.history(user,stationId?Number(stationId):undefined);}
   @Patch(':id/complete-charging') completeCharging(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:CompleteBatteryChargingDto){return this.service.completeCharging(user,id,dto);}
+  @Patch(':id/health') updateHealth(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:UpdateBatteryHealthDto){return this.service.updateHealth(user,id,dto);}
   @Patch(':id/status') updateStatus(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:UpdateBatteryStatusDto){return this.service.updateStatus(user,id,dto);}
   @Get('charging/history') chargingHistory(@CurrentUser() user:JwtUser,@Query() query:BatteryChargeHistoryQueryDto){return this.service.chargingHistory(user,query);}
 }

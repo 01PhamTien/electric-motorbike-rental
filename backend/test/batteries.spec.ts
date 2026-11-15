@@ -56,3 +56,33 @@ test('battery swap is restricted to the staff assigned station',async()=>{
   const {service}=fixture();
   await assert.rejects(()=>service.swap({...staff,stationId:9},{vehicleId:12,replacementBatteryId:2}),/ngoài trạm được phân công/);
 });
+
+
+test('swap history returns paginated records with selected staff identity and filters',async()=>{
+  const conditions:any[]=[];
+  const records:any[]=[{id:7,performedBy:{id:5,fullName:'Staff A'}}];
+  const qb:any={
+    leftJoinAndSelect:()=>qb,leftJoin:()=>qb,addSelect:()=>qb,orderBy:()=>qb,addOrderBy:()=>qb,
+    andWhere:(sql:string,params:any)=>{conditions.push({sql,params});return qb;},
+    skip:(value:number)=>{qb.offset=value;return qb;},take:(value:number)=>{qb.limit=value;return qb;},
+    getManyAndCount:async()=>[records,1],
+  };
+  const swaps:any={createQueryBuilder:()=>qb};
+  const service=new BatteriesService({} as any,{} as any,swaps,{} as any,{} as any,{} as any);
+  const result=await service.history(staff,{stationId:2,vehicleId:12,serial:'BAT',from:'2026-11-01',to:'2026-11-15',page:2,limit:10});
+  assert.equal(result.total,1);
+  assert.equal(result.page,2);
+  assert.equal(result.items[0].performedBy.fullName,'Staff A');
+  assert.equal(qb.offset,10);
+  assert.equal(qb.limit,10);
+  assert.equal(conditions.length,5);
+  assert.equal(conditions[0].params.stationId,2);
+  assert.equal(conditions[1].params.vehicleId,12);
+  assert.equal(conditions[2].params.serial,'%BAT%');
+});
+
+test('swap history rejects staff station scope tampering',async()=>{
+  const qb:any={leftJoinAndSelect:()=>qb,leftJoin:()=>qb,addSelect:()=>qb,orderBy:()=>qb,addOrderBy:()=>qb,andWhere:()=>qb,skip:()=>qb,take:()=>qb,getManyAndCount:async()=>[[],0]};
+  const service=new BatteriesService({} as any,{} as any,{createQueryBuilder:()=>qb} as any,{} as any,{} as any,{} as any);
+  await assert.rejects(()=>service.history({...staff,stationId:9},{stationId:2}),/ngoài trạm được phân công/);
+});

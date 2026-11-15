@@ -29,7 +29,7 @@ function fixture(){
   const reservationRepo:any={findOne:async()=>null,create:(value:any)=>value,save:async(value:any)=>value,createQueryBuilder:()=>reservationQuery};
   const chargingRepo:any={
     create:(value:any)=>value,
-    save:async(value:any)=>{const saved={...value,id:sessions.length+1};sessions.push(saved);return saved;},
+    save:async(value:any)=>{const existing=sessions.findIndex(s=>s.id===value.id);const saved={...value,id:value.id??sessions.length+1};if(existing>=0)sessions[existing]=saved;else sessions.push(saved);return saved;},
     findOne:async({where}:any)=>sessions.find(s=>s.batteryId===where.batteryId&&s.status===where.status)??null,
   };
   const stationRepo:any={findOne:async()=>({id:2,isActive:true})};

@@ -40,6 +40,7 @@ export class BatteryStocktakeItem {
   @Column({type:'varchar',length:80}) serialSnapshot:string;
   @Column({type:'varchar',length:20}) systemStatus:string;
   @Column({type:'int',nullable:true}) systemVehicleId:number|null;
+  @Column({type:'datetime2'}) systemUpdatedAt:Date;
   @Column({type:'bit',default:false}) exempt:boolean;
   @Column({type:'varchar',length:20,default:BatteryStocktakeCountStatus.PENDING}) countStatus:BatteryStocktakeCountStatus;
   @Column({type:'varchar',length:20,nullable:true}) observedStatus:string|null;

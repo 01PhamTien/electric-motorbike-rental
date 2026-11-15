@@ -14,7 +14,7 @@ import { Booking } from '../bookings/booking.entity';
 import { User } from '../users/user.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
-import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CompleteBatteryChargingDto, UpdateBatteryStatusDto, BatteryChargeHistoryQueryDto } from './batteries.dto';
+import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CompleteBatteryChargingDto, UpdateBatteryStatusDto, BatteryChargeHistoryQueryDto, UpdateBatteryHealthDto } from './batteries.dto';
 
 @Injectable()
 export class BatteriesService {

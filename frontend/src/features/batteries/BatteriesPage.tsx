@@ -22,7 +22,10 @@ export function BatteriesPage(){
   const [batteries,setBatteries]=useState<Battery[]>([]);
   const [history,setHistory]=useState<Swap[]>([]);
   const [reservations,setReservations]=useState<Reservation[]>([]);
-  const [transfers,setTransfers]=useState<BatteryTransfer[]>([]);\n  const [stocktakes,setStocktakes]=useState<Stocktake[]>([]);\n  const [extraSerial,setExtraSerial]=useState('');\n  const [extraNote,setExtraNote]=useState('');
+  const [transfers,setTransfers]=useState<BatteryTransfer[]>([]); 
+  const [stocktakes,setStocktakes]=useState<Stocktake[]>([]); 
+  const [extraSerial,setExtraSerial]=useState(''); 
+  const [extraNote,setExtraNote]=useState('');
   const [transferDestination,setTransferDestination]=useState('');
   const [transferBatteryIds,setTransferBatteryIds]=useState<number[]>([]);
   const [transferNote,setTransferNote]=useState('');

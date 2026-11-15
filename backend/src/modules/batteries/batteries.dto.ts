@@ -1,6 +1,6 @@
 import { IsArray, ArrayNotEmpty, ArrayMaxSize, ArrayUnique } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateBatteryDto {
   @ApiProperty({ example: 'VG-BAT-0001' }) @IsString() @MaxLength(80) serialNumber: string;
@@ -57,8 +57,8 @@ export class RecordBatteryHealthDto {
 export class CreateBatteryMaintenanceTaskDto {
   @ApiProperty({example:12}) @IsInt() @Min(1) batteryId:number;
   @ApiProperty({example:'CAPACITY_TEST'}) @IsString() @MaxLength(40) taskType:string;
-  @ApiPropertyOptional({enum:['LOW','NORMAL','HIGH','URGENT']}) @IsOptional() @IsString() priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT';
-  @ApiPropertyOptional({example:'2026-12-01T09:00:00.000Z'}) @IsOptional() @IsString() dueAt?:string;
+  @ApiPropertyOptional({enum:['LOW','NORMAL','HIGH','URGENT']}) @IsOptional() @IsIn(['LOW','NORMAL','HIGH','URGENT']) priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT';
+  @ApiPropertyOptional({example:'2026-12-01T09:00:00.000Z'}) @IsOptional() @IsDateString() dueAt?:string;
   @ApiProperty({example:'Đo dung lượng thực tế và kiểm tra đầu nối.'}) @IsString() @MaxLength(1000) description:string;
 }
 export class CompleteBatteryMaintenanceTaskDto {

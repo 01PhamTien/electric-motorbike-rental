@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateBatteryDto {
   @ApiProperty({ example: 'VG-BAT-0001' }) @IsString() @MaxLength(80) serialNumber: string;
@@ -25,4 +25,21 @@ export class CreateBatteryReservationDto {
 export class RedeemBatteryReservationDto {
   @ApiProperty({example:3}) @IsInt() @Min(1) replacementBatteryId:number;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}
+
+export class CompleteBatteryChargingDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+export class UpdateBatteryStatusDto {
+  @ApiProperty({ example: 'MAINTENANCE', enum: ['FULL','CHARGING','INSTALLED','MAINTENANCE','RETIRED'] })
+  @IsString() @IsIn(['FULL','CHARGING','INSTALLED','MAINTENANCE','RETIRED']) status: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+export class BatteryChargeHistoryQueryDto {
+  @IsOptional() @IsInt() @Min(1) stationId?: number;
+  @IsOptional() @IsInt() @Min(1) batteryId?: number;
+  @IsOptional() @IsDateString() from?: string;
+  @IsOptional() @IsDateString() to?: string;
+  @IsOptional() @IsInt() @Min(1) page = 1;
+  @IsOptional() @IsInt() @Min(1) @Max(100) limit = 20;
 }

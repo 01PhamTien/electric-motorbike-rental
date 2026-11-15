@@ -84,9 +84,9 @@ test('charging completion safely records legacy charging batteries without a ses
   const {service,batteries,sessions}=fixture();
   batteries[0].status=BatteryStatus.CHARGING;batteries[0].vehicleId=null;
   const result=await service.completeCharging(staff,1);
-  assert.equal(result.battery.status,BatteryStatus.FULL);
-  assert.equal(result.battery.cycleCount,11);
-  assert.equal(result.session.status,BatteryChargingStatus.COMPLETED);
+  assert.equal(result.status,BatteryStatus.FULL);
+  assert.equal(result.cycleCount,11);
+  assert.equal(result.chargingSession.status,BatteryChargingStatus.COMPLETED);
   assert.ok(result.chargingSession.note?.includes('trước khi bật theo dõi'));
   assert.equal(sessions.length,1);
 });

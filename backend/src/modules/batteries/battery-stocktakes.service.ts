@@ -34,7 +34,7 @@ export class BatteryStocktakesService {
       const stocktake=await stocktakeRepo.save(stocktakeRepo.create({stationId:station.id,createdById:user.sub,completedById:null,approvedById:null,status:BatteryStocktakeStatus.OPEN,note:dto.note?.trim()||null,heldReservationCount:holds,completedAt:null,approvedAt:null}));
       const rows=batteries.map(battery=>itemRepo.create({
         stocktakeId:stocktake.id,batteryId:battery.id,serialSnapshot:battery.serialNumber,systemStatus:battery.status,
-        systemVehicleId:battery.vehicleId,exempt:battery.status===BatteryStatus.TRANSFERRING,
+        systemVehicleId:battery.vehicleId,systemUpdatedAt:battery.updatedAt,exempt:battery.status===BatteryStatus.TRANSFERRING,
         countStatus:battery.status===BatteryStatus.TRANSFERRING?BatteryStocktakeCountStatus.PRESENT:BatteryStocktakeCountStatus.PENDING,
         observedStatus:null,note:battery.status===BatteryStatus.TRANSFERRING?'Đang điều chuyển tại thời điểm chụp snapshot':null,
       }));
@@ -55,6 +55,11 @@ export class BatteryStocktakesService {
       if(!item)throw new NotFoundException('Không tìm thấy dòng kiểm kê');
       if(item.exempt)throw new BadRequestException('Pin đang điều chuyển được miễn kiểm đếm trong đợt này');
       if(item.batteryId===null)throw new BadRequestException('Dòng pin thừa không thể cập nhật như pin trong snapshot');
+      if(dto.countStatus==='MISSING'){
+        const current=await manager.getRepository(Battery).findOne({where:{id:item.batteryId},lock:{mode:'pessimistic_write'}});
+        if(!current||current.stationId!==stocktake.stationId||current.updatedAt.getTime()>item.systemUpdatedAt.getTime())
+          throw new ConflictException('Pin đã thay đổi sau thời điểm chụp snapshot; cần kiểm tra lại trước khi đánh dấu thiếu');
+      }
       if(dto.countStatus!=='PRESENT'&&dto.countStatus!=='MISSING')throw new BadRequestException('Kết quả chỉ được là PRESENT hoặc MISSING');
       item.countStatus=dto.countStatus;item.observedStatus=dto.observedStatus?.trim()||null;item.note=dto.note?.trim()||null;
       return itemRepo.save(item);

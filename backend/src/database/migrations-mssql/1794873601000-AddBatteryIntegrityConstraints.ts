@@ -36,6 +36,19 @@ export class AddBatteryIntegrityConstraints1794873601000 implements MigrationInt
         HAVING COUNT(*) > 1
       ) AS [duplicates]
     `);
+
+    const crossStationInstalled = await queryRunner.query(`
+      SELECT COUNT(*) AS [total]
+      FROM [batteries] AS [b]
+      INNER JOIN [vehicles] AS [v] ON [v].[id] = [b].[vehicleId]
+      WHERE [b].[status] = 'INSTALLED'
+        AND [b].[stationId] <> [v].[stationId]
+    `);
+    if (Number(crossStationInstalled[0]?.total ?? 0) > 0) {
+      throw new Error(
+        'Cannot enforce battery integrity: installed batteries and their vehicles belong to different stations. Reconcile station assignments before retrying.',
+      );
+    }
     if (Number(duplicateInstalled[0]?.total ?? 0) > 0) {
       throw new Error(
         'Cannot add UX_batteries_one_installed_per_vehicle: at least one vehicle has multiple INSTALLED batteries. Resolve duplicates before retrying.',

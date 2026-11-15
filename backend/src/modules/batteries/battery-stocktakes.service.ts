@@ -31,14 +31,13 @@ export class BatteryStocktakesService {
       const batteries=await batteryRepo.find({where:{stationId:station.id},order:{id:'ASC'}});
       const holds=await reservationRepo.createQueryBuilder('r').where('r.stationId=:stationId',{stationId:station.id})
         .andWhere('r.status=:status',{status:BatteryReservationStatus.RESERVED}).andWhere('r.expiresAt>:now',{now:new Date()}).getCount();
-      const stocktake=await stocktakeRepo.save(stocktakeRepo.create({stationId:station.id,createdById:user.sub,completedById:null,approvedById:null,status:BatteryStocktakeStatus.OPEN,note:dto.note?.trim()||null,completedAt:null,approvedAt:null}));
-      const rows=batteries.map((battery,index)=>itemRepo.create({
+      const stocktake=await stocktakeRepo.save(stocktakeRepo.create({stationId:station.id,createdById:user.sub,completedById:null,approvedById:null,status:BatteryStocktakeStatus.OPEN,note:dto.note?.trim()||null,heldReservationCount:holds,completedAt:null,approvedAt:null}));
+      const rows=batteries.map(battery=>itemRepo.create({
         stocktakeId:stocktake.id,batteryId:battery.id,serialSnapshot:battery.serialNumber,systemStatus:battery.status,
         systemVehicleId:battery.vehicleId,exempt:battery.status===BatteryStatus.TRANSFERRING,
         countStatus:battery.status===BatteryStatus.TRANSFERRING?BatteryStocktakeCountStatus.PRESENT:BatteryStocktakeCountStatus.PENDING,
         observedStatus:null,note:battery.status===BatteryStatus.TRANSFERRING?'Đang điều chuyển tại thời điểm chụp snapshot':null,
       }));
-      if(holds>0){const heldRows=await itemRepo.find({where:{stocktakeId:stocktake.id}});void heldRows;}
       await itemRepo.save(rows);
       return stocktake.id;
     });

@@ -34,6 +34,7 @@ export function BatteriesPage(){
   const [serial,setSerial]=useState(''),[capacity,setCapacity]=useState(''),[health,setHealth]=useState('100'),[newBatteryNote,setNewBatteryNote]=useState(''),[swapNote,setSwapNote]=useState('');
   const [installVehicleId,setInstallVehicleId]=useState(''),[swapVehicleId,setSwapVehicleId]=useState(''),[installBatteryId,setInstallBatteryId]=useState(''),[swapBatteryId,setSwapBatteryId]=useState('');
   const scopedVehicles=useMemo(()=>vehicles.filter(v=>String(v.station?.id)===stationId),[vehicles,stationId]);
+  const historyVehicles=stationId?scopedVehicles:vehicles;
   const fullBatteries=batteries.filter(b=>b.status==='FULL'&&!b.vehicleId);
   const unassignedVehicles=scopedVehicles.filter(v=>!batteries.some(b=>b.vehicleId===v.id&&b.status==='INSTALLED'));
   async function load(){
@@ -109,7 +110,7 @@ export function BatteriesPage(){
           <div><p className="eyebrow">NHẬT KÝ ĐỔI PIN</p><h2 className="mt-2 text-xl font-extrabold">Lịch sử giao dịch</h2><p className="mt-1 text-sm text-slate-500">{historyTotal} giao dịch phù hợp</p></div>
           <div className="flex flex-wrap gap-2">
             <input aria-label="Tìm serial pin trong lịch sử" className="field min-w-48" placeholder="Tìm serial pin..." value={historySearch} onChange={e=>{setHistorySearch(e.target.value);setHistoryPage(1);}}/>
-            <select aria-label="Lọc xe" className="field min-w-44" value={historyVehicleId} onChange={e=>{setHistoryVehicleId(e.target.value);setHistoryPage(1);}}><option value="">Tất cả xe</option>{scopedVehicles.map(v=><option key={v.id} value={v.id}>{v.code}</option>)}</select>
+            <select aria-label="Lọc xe" className="field min-w-44" value={historyVehicleId} onChange={e=>{setHistoryVehicleId(e.target.value);setHistoryPage(1);}}><option value="">Tất cả xe</option>{historyVehicles.map(v=><option key={v.id} value={v.id}>{v.code}</option>)}</select>
             <input aria-label="Từ ngày" title="Từ ngày" className="field" type="date" value={historyFrom} onChange={e=>{setHistoryFrom(e.target.value);setHistoryPage(1);}}/>
             <input aria-label="Đến ngày" title="Đến ngày" className="field" type="date" min={historyFrom||undefined} value={historyTo} onChange={e=>{setHistoryTo(e.target.value);setHistoryPage(1);}}/>
           </div>

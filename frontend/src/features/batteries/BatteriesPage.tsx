@@ -65,7 +65,7 @@ export function BatteriesPage(){
     await act(()=>api.post('/batteries/swap',{vehicleId:Number(swapVehicleId),replacementBatteryId:Number(swapBatteryId),note:swapNote.trim()||undefined}),'Đổi pin thành công. Pin cũ đã chuyển sang trạng thái chờ sạc.');
     setSwapVehicleId('');setSwapBatteryId('');setSwapNote('');
   }
-  const openStocktake=stocktakes.find(s=>s.status==='OPEN');
+  const openStocktake=stationId?stocktakes.find(s=>s.status==='OPEN'&&String(s.stationId)===stationId):undefined;
   async function startStocktake(){
     if(!stationId)return;
     await act(()=>api.post('/batteries/stocktakes',{stationId:Number(stationId)}),'Đã tạo đợt kiểm kê và chụp snapshot tồn kho.');

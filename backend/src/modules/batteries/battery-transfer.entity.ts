@@ -31,7 +31,7 @@ export class BatteryTransfer {
 }
 
 @Entity('battery_transfer_items')
-@Index('UQ_battery_transfer_items_battery_active',['batteryId','transferId'],{unique:true})
+@Index('IDX_battery_transfer_items_battery',['batteryId'])
 export class BatteryTransferItem {
   @PrimaryGeneratedColumn() id:number;
   @Column({type:'int'}) transferId:number;

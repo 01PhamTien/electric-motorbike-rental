@@ -11,7 +11,7 @@ import { BatteriesService } from './batteries.service';
 import { BatteryTransfersService } from './battery-transfers.service';
 import { BatteryStocktakesService } from './battery-stocktakes.service';
 import { BatteryHealthService } from './battery-health.service';
-import { CreateBatteryTransferDto, CreateBatteryStocktakeDto, UpdateBatteryStocktakeItemDto, AddBatteryStocktakeExtraDto, RecordBatteryHealthDto, CreateBatteryMaintenanceTaskDto, CompleteBatteryMaintenanceTaskDto } from './batteries.dto';
+import { CreateBatteryTransferDto, CreateBatteryStocktakeDto, UpdateBatteryStocktakeItemDto, AddBatteryStocktakeExtraDto, RecordBatteryHealthDto, CreateBatteryMaintenanceTaskDto, CompleteBatteryMaintenanceTaskDto, CreateBatteryOperatingCostDto } from './batteries.dto';
 import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
 
 @ApiTags('Batteries and swaps')
@@ -54,7 +54,7 @@ export class BatteriesController {
   @Patch('stocktakes/:id/approve')
   @Roles(Role.ADMIN)
   approveStocktake(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number){return this.stocktakes.approve(user,id);}
-  @Get('health/summary')
+  @Get('operating-costs/summary')\n  @Roles(Role.ADMIN,Role.STAFF)\n  operatingCostSummary(@CurrentUser() user:JwtUser,@Query('stationId') stationId?:string,@Query('from') from?:string,@Query('to') to?:string){return this.health.operatingCostSummary(user,{stationId?Number(stationId):undefined,from,to});}\n  @Get('operating-costs')\n  @Roles(Role.ADMIN,Role.STAFF)\n  listOperatingCosts(@CurrentUser() user:JwtUser,@Query('stationId') stationId?:string,@Query('from') from?:string,@Query('to') to?:string,@Query('costType') costType?:string,@Query('batteryId') batteryId?:string){return this.health.listOperatingCosts(user,{stationId?Number(stationId):undefined,from,to,costType,batteryId:batteryId?Number(batteryId):undefined});}\n  @Post('operating-costs')\n  @Roles(Role.ADMIN,Role.STAFF)\n  createOperatingCost(@CurrentUser() user:JwtUser,@Body() dto:CreateBatteryOperatingCostDto){return this.health.createOperatingCost(user,dto);}\n  @Get('health/summary')
   @Roles(Role.ADMIN,Role.STAFF)
   healthSummary(@CurrentUser() user:JwtUser,@Query('stationId') stationId?:string){return this.health.summary(user,stationId?Number(stationId):undefined);}
   @Get(':id/health-history')

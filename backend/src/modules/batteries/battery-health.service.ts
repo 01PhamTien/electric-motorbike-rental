@@ -30,7 +30,7 @@ export class BatteryHealthService {
     const battery=await this.dataSource.getRepository(Battery).findOne({where:{id:batteryId}});
     if(!battery)throw new NotFoundException('Không tìm thấy pin');
     this.assertStation(user,battery.stationId);
-    return this.dataSource.getRepository(BatteryHealthCheck).find({where:{batteryId},relations:{recordedBy:true},order:{createdAt:'DESC'},take:100});
+    return this.dataSource.getRepository(BatteryHealthCheck).createQueryBuilder('h').leftJoin('h.recordedBy','u').addSelect(['u.id','u.fullName']).where('h.batteryId=:batteryId',{batteryId}).orderBy('h.createdAt','DESC').take(100).getMany();
   }
   async record(user:JwtUser,batteryId:number,dto:{healthPercent:number;note?:string}){
     const check=await this.dataSource.transaction(async manager=>{
@@ -58,7 +58,7 @@ export class BatteryHealthService {
       const battery=await repo.findOne({where:{id:dto.batteryId},lock:{mode:'pessimistic_write'}});
       if(!battery)throw new NotFoundException('Không tìm thấy pin');
       this.assertStation(user,battery.stationId);
-      if(battery.status==='RETIRED')throw new BadRequestException('Không thể lập phiếu cho pin đã ngừng sử dụng');
+      if(battery.status==='RETIRED'||battery.status==='TRANSFERRING')throw new BadRequestException('Không thể lập phiếu cho pin đã ngừng sử dụng hoặc đang điều chuyển');
       return tasks.save(tasks.create({batteryId:battery.id,stationId:battery.stationId,createdById:user.sub,completedById:null,taskType:dto.taskType,priority:dto.priority??'NORMAL',status:BatteryMaintenanceStatus.OPEN,dueAt:dto.dueAt?new Date(dto.dueAt):null,description:dto.description.trim(),result:null,cost:null,startedAt:null,completedAt:null}));
     });
     await this.audit.record(user.sub,'BATTERY_MAINTENANCE_CREATED','BATTERY_MAINTENANCE',task.id,{batteryId:task.batteryId,taskType:task.taskType});

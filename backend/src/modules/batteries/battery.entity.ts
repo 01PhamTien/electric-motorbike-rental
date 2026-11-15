@@ -16,6 +16,7 @@ export enum BatteryStatus {
 @Check('CK_batteries_cycle', '[cycleCount] >= 0')
 @Check('CK_batteries_vehicle_status', "([status] = 'INSTALLED' AND [vehicleId] IS NOT NULL) OR ([status] <> 'INSTALLED' AND [vehicleId] IS NULL)")
 @Index('IDX_batteries_station_status', ['stationId', 'status'])
+@Index('UX_batteries_one_installed_per_vehicle', ['vehicleId'], { unique: true, where: "[status] = 'INSTALLED' AND [vehicleId] IS NOT NULL" })
 @Unique('UQ_batteries_serial', ['serialNumber'])
 export class Battery {
   @PrimaryGeneratedColumn() id: number;

@@ -58,6 +58,70 @@ export class BatteriesService {
     return qb.getMany();
   }
 
+  async inventory(user: JwtUser, filters: { stationId?: number; status?: BatteryStatus; search?: string; page?: number; limit?: number }) {
+    const page = Math.max(1, Math.floor(filters.page || 1));
+    const limit = Math.min(100, Math.max(1, Math.floor(filters.limit || 20)));
+    const qb = this.batteries.createQueryBuilder('battery')
+      .leftJoinAndSelect('battery.station', 'station')
+      .leftJoinAndSelect('battery.vehicle', 'vehicle')
+      .orderBy('battery.updatedAt', 'DESC')
+      .addOrderBy('battery.id', 'DESC');
+
+    if (filters.stationId) {
+      this.assertStation(user, filters.stationId);
+      qb.andWhere('battery.stationId = :stationId', { stationId: filters.stationId });
+    } else if (user.role === Role.STAFF) {
+      if (user.stationId == null) return { items: [], total: 0, page, limit, totalPages: 0 };
+      qb.andWhere('battery.stationId = :stationId', { stationId: user.stationId });
+    }
+    if (filters.status) qb.andWhere('battery.status = :status', { status: filters.status });
+    if (filters.search?.trim()) {
+      const search = filters.search.trim().slice(0, 80);
+      qb.andWhere('(battery.serialNumber LIKE :search OR vehicle.code LIKE :search OR vehicle.licensePlate LIKE :search)', { search: `%${search}%` });
+    }
+
+    const [items, total] = await qb.skip((page - 1) * limit).take(limit).getManyAndCount();
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async inventorySummary(user: JwtUser, stationId?: number) {
+    if (stationId) this.assertStation(user, stationId);
+    const qb = this.batteries.createQueryBuilder('battery')
+      .innerJoin('battery.station', 'station')
+      .select('battery.stationId', 'stationId')
+      .addSelect('station.name', 'stationName')
+      .addSelect('battery.status', 'status')
+      .addSelect('COUNT(battery.id)', 'count')
+      .groupBy('battery.stationId')
+      .addGroupBy('station.name')
+      .addGroupBy('battery.status')
+      .orderBy('station.name', 'ASC');
+    if (stationId) qb.andWhere('battery.stationId = :stationId', { stationId });
+    else if (user.role === Role.STAFF) {
+      if (user.stationId == null) return { totals: this.emptyInventoryTotals(), stations: [] };
+      qb.andWhere('battery.stationId = :stationId', { stationId: user.stationId });
+    }
+
+    const rows = await qb.getRawMany<{ stationId: string | number; stationName: string; status: BatteryStatus; count: string | number }>();
+    const stations = new Map<number, { stationId: number; stationName: string; total: number; FULL: number; INSTALLED: number; CHARGING: number; MAINTENANCE: number; RETIRED: number }>();
+    const totals = this.emptyInventoryTotals();
+    for (const row of rows) {
+      const id = Number(row.stationId);
+      if (!stations.has(id)) stations.set(id, { stationId: id, stationName: row.stationName, ...this.emptyInventoryTotals() });
+      const count = Number(row.count);
+      const station = stations.get(id)!;
+      station[row.status] += count;
+      station.total += count;
+      totals[row.status] += count;
+      totals.total += count;
+    }
+    return { totals, stations: Array.from(stations.values()) };
+  }
+
+  private emptyInventoryTotals() {
+    return { total: 0, FULL: 0, INSTALLED: 0, CHARGING: 0, MAINTENANCE: 0, RETIRED: 0 };
+  }
+
   async install(user: JwtUser, dto: InstallBatteryDto) {
     return this.dataSource.transaction(async manager => {
       const batteryRepo=manager.getRepository(Battery), vehicleRepo=manager.getRepository(Vehicle);

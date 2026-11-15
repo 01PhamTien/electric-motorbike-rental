@@ -72,3 +72,31 @@ test('SQL Server: battery inventory and swap history schema are migrated',async(
     assert.equal(Number(crossStationInstalled[0].total),0,'Installed battery and vehicle belong to different stations');
   }finally{await dataSource.destroy();}
 });
+
+test('SQL Server: battery serial numbers are unique at database level',async()=>{
+  const dataSource=new DataSource({...sqlServerConnectionOptions(),entities:[join(__dirname,'../src/modules/**/*.entity.ts')],synchronize:false,dropSchema:false});
+  await dataSource.initialize();
+  const runner=dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+  try{
+    const now=new Date();
+    const stationRows=await runner.query(`
+      INSERT INTO [stations]([name],[address],[latitude],[longitude],[phone],[isActive],[createdAt],[updatedAt])
+      OUTPUT INSERTED.[id]
+      VALUES(@0,@1,@2,@3,NULL,1,@4,@4)
+    `,['battery-integrity-test-'+Date.now(),'SQL Server constraint test','10.0000000','106.0000000',now]);
+    const stationId=stationRows[0].id;
+    const serial='INTEGRITY-'+Date.now();
+    const insert=()=>runner.query(`
+      INSERT INTO [batteries]([serialNumber],[stationId],[vehicleId],[status],[capacityKwh],[healthPercent],[cycleCount],[lastChargedAt],[note],[createdAt],[updatedAt])
+      VALUES(@0,@1,NULL,'FULL',NULL,100,0,NULL,NULL,@2,@2)
+    `,[serial,stationId,now]);
+    await insert();
+    await assert.rejects(()=>insert(),/UQ_batteries_serial|unique|duplicate/i);
+  }finally{
+    await runner.rollbackTransaction();
+    await runner.release();
+    await dataSource.destroy();
+  }
+});

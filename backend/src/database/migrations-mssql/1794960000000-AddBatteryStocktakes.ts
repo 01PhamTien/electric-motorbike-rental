@@ -8,7 +8,7 @@ export class AddBatteryStocktakes1794960000000 implements MigrationInterface {
         [id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_battery_stocktakes] PRIMARY KEY,
         [stationId] int NOT NULL,[createdById] int NOT NULL,[completedById] int NULL,[approvedById] int NULL,
         [status] varchar(20) NOT NULL CONSTRAINT [DF_battery_stocktakes_status] DEFAULT 'OPEN',
-        [note] nvarchar(500) NULL,[completedAt] datetime2 NULL,[approvedAt] datetime2 NULL,
+        [note] nvarchar(500) NULL,[heldReservationCount] int NOT NULL CONSTRAINT [DF_battery_stocktakes_held] DEFAULT 0,[completedAt] datetime2 NULL,[approvedAt] datetime2 NULL,
         [createdAt] datetime2 NOT NULL CONSTRAINT [DF_battery_stocktakes_createdAt] DEFAULT SYSUTCDATETIME(),
         [updatedAt] datetime2 NOT NULL CONSTRAINT [DF_battery_stocktakes_updatedAt] DEFAULT SYSUTCDATETIME(),
         CONSTRAINT [FK_battery_stocktakes_station] FOREIGN KEY([stationId]) REFERENCES [stations]([id]) ON DELETE NO ACTION,

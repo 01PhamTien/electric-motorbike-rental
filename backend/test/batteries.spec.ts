@@ -80,12 +80,15 @@ test('charging completion closes the active session and increments cycle exactly
   assert.equal(batteries[0].cycleCount,before+1);
 });
 
-test('charging completion rejects missing active session without changing battery',async()=>{
-  const {service,batteries}=fixture();
+test('charging completion safely records legacy charging batteries without a session',async()=>{
+  const {service,batteries,sessions}=fixture();
   batteries[0].status=BatteryStatus.CHARGING;batteries[0].vehicleId=null;
-  await assert.rejects(()=>service.completeCharging(staff,1),/phiên sạc đang mở/);
-  assert.equal(batteries[0].status,BatteryStatus.CHARGING);
-  assert.equal(batteries[0].cycleCount,10);
+  const result=await service.completeCharging(staff,1);
+  assert.equal(result.battery.status,BatteryStatus.FULL);
+  assert.equal(result.battery.cycleCount,11);
+  assert.equal(result.session.status,BatteryChargingStatus.COMPLETED);
+  assert.match(result.session.note,/trước khi bật theo dõi/);
+  assert.equal(sessions.length,1);
 });
 
 test('battery health update validates station scope and refuses retired batteries',async()=>{
@@ -104,4 +107,11 @@ test('maintenance can only start for an unassigned full battery and can be compl
   assert.equal(completed.status,BatteryStatus.FULL);
   batteries[0].status=BatteryStatus.INSTALLED;
   await assert.rejects(()=>service.setMaintenance(staff,1),/Chỉ pin đầy/);
+});
+
+test('retirement is allowed only for stock or maintenance batteries',async()=>{
+  const {service,batteries}=fixture();
+  const retired=await service.retireBattery(staff,2,'Đạt ngưỡng loại bỏ');
+  assert.equal(retired.status,BatteryStatus.RETIRED);
+  await assert.rejects(()=>service.retireBattery(staff,1),/Chỉ pin trong kho/);
 });

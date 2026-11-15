@@ -35,6 +35,8 @@ export class AddBatteryTransfers1794873600000 implements MigrationInterface {
     await queryRunner.query("IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IDX_battery_transfer_items_battery') CREATE INDEX [IDX_battery_transfer_items_battery] ON [battery_transfer_items]([batteryId])");
   }
   async down(queryRunner:QueryRunner):Promise<void>{
+    const active=await queryRunner.query("SELECT COUNT(*) AS [count] FROM [batteries] WHERE [status]='TRANSFERRING'");
+    if(Number(active?.[0]?.count??0)>0)throw new Error('Cannot roll back battery transfers while any battery is TRANSFERRING. Complete or cancel all open transfers first.');
     if(await queryRunner.hasTable('battery_transfer_items'))await queryRunner.dropTable('battery_transfer_items');
     if(await queryRunner.hasTable('battery_transfers'))await queryRunner.dropTable('battery_transfers');
     await queryRunner.query("IF EXISTS(SELECT 1 FROM sys.check_constraints WHERE name=N'CK_batteries_status') ALTER TABLE [batteries] DROP CONSTRAINT [CK_batteries_status]");

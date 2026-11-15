@@ -75,7 +75,9 @@ export function BatteriesPage(){
     setLoading(true);setError('');
     try{
       const params=stationId?{stationId:Number(stationId)}:{};
-      const costParams={...(stationId?{stationId:Number(stationId)}:{}),...(costFrom?{from:costFrom+'T00:00:00.000Z'}:{}),...(costTo?{to:costTo+'T23:59:59.999Z'}:{}),...(costFilterType?{costType:costFilterType}:{}),...(costBatteryId?{batteryId:Number(costBatteryId)}:{})};\n      const summaryParams={...(stationId?{stationId:Number(stationId)}:{}),...(costFrom?{from:costFrom+'T00:00:00.000Z'}:{}),...(costTo?{to:costTo+'T23:59:59.999Z'}:{})};\n      const [sr,vr,br,hr,rr,tr,str,hs,mt,cs,cl]=await Promise.all([api.get('/stations'),api.get('/vehicles'),api.get('/batteries',{params}),api.get('/batteries/swaps/history',{params}),api.get('/batteries/reservations',{params}),api.get('/batteries/transfers'),api.get('/batteries/stocktakes',{params}),api.get('/batteries/health/summary',{params}),api.get('/batteries/maintenance',{params}),api.get('/batteries/operating-costs/summary',{params:summaryParams}),api.get('/batteries/operating-costs',{params:costParams})]);
+      const costParams={...(stationId?{stationId:Number(stationId)}:{}),...(costFrom?{from:costFrom+'T00:00:00.000Z'}:{}),...(costTo?{to:costTo+'T23:59:59.999Z'}:{}),...(costFilterType?{costType:costFilterType}:{}),...(costBatteryId?{batteryId:Number(costBatteryId)}:{})};
+      const summaryParams={...(stationId?{stationId:Number(stationId)}:{}),...(costFrom?{from:costFrom+'T00:00:00.000Z'}:{}),...(costTo?{to:costTo+'T23:59:59.999Z'}:{})};
+      const [sr,vr,br,hr,rr,tr,str,hs,mt,cs,cl]=await Promise.all([api.get('/stations'),api.get('/vehicles'),api.get('/batteries',{params}),api.get('/batteries/swaps/history',{params}),api.get('/batteries/reservations',{params}),api.get('/batteries/transfers'),api.get('/batteries/stocktakes',{params}),api.get('/batteries/health/summary',{params}),api.get('/batteries/maintenance',{params}),api.get('/batteries/operating-costs/summary',{params:summaryParams}),api.get('/batteries/operating-costs',{params:costParams})]);
       setStations(Array.isArray(sr.data)?sr.data:[]);setVehicles(Array.isArray(vr.data)?vr.data:[]);
       setBatteries(Array.isArray(br.data)?br.data:[]);setHistory(Array.isArray(hr.data)?hr.data:[]);setReservations(Array.isArray(rr.data)?rr.data:[]);setTransfers(Array.isArray(tr.data)?tr.data:[]);setStocktakes(Array.isArray(str.data)?str.data:[]);setHealthSummary(hs.data);setMaintenanceTasks(Array.isArray(mt.data)?mt.data:[]);setCostSummary(cs.data);setOperatingCosts(Array.isArray(cl.data)?cl.data:[]);
     }catch(e){setError(errText(e));}finally{setLoading(false);}
@@ -111,7 +113,8 @@ export function BatteriesPage(){
   function exportOperatingCosts(){
     const header=['ID','Serial pin','Trạm','Loại chi phí','Thành tiền (VND)','Điện năng (kWh)','Đơn giá (VND/kWh)','Ngày phát sinh','Ghi chú'];
     const rows=operatingCosts.map(x=>[x.id,x.battery?.serialNumber??x.batteryId,x.station?.name??x.stationId,x.costType,x.amount,x.energyKwh??'',x.unitPrice??'',x.occurredAt,x.note??'']);
-    const csv=[header,...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n');
+    const csv=[header,...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\\r\
+');
     const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download='battery-operating-costs.csv';a.click();URL.revokeObjectURL(url);
   }

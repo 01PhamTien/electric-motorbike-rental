@@ -62,4 +62,5 @@ export class BatteriesController {
   @Patch(':id/health') updateHealth(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:UpdateBatteryHealthDto){return this.service.updateHealth(user,id,dto.healthPercent,dto.note);}
   @Patch(':id/maintenance') setMaintenance(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:BatteryMaintenanceDto){return this.service.setMaintenance(user,id,dto.note);}
   @Patch(':id/maintenance/complete') completeMaintenance(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:BatteryMaintenanceDto){return this.service.completeMaintenance(user,id,dto.note);}
+  @Patch(':id/retire') retireBattery(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:BatteryMaintenanceDto){return this.service.retireBattery(user,id,dto.note);}
 }

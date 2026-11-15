@@ -5,6 +5,7 @@ import { BatteriesService } from '../src/modules/batteries/batteries.service';
 import { Battery, BatteryStatus } from '../src/modules/batteries/battery.entity';
 import { BatterySwap } from '../src/modules/batteries/battery-swap.entity';
 import { BatteryReservation } from '../src/modules/batteries/battery-reservation.entity';
+import { BatteryChargingSession, BatteryChargingStatus } from '../src/modules/batteries/battery-charging-session.entity';
 import { Vehicle } from '../src/modules/vehicles/vehicle.entity';
 import { Role } from '../src/common/enums/role.enum';
 
@@ -12,7 +13,7 @@ function fixture(){
   const vehicle:any={id:12,code:'VG-12',stationId:2,isActive:true};
   const removed:any={id:1,serialNumber:'BAT-OLD',stationId:2,vehicleId:12,status:BatteryStatus.INSTALLED,cycleCount:10};
   const replacement:any={id:2,serialNumber:'BAT-FULL',stationId:2,vehicleId:null,status:BatteryStatus.FULL,cycleCount:4};
-  const batteries=[removed,replacement],swaps:any[]=[];
+  const batteries=[removed,replacement],swaps:any[]=[],sessions:any[]=[];
   const batteryRepo:any={
     findOne:async({where}:any)=>{
       if(where.id!==undefined)return batteries.find(b=>b.id===where.id)??null;
@@ -26,16 +27,21 @@ function fixture(){
   const vehicleRepo:any={findOne:async()=>vehicle};
   const reservationQuery:any={where:()=>reservationQuery,andWhere:()=>reservationQuery,getCount:async()=>0,update:()=>({set:()=>({where:()=>({execute:async()=>({})})})}),select:()=>({addSelect:()=>({where:()=>({andWhere:()=>({andWhere:()=>({groupBy:()=>({getRawMany:async()=>[]})})})})})})};
   const reservationRepo:any={findOne:async()=>null,create:(value:any)=>value,save:async(value:any)=>value,createQueryBuilder:()=>reservationQuery};
+  const chargingRepo:any={
+    create:(value:any)=>value,
+    save:async(value:any)=>{const saved={...value,id:sessions.length+1};sessions.push(saved);return saved;},
+    findOne:async({where}:any)=>sessions.find(s=>s.batteryId===where.batteryId&&s.status===where.status)??null,
+  };
   const stationRepo:any={findOne:async()=>({id:2,isActive:true})};
-  const manager:any={getRepository:(entity:any)=>entity===Battery?batteryRepo:entity===BatterySwap?swapRepo:entity===BatteryReservation?reservationRepo:entity===Vehicle?vehicleRepo:stationRepo};
+  const manager:any={getRepository:(entity:any)=>entity===Battery?batteryRepo:entity===BatterySwap?swapRepo:entity===BatteryReservation?reservationRepo:entity===BatteryChargingSession?chargingRepo:entity===Vehicle?vehicleRepo:stationRepo};
   const dataSource:any={transaction:async(fn:any)=>fn(manager)};
   const service=new BatteriesService(dataSource,batteryRepo,swapRepo,reservationRepo,stationRepo,vehicleRepo);
-  return {service,batteries,swaps,vehicle};
+  return {service,batteries,swaps,sessions,vehicle};
 }
 const staff={sub:5,email:'staff@example.test',role:Role.STAFF,stationId:2};
 
 test('battery swap atomically installs full battery and sends removed battery to charging',async()=>{
-  const {service,batteries,swaps}=fixture();
+  const {service,batteries,swaps,sessions}=fixture();
   const result=await service.swap(staff,{vehicleId:12,replacementBatteryId:2,note:'Khách cần đi ngay'});
   assert.equal(result.removedBattery.status,BatteryStatus.CHARGING);
   assert.equal(result.removedBattery.vehicleId,null);
@@ -44,6 +50,9 @@ test('battery swap atomically installs full battery and sends removed battery to
   assert.equal(swaps.length,1);
   assert.equal(swaps[0].removedBatteryId,1);
   assert.equal(swaps[0].installedBatteryId,2);
+  assert.equal(sessions.length,1);
+  assert.equal(sessions[0].status,BatteryChargingStatus.IN_PROGRESS);
+  assert.equal(sessions[0].batteryId,1);
 });
 
 test('battery swap rejects a full battery from a different station',async()=>{
@@ -55,4 +64,44 @@ test('battery swap rejects a full battery from a different station',async()=>{
 test('battery swap is restricted to the staff assigned station',async()=>{
   const {service}=fixture();
   await assert.rejects(()=>service.swap({...staff,stationId:9},{vehicleId:12,replacementBatteryId:2}),/ngoài trạm được phân công/);
+});
+
+test('charging completion closes the active session and increments cycle exactly once',async()=>{
+  const {service,batteries,sessions}=fixture();
+  await service.swap(staff,{vehicleId:12,replacementBatteryId:2});
+  const before=batteries[0].cycleCount;
+  const result=await service.completeCharging(staff,1,91,'Đạt kiểm tra sau sạc');
+  assert.equal(result.battery.status,BatteryStatus.FULL);
+  assert.equal(result.battery.cycleCount,before+1);
+  assert.equal(result.battery.healthPercent,91);
+  assert.equal(result.session.status,BatteryChargingStatus.COMPLETED);
+  assert.equal(result.session.completedById,staff.sub);
+  await assert.rejects(()=>service.completeCharging(staff,1),/đang sạc/);
+  assert.equal(batteries[0].cycleCount,before+1);
+});
+
+test('charging completion rejects missing active session without changing battery',async()=>{
+  const {service,batteries}=fixture();
+  batteries[0].status=BatteryStatus.CHARGING;batteries[0].vehicleId=null;
+  await assert.rejects(()=>service.completeCharging(staff,1),/phiên sạc đang mở/);
+  assert.equal(batteries[0].status,BatteryStatus.CHARGING);
+  assert.equal(batteries[0].cycleCount,10);
+});
+
+test('battery health update validates station scope and refuses retired batteries',async()=>{
+  const {service,batteries}=fixture();
+  const updated=await service.updateHealth(staff,1,78,'Kiểm tra định kỳ');
+  assert.equal(updated.healthPercent,78);
+  batteries[0].status=BatteryStatus.RETIRED;
+  await assert.rejects(()=>service.updateHealth(staff,1,70),/đã ngừng sử dụng/);
+});
+
+test('maintenance can only start for an unassigned full battery and can be completed',async()=>{
+  const {service,batteries}=fixture();
+  const started=await service.setMaintenance(staff,2,'Kiểm tra đầu nối');
+  assert.equal(started.status,BatteryStatus.MAINTENANCE);
+  const completed=await service.completeMaintenance(staff,2,'Đã vệ sinh và kiểm tra');
+  assert.equal(completed.status,BatteryStatus.FULL);
+  batteries[0].status=BatteryStatus.INSTALLED;
+  await assert.rejects(()=>service.setMaintenance(staff,1),/Chỉ pin đầy/);
 });

@@ -7,6 +7,7 @@ import { User } from '../users/user.entity';
 @Check('CK_battery_charge_sessions_completed', '[completedAt] IS NULL OR [completedAt] >= [startedAt]')
 @Index('IDX_battery_charge_sessions_station_started', ['stationId', 'startedAt'])
 @Index('IDX_battery_charge_sessions_battery_started', ['batteryId', 'startedAt'])
+@Index('UX_battery_charge_sessions_active', ['batteryId'], { unique: true, where: '[completedAt] IS NULL' })
 export class BatteryChargeSession {
   @PrimaryGeneratedColumn() id: number;
   @ManyToOne(() => Battery, { onDelete: 'NO ACTION' })

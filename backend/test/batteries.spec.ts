@@ -103,3 +103,16 @@ test('moving a charging battery to maintenance closes its session without adding
   assert.ok(sessions[0].completedAt);
   assert.equal(sessions[0].completedById,staff.sub);
 });
+
+test('battery health can be updated while in station custody and is rejected while installed',async()=>{
+  const {service,batteries}=fixture();
+  const updated=await service.updateHealth(staff,2,{healthPercent:87,note:'Đo kiểm tại trạm'});
+  assert.equal(updated.healthPercent,87);
+  assert.equal(updated.note,'Đo kiểm tại trạm');
+  await assert.rejects(()=>service.updateHealth(staff,1,{healthPercent:70}),/Chỉ cập nhật sức khỏe pin/);
+});
+
+test('battery health update is restricted to assigned station',async()=>{
+  const {service}=fixture();
+  await assert.rejects(()=>service.updateHealth({...staff,stationId:9},2,{healthPercent:80}),/ngoài trạm được phân công/);
+});

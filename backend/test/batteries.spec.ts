@@ -4,7 +4,7 @@ import test = require('node:test');
 import { BatteriesService } from '../src/modules/batteries/batteries.service';
 import { Battery, BatteryStatus } from '../src/modules/batteries/battery.entity';
 import { BatterySwap } from '../src/modules/batteries/battery-swap.entity';
-import { BatteryReservation } from '../src/modules/batteries/battery-reservation.entity';
+import { BatteryReservation, BatteryReservationStatus } from '../src/modules/batteries/battery-reservation.entity';
 import { BatteryChargeSession } from '../src/modules/batteries/battery-charge-session.entity';
 import { Vehicle } from '../src/modules/vehicles/vehicle.entity';
 import { Role } from '../src/common/enums/role.enum';
@@ -115,4 +115,53 @@ test('battery health can be updated while in station custody and is rejected whi
 test('battery health update is restricted to assigned station',async()=>{
   const {service}=fixture();
   await assert.rejects(()=>service.updateHealth({...staff,stationId:9},2,{healthPercent:80}),/ngoài trạm được phân công/);
+});
+
+test('redeeming a battery reservation opens a charge session for the removed battery',async()=>{
+  const vehicle:any={id:12,code:'VG-12',stationId:2,isActive:true};
+  const removed:any={id:1,serialNumber:'BAT-OLD',stationId:2,vehicleId:12,status:BatteryStatus.INSTALLED,cycleCount:10};
+  const replacement:any={id:2,serialNumber:'BAT-FULL',stationId:2,vehicleId:null,status:BatteryStatus.FULL,cycleCount:4};
+  const batteries=[removed,replacement];
+  const reservation:any={
+    id:7,customerId:99,stationId:2,bookingId:21,vehicleId:12,
+    status:BatteryReservationStatus.RESERVED,expiresAt:new Date(Date.now()+60_000),
+    redeemedAt:null,redeemedById:null,batterySwapId:null,
+  };
+  const sessions:any[]=[];
+  const batteryRepo:any={
+    findOne:async({where}:any)=>where.id!==undefined
+      ?batteries.find(b=>b.id===where.id)??null
+      :batteries.find(b=>b.vehicleId===where.vehicleId&&b.status===where.status)??null,
+    save:async(value:any)=>value,
+  };
+  const reservationRepo:any={findOne:async()=>reservation,save:async(value:any)=>value};
+  const swapRepo:any={create:(value:any)=>value,save:async(value:any)=>({...value,id:31})};
+  const chargeRepo:any={
+    findOne:async()=>null,
+    create:(value:any)=>value,
+    save:async(value:any)=>{const saved={...value,id:sessions.length+1};sessions.push(saved);return saved;},
+  };
+  const vehicleRepo:any={findOne:async()=>vehicle};
+  const stationRepo:any={findOne:async()=>({id:2,isActive:true})};
+  const manager:any={
+    getRepository:(entity:any)=>entity===Battery?batteryRepo:
+      entity===BatteryReservation?reservationRepo:
+      entity===BatterySwap?swapRepo:
+      entity===BatteryChargeSession?chargeRepo:
+      entity===Vehicle?vehicleRepo:stationRepo,
+  };
+  const dataSource:any={transaction:async(fn:any)=>fn(manager)};
+  const service=new BatteriesService(dataSource,batteryRepo,swapRepo,reservationRepo,stationRepo,vehicleRepo);
+  const result=await service.redeemReservation(staff,7,{replacementBatteryId:2,note:'Khách đổi pin tại trạm'});
+  assert.equal(result.reservation.status,BatteryReservationStatus.REDEEMED);
+  assert.equal(result.reservation.batterySwapId,31);
+  assert.equal(removed.status,BatteryStatus.CHARGING);
+  assert.equal(removed.vehicleId,null);
+  assert.equal(replacement.status,BatteryStatus.INSTALLED);
+  assert.equal(replacement.vehicleId,12);
+  assert.equal(sessions.length,1);
+  assert.equal(sessions[0].batteryId,removed.id);
+  assert.equal(sessions[0].stationId,2);
+  assert.equal(sessions[0].startedById,staff.sub);
+  assert.equal(sessions[0].completedAt,null);
 });

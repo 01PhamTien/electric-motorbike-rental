@@ -20,6 +20,7 @@ export class BatteryStocktake {
   @ManyToOne(()=>User,{nullable:true,onDelete:'NO ACTION'}) @JoinColumn({name:'approvedById',foreignKeyConstraintName:'FK_battery_stocktakes_approver'}) approvedBy:User|null;
   @Column({type:'varchar',length:20,default:BatteryStocktakeStatus.OPEN}) status:BatteryStocktakeStatus;
   @Column({type:'nvarchar',length:500,nullable:true}) note:string|null;
+  @Column({type:'int',default:0}) heldReservationCount:number;
   @Column({type:'datetime2',nullable:true}) completedAt:Date|null;
   @Column({type:'datetime2',nullable:true}) approvedAt:Date|null;
   @CreateDateColumn({type:'datetime2',default:()=> 'SYSUTCDATETIME()'}) createdAt:Date;

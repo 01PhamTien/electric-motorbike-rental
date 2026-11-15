@@ -5,6 +5,7 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { AuditService } from '../audit/audit.service';
 import { Battery } from './battery.entity';
 import { BatteryHealthCheck, BatteryMaintenanceStatus, BatteryMaintenanceTask } from './battery-health.entity';
+import { BatteryCostType, BatteryOperatingCost } from './battery-operating-cost.entity';
 
 @Injectable()
 export class BatteryHealthService {
@@ -66,7 +67,7 @@ export class BatteryHealthService {
   }
   async updateTask(user:JwtUser,id:number,action:'start'|'complete'|'cancel',dto:{result?:string;cost?:number}={}){
     const task=await this.dataSource.transaction(async manager=>{
-      const tasks=manager.getRepository(BatteryMaintenanceTask),batteries=manager.getRepository(Battery);
+      const tasks=manager.getRepository(BatteryMaintenanceTask),batteries=manager.getRepository(Battery),costs=manager.getRepository(BatteryOperatingCost);
       const current=await tasks.findOne({where:{id},lock:{mode:'pessimistic_write'}});
       if(!current)throw new NotFoundException('Không tìm thấy phiếu bảo dưỡng');
       this.assertStation(user,current.stationId);
@@ -80,6 +81,10 @@ export class BatteryHealthService {
         if(!dto.result?.trim())throw new BadRequestException('Cần nhập kết quả bảo dưỡng');
         if(dto.cost!==undefined&&(!Number.isFinite(dto.cost)||dto.cost<0))throw new BadRequestException('Chi phí phải là số không âm');
         current.status=BatteryMaintenanceStatus.COMPLETED;current.result=dto.result.trim();current.cost=dto.cost===undefined?null:String(dto.cost);current.completedById=user.sub;current.completedAt=new Date();
+        if(dto.cost!==undefined){
+          const existing=await costs.findOne({where:{maintenanceTaskId:id}});
+          if(!existing)await costs.save(costs.create({batteryId:current.batteryId,stationId:current.stationId,costType:BatteryCostType.MAINTENANCE,amount:dto.cost.toFixed(2),energyKwh:null,unitPrice:null,maintenanceTaskId:id,recordedById:user.sub,occurredAt:current.completedAt,note:'Chi phí tự động từ phiếu bảo dưỡng #'+id}));
+        }
       }else{
         if(current.status!==BatteryMaintenanceStatus.OPEN&&current.status!==BatteryMaintenanceStatus.IN_PROGRESS)throw new BadRequestException('Phiếu không thể hủy ở trạng thái hiện tại');
         current.status=BatteryMaintenanceStatus.CANCELLED;

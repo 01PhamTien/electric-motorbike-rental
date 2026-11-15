@@ -106,7 +106,7 @@ test('swap rejects replacement battery that is already charging',async()=>{
 
 test('STAFF cannot request battery history from another station',async()=>{
   const {service}=fixture();
-  await assert.rejects(()=>service.history({...staff,stationId:9},9),/ngoài trạm được phân công/);
+  await assert.rejects(()=>service.history(staff,9),/ngoài trạm được phân công/);
 });
 
 test('STAFF cannot probe another station through battery, reservation or swap-history filters',async()=>{

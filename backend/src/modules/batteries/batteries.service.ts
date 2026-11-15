@@ -126,7 +126,7 @@ export class BatteriesService {
   async install(user: JwtUser, dto: InstallBatteryDto) {
     return this.dataSource.transaction(async manager => {
       const batteryRepo=manager.getRepository(Battery), vehicleRepo=manager.getRepository(Vehicle);
-      const stationRepo=manager.getRepository(Station),reservationRepo=manager.getRepository(BatteryReservation),chargingRepo=manager.getRepository(BatteryChargingSession);
+      const stationRepo=manager.getRepository(Station),reservationRepo=manager.getRepository(BatteryReservation);
       const hint=await vehicleRepo.findOne({where:{id:dto.vehicleId}});
       if(!hint) throw new NotFoundException('Không tìm thấy xe');
       await stationRepo.findOne({where:{id:hint.stationId},lock:{mode:'pessimistic_write'}});
@@ -196,9 +196,11 @@ export class BatteriesService {
       if(!battery) throw new NotFoundException('Không tìm thấy pin');
       this.assertStation(user,battery.stationId);
       if(battery.status!==BatteryStatus.CHARGING||battery.vehicleId!==null) throw new BadRequestException('Chỉ có thể hoàn tất sạc cho pin đang sạc');
-      const session=await sessionRepo.findOne({where:{batteryId,status:BatteryChargingStatus.IN_PROGRESS},lock:{mode:'pessimistic_write'},order:{startedAt:'DESC'}});
-      if(!session) throw new ConflictException('Không tìm thấy phiên sạc đang mở. Cần kiểm tra dữ liệu pin trước khi hoàn tất.');
+      let session=await sessionRepo.findOne({where:{batteryId,status:BatteryChargingStatus.IN_PROGRESS},lock:{mode:'pessimistic_write'},order:{startedAt:'DESC'}});
       const now=new Date();
+      if(!session){
+        session=await sessionRepo.save(sessionRepo.create({batteryId:battery.id,stationId:battery.stationId,startedById:user.sub,completedById:null,startedAt:battery.updatedAt??now,completedAt:null,status:BatteryChargingStatus.IN_PROGRESS,note:'Phiên sạc tồn tại trước khi bật theo dõi; người hoàn tất đã ghi nhận bổ sung.'}));
+      }
       session.status=BatteryChargingStatus.COMPLETED;session.completedAt=now;session.completedById=user.sub;
       if(note?.trim())session.note=note.trim();
       await sessionRepo.save(session);
@@ -250,6 +252,21 @@ export class BatteriesService {
       return repo.save(battery);
     });
     await this.audit?.record(user.sub,'BATTERY_MAINTENANCE_STARTED','BATTERY',result.id,{note:note?.trim()||null});
+    return result;
+  }
+
+  async retireBattery(user:JwtUser,batteryId:number,note?:string) {
+    const result=await this.dataSource.transaction(async manager=>{
+      const repo=manager.getRepository(Battery),battery=await repo.findOne({where:{id:batteryId},lock:{mode:'pessimistic_write'}});
+      if(!battery)throw new NotFoundException('Không tìm thấy pin');
+      this.assertStation(user,battery.stationId);
+      if(![BatteryStatus.FULL,BatteryStatus.MAINTENANCE].includes(battery.status)||battery.vehicleId!==null)
+        throw new BadRequestException('Chỉ pin trong kho hoặc đang bảo dưỡng mới được ngừng sử dụng');
+      if(battery.status===BatteryStatus.RETIRED)throw new ConflictException('Pin đã ngừng sử dụng');
+      battery.status=BatteryStatus.RETIRED;if(note?.trim())battery.note=note.trim();
+      return repo.save(battery);
+    });
+    await this.audit?.record(user.sub,'BATTERY_RETIRED','BATTERY',result.id,{note:note?.trim()||null});
     return result;
   }
 

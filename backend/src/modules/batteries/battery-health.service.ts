@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { Role } from '../../common/enums/role.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { AuditService } from '../audit/audit.service';

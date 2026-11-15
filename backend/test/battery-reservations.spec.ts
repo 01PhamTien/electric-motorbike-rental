@@ -2,7 +2,15 @@ import 'reflect-metadata';
 import assert = require('node:assert/strict');
 import test = require('node:test');
 import { BatteriesService } from '../src/modules/batteries/batteries.service';
-import { BatteryReservationStatus } from '../src/modules/batteries/battery-reservation.entity';
+import { BatteryReservation, BatteryReservationStatus } from '../src/modules/batteries/battery-reservation.entity';
+import { Battery, BatteryStatus } from '../src/modules/batteries/battery.entity';
+import { BatterySwap } from '../src/modules/batteries/battery-swap.entity';
+import { Station } from '../src/modules/stations/station.entity';
+import { Vehicle } from '../src/modules/vehicles/vehicle.entity';
+import { Booking } from '../src/modules/bookings/booking.entity';
+import { User } from '../src/modules/users/user.entity';
+import { Role } from '../src/common/enums/role.enum';
+import { BookingStatus } from '../src/common/enums/booking-status.enum';
 
 function expiryService(rows:any[]) {
   const calls:any[]=[];
@@ -77,4 +85,66 @@ test('reservation TTL defaults to ten minutes and accepts configured values',()=
     if(original===undefined)delete process.env.BATTERY_RESERVATION_TTL_MINUTES;
     else process.env.BATTERY_RESERVATION_TTL_MINUTES=original;
   }
+});
+
+test('concurrent customers cannot reserve more holds than the last available battery',async()=>{
+  const reservations:any[]=[];
+  let stationQueue=Promise.resolve();
+  const acquireStation=async()=>{
+    const previous=stationQueue;
+    let release!:()=>void;
+    stationQueue=new Promise<void>(resolve=>{release=resolve;});
+    await previous;
+    return release;
+  };
+  const batteryRepo:any={count:async()=>1};
+  const swapRepo:any={};
+  const reservationRepo:any={
+    create:(value:any)=>value,
+    save:async(value:any)=>{const saved={...value,id:reservations.length+1};reservations.push(saved);return saved;},
+    findOne:async({where}:any)=>reservations.find(row=>Object.entries(where).every(([key,value])=>(row as any)[key]===value))??null,
+    createQueryBuilder:(alias?:string)=>{
+      if(alias){
+        let stationId:number|undefined;
+        return {
+          where:(_sql:string,params:any)=>{stationId=params.stationId;return this;},
+          andWhere:()=>this,
+          getCount:async()=>reservations.filter(r=>r.stationId===stationId&&r.status===BatteryReservationStatus.RESERVED&&r.expiresAt>new Date()).length,
+        };
+      }
+      const builder:any={
+        update:()=>builder,set:()=>builder,where:()=>builder,
+        execute:async()=>{
+          for(const row of reservations)if(row.status===BatteryReservationStatus.RESERVED&&row.expiresAt<=new Date())row.status=BatteryReservationStatus.EXPIRED;
+          return {affected:0};
+        },
+      };
+      return builder;
+    },
+  };
+  const userRepo:any={findOne:async({where}:any)=>({id:where.id})};
+  const bookingRepo:any={findOne:async({where}:any)=>({
+    id:where.id,customerId:where.customerId,vehicleId:12,status:BookingStatus.RENTING,
+    vehicle:{id:12,stationId:2,isActive:true},
+  })};
+  const station={id:2,isActive:true};
+  const dataSource:any={
+    transaction:async(fn:any)=>{
+      let release:(()=>void)|undefined;
+      const txStationRepo:any={findOne:async()=>{release=await acquireStation();return station;}};
+      const manager:any={getRepository:(entity:any)=>entity===Battery?batteryRepo:entity===BatterySwap?swapRepo:
+        entity===BatteryReservation?reservationRepo:entity===Station?txStationRepo:
+        entity===Booking?bookingRepo:entity===User?userRepo:entity===Vehicle?{}:{}};
+      try{return await fn(manager);}finally{release?.();}
+    },
+  };
+  const service=new BatteriesService(dataSource,batteryRepo,swapRepo,reservationRepo,{} as any,{} as any);
+  const customer=(id:number)=>({sub:id,email:`customer${id}@example.test`,role:Role.CUSTOMER,stationId:null});
+  const attempts=await Promise.allSettled([
+    service.reserve(customer(101),{stationId:2,bookingId:501}),
+    service.reserve(customer(102),{stationId:2,bookingId:502}),
+  ]);
+  assert.equal(attempts.filter(x=>x.status==='fulfilled').length,1);
+  assert.equal(attempts.filter(x=>x.status==='rejected').length,1);
+  assert.equal(reservations.filter(r=>r.status===BatteryReservationStatus.RESERVED).length,1);
 });

@@ -36,17 +36,17 @@ export class BatteryTransfersService {
       const batteries=[];
       for(const batteryId of ids){const battery=await batteryRepo.findOne({where:{id:batteryId},lock:{mode:'pessimistic_write'}});if(!battery)throw new NotFoundException('Không tìm thấy pin #'+batteryId);batteries.push(battery);}
       const now=new Date();
+      const held=await reservationRepo.createQueryBuilder('r').where('r.stationId=:stationId',{stationId:source.id})
+        .andWhere('r.status=:status',{status:BatteryReservationStatus.RESERVED}).andWhere('r.expiresAt>:now',{now}).getCount();
+      const totalFull=await batteryRepo.count({where:{stationId:source.id,status:BatteryStatus.FULL,vehicleId:null}});
+      if(totalFull-held<ids.length)throw new ConflictException('Không đủ pin khả dụng sau khi trừ các lượt giữ trước tại trạm');
       for(const battery of batteries){
         if(battery.stationId!==source.id||battery.status!==BatteryStatus.FULL||battery.vehicleId!==null)throw new BadRequestException('Chỉ được điều chuyển pin FULL đang nằm trong kho trạm gửi');
-        const held=await reservationRepo.createQueryBuilder('r').where('r.stationId=:stationId',{stationId:source.id})
-          .andWhere('r.status=:status',{status:BatteryReservationStatus.RESERVED}).andWhere('r.expiresAt>:now',{now})
-          .getCount();
-        if(held>0){const totalFull=await batteryRepo.count({where:{stationId:source.id,status:BatteryStatus.FULL,vehicleId:null}});if(totalFull<=held)throw new ConflictException('Tồn kho pin đang được giữ trước; không thể điều chuyển làm thiếu pin đã đặt');}
         battery.status=BatteryStatus.TRANSFERRING;
       }
       await batteryRepo.save(batteries);
       const transfer=await transferRepo.save(transferRepo.create({sourceStationId:source.id,destinationStationId:destination.id,createdById:user.sub,dispatchedById:null,receivedById:null,status:BatteryTransferStatus.PENDING,note:dto.note?.trim()||null,dispatchedAt:null,receivedAt:null,cancelledAt:null}));
-      await itemRepo.save(ids.map(batteryId=>itemRepo.create({transferId:transfer.id,batteryId,serialSnapshotId:batteryId})));
+      await itemRepo.save(ids.map(batteryId=>itemRepo.create({transferId:transfer.id,batteryId})));
       return transfer.id;
     });
     await this.audit.record(user.sub,'BATTERY_TRANSFER_CREATED','BATTERY_TRANSFER',id,{sourceStationId:dto.sourceStationId,destinationStationId:dto.destinationStationId,batteryIds:dto.batteryIds});

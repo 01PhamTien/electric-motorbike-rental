@@ -34,3 +34,18 @@ export class CreateBatteryTransferDto {
   @ApiProperty({example:[11,12,13]}) @IsArray() @ArrayNotEmpty() @ArrayMaxSize(100) @ArrayUnique() @IsInt({each:true}) @Min(1,{each:true}) batteryIds:number[];
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
 }
+
+export class CreateBatteryStocktakeDto {
+  @ApiProperty({example:1}) @IsInt() @Min(1) stationId:number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}
+export class UpdateBatteryStocktakeItemDto {
+  @ApiProperty({enum:['PRESENT','MISSING']}) @IsString() countStatus:'PRESENT'|'MISSING';
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(20) observedStatus?:string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}
+export class AddBatteryStocktakeExtraDto {
+  @ApiProperty({example:'VG-BAT-EXTRA-01'}) @IsString() @MaxLength(80) serialNumber:string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(20) observedStatus?:string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}

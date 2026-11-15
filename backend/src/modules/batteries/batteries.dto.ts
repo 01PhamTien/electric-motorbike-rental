@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateBatteryDto {
@@ -36,10 +37,10 @@ export class UpdateBatteryStatusDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?: string;
 }
 export class BatteryChargeHistoryQueryDto {
-  @IsOptional() @IsInt() @Min(1) stationId?: number;
-  @IsOptional() @IsInt() @Min(1) batteryId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) stationId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) batteryId?: number;
   @IsOptional() @IsDateString() from?: string;
   @IsOptional() @IsDateString() to?: string;
-  @IsOptional() @IsInt() @Min(1) page = 1;
-  @IsOptional() @IsInt() @Min(1) @Max(100) limit = 20;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 20;
 }

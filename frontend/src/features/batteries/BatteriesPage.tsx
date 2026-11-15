@@ -7,7 +7,7 @@ import type { Station, Vehicle } from '../../types';
 
 type BatteryStatus='FULL'|'INSTALLED'|'CHARGING'|'MAINTENANCE'|'RETIRED';
 type Battery={id:number;serialNumber:string;stationId:number;station?:Station;vehicleId:number|null;vehicle?:Vehicle|null;status:BatteryStatus;capacityKwh:string|null;healthPercent:number;cycleCount:number;lastChargedAt:string|null;note:string|null};
-type Swap={id:number;vehicle?:Vehicle;vehicleId:number;station?:Station;removedBattery?:Battery;installedBattery?:Battery;createdAt:string;note:string|null};
+type Swap={id:number;vehicle?:Vehicle;vehicleId:number;station?:Station;removedBattery?:Battery;installedBattery?:Battery;performedBy?:{id:number;fullName:string};performedById:number;createdAt:string;note:string|null};
 type Reservation={id:number;customerId:number;stationId:number;bookingId:number;vehicleId:number;vehicle?:Vehicle;station?:Station;status:'RESERVED'|'REDEEMED'|'CANCELLED'|'EXPIRED';expiresAt:string;createdAt:string};
 const statusLabel:Record<BatteryStatus,string>={FULL:'Pin đầy · sẵn sàng',INSTALLED:'Đang lắp trên xe',CHARGING:'Đang sạc',MAINTENANCE:'Bảo dưỡng',RETIRED:'Ngừng sử dụng'};
 const errText=(err:unknown)=>{const m=(err as {response?:{data?:{message?:string|string[]}}})?.response?.data?.message;return Array.isArray(m)?m.join(', '):m||'Không thể thực hiện thao tác.';};
@@ -18,6 +18,14 @@ export function BatteriesPage(){
   const [vehicles,setVehicles]=useState<Vehicle[]>([]);
   const [batteries,setBatteries]=useState<Battery[]>([]);
   const [history,setHistory]=useState<Swap[]>([]);
+  const [historySearch,setHistorySearch]=useState('');
+  const [historyVehicleId,setHistoryVehicleId]=useState('');
+  const [historyFrom,setHistoryFrom]=useState('');
+  const [historyTo,setHistoryTo]=useState('');
+  const [historyPage,setHistoryPage]=useState(1);
+  const [historyTotal,setHistoryTotal]=useState(0);
+  const [historyPages,setHistoryPages]=useState(0);
+  const [historyLoading,setHistoryLoading]=useState(false);
   const [reservations,setReservations]=useState<Reservation[]>([]);
   const [redeemBatteryIds,setRedeemBatteryIds]=useState<Record<number,string>>({});
   const [stationId,setStationId]=useState(user?.stationId?String(user.stationId):'');
@@ -32,13 +40,31 @@ export function BatteriesPage(){
     setLoading(true);setError('');
     try{
       const params=stationId?{stationId:Number(stationId)}:{};
-      const [sr,vr,br,hr,rr]=await Promise.all([api.get('/stations'),api.get('/vehicles'),api.get('/batteries',{params}),api.get('/batteries/swaps/history',{params}),api.get('/batteries/reservations',{params})]);
+      const [sr,vr,br,rr]=await Promise.all([api.get('/stations'),api.get('/vehicles'),api.get('/batteries',{params}),api.get('/batteries/reservations',{params})]);
       setStations(Array.isArray(sr.data)?sr.data:[]);setVehicles(Array.isArray(vr.data)?vr.data:[]);
-      setBatteries(Array.isArray(br.data)?br.data:[]);setHistory(Array.isArray(hr.data)?hr.data:[]);setReservations(Array.isArray(rr.data)?rr.data:[]);
+      setBatteries(Array.isArray(br.data)?br.data:[]);setReservations(Array.isArray(rr.data)?rr.data:[]);
     }catch(e){setError(errText(e));}finally{setLoading(false);}
   }
   useEffect(()=>{if(user?.stationId)setStationId(String(user.stationId));},[user?.stationId]);
   useEffect(()=>{void load();},[stationId]);
+  useEffect(()=>{
+    let active=true;
+    const params:Record<string,string|number>={page:historyPage,limit:10};
+    if(stationId)params.stationId=Number(stationId);
+    if(historyVehicleId)params.vehicleId=Number(historyVehicleId);
+    if(historySearch.trim())params.serial=historySearch.trim();
+    if(historyFrom)params.from=historyFrom;
+    if(historyTo)params.to=historyTo;
+    setHistoryLoading(true);
+    api.get('/batteries/swaps/history',{params}).then(({data})=>{
+      if(!active)return;
+      setHistory(Array.isArray(data?.items)?data.items:[]);
+      setHistoryTotal(Number(data?.total)||0);
+      setHistoryPages(Number(data?.totalPages)||0);
+    }).catch(e=>{if(active)setError(errText(e));}).finally(()=>{if(active)setHistoryLoading(false);});
+    return()=>{active=false;};
+  },[stationId,historyPage,historyVehicleId,historySearch,historyFrom,historyTo]);
+
   async function act(fn:()=>Promise<unknown>,success:string){
     setBusy(true);setError('');setNotice('');
     try{await fn();setNotice(success);await load();}catch(e){setError(errText(e));}finally{setBusy(false);}
@@ -78,7 +104,32 @@ export function BatteriesPage(){
       </div>
       <section className="panel mt-7 overflow-hidden"><div className="p-6"><p className="eyebrow">THEO DÕI TỪNG VIÊN PIN</p><h2 className="mt-2 text-xl font-extrabold">Danh sách pin</h2></div><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="px-6 py-4">Serial</th><th className="px-4 py-4">Trạng thái</th><th className="px-4 py-4">Xe / Trạm</th><th className="px-4 py-4">Sức khỏe</th><th className="px-4 py-4">Chu kỳ sạc</th><th className="px-6 py-4">Thao tác</th></tr></thead><tbody className="divide-y divide-slate-100">{batteries.map(b=><tr key={b.id}><td className="px-6 py-4 font-bold">{b.serialNumber}<p className="text-xs font-normal text-slate-400">{b.capacityKwh??'—'} kWh</p></td><td className="px-4 py-4">{statusLabel[b.status]}</td><td className="px-4 py-4">{b.vehicle?.code??b.station?.name??'—'}</td><td className="px-4 py-4">{b.healthPercent}%</td><td className="px-4 py-4">{b.cycleCount}</td><td className="px-6 py-4">{b.status==='CHARGING'?<button disabled={busy} className="text-sm font-bold text-emerald-700 underline" onClick={()=>void act(()=>api.patch('/batteries/'+b.id+'/complete-charging'), 'Đã xác nhận pin sạc đầy và sẵn sàng đổi.')}>Xác nhận sạc đầy</button>:<span className="text-slate-400">—</span>}</td></tr>)}{!batteries.length&&<tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">Chưa có dữ liệu pin tại trạm.</td></tr>}</tbody></table></div></section>
       <section className="panel mt-7 overflow-hidden"><div className="p-6"><p className="eyebrow">KHÁCH ĐÃ GIỮ PIN TRƯỚC</p><h2 className="mt-2 text-xl font-extrabold">Lượt giữ pin tại trạm</h2><p className="mt-2 text-sm text-slate-500">Chỉ xác nhận khi khách có mặt và kiểm tra đúng xe thuê. Lượt giữ tự hết hiệu lực sau 10 phút.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="px-6 py-4">Mã giữ</th><th className="px-4 py-4">Xe / Đơn thuê</th><th className="px-4 py-4">Trạng thái</th><th className="px-4 py-4">Hết hạn</th><th className="px-6 py-4">Xác nhận đổi</th></tr></thead><tbody className="divide-y divide-slate-100">{reservations.map(r=><tr key={r.id}><td className="px-6 py-4 font-bold">#{r.id}<p className="text-xs font-normal text-slate-400">Khách #{r.customerId}</p></td><td className="px-4 py-4">{r.vehicle?.code??'Xe #'+r.vehicleId}<p className="text-xs text-slate-400">Đơn thuê #{r.bookingId}</p></td><td className="px-4 py-4">{r.status==='RESERVED'&&new Date(r.expiresAt)<=new Date()?'Hết hạn':({RESERVED:'Đang giữ',REDEEMED:'Đã đổi',CANCELLED:'Đã hủy',EXPIRED:'Hết hạn'} as Record<string,string>)[r.status]}</td><td className="px-4 py-4">{new Date(r.expiresAt).toLocaleTimeString('vi-VN')}</td><td className="px-6 py-4">{r.status==='RESERVED'&&new Date(r.expiresAt)>new Date()?<div className="flex items-center gap-2"><select className="field min-w-40" value={redeemBatteryIds[r.id]??''} onChange={e=>setRedeemBatteryIds(v=>({...v,[r.id]:e.target.value}))}><option value="">Chọn pin đầy</option>{fullBatteries.map(b=><option key={b.id} value={b.id}>{b.serialNumber}</option>)}</select><button disabled={busy||!redeemBatteryIds[r.id]} className="btn-primary whitespace-nowrap" onClick={()=>void redeemReservation(r.id)}>Đổi pin</button></div>:<span className="text-slate-400">—</span>}</td></tr>)}{!reservations.length&&<tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">Chưa có lượt giữ pin tại trạm.</td></tr>}</tbody></table></div></section>
-      <section className="panel mt-7 overflow-hidden"><div className="p-6"><p className="eyebrow">NHẬT KÝ ĐỔI PIN</p><h2 className="mt-2 text-xl font-extrabold">Lịch sử giao dịch</h2></div><div className="divide-y divide-slate-100">{history.map(item=><div key={item.id} className="flex flex-wrap justify-between gap-3 px-6 py-4 text-sm"><div><strong>{item.vehicle?.code??'Xe #'+item.vehicleId}</strong><p className="mt-1 text-xs text-slate-500">{item.removedBattery?.serialNumber} → {item.installedBattery?.serialNumber} · {item.station?.name}</p>{item.note&&<p className="mt-1 text-xs text-slate-500">{item.note}</p>}</div><time className="text-xs text-slate-400">{new Date(item.createdAt).toLocaleString('vi-VN')}</time></div>)}{!history.length&&<p className="px-6 pb-7 text-sm text-slate-400">Chưa có lịch sử đổi pin.</p>}</div></section>
+      <section className="panel mt-7 overflow-hidden">
+        <div className="flex flex-wrap items-end justify-between gap-4 p-6">
+          <div><p className="eyebrow">NHẬT KÝ ĐỔI PIN</p><h2 className="mt-2 text-xl font-extrabold">Lịch sử giao dịch</h2><p className="mt-1 text-sm text-slate-500">{historyTotal} giao dịch phù hợp</p></div>
+          <div className="flex flex-wrap gap-2">
+            <input aria-label="Tìm serial pin trong lịch sử" className="field min-w-48" placeholder="Tìm serial pin..." value={historySearch} onChange={e=>{setHistorySearch(e.target.value);setHistoryPage(1);}}/>
+            <select aria-label="Lọc xe" className="field min-w-44" value={historyVehicleId} onChange={e=>{setHistoryVehicleId(e.target.value);setHistoryPage(1);}}><option value="">Tất cả xe</option>{scopedVehicles.map(v=><option key={v.id} value={v.id}>{v.code}</option>)}</select>
+            <input aria-label="Từ ngày" title="Từ ngày" className="field" type="date" value={historyFrom} onChange={e=>{setHistoryFrom(e.target.value);setHistoryPage(1);}}/>
+            <input aria-label="Đến ngày" title="Đến ngày" className="field" type="date" min={historyFrom||undefined} value={historyTo} onChange={e=>{setHistoryTo(e.target.value);setHistoryPage(1);}}/>
+          </div>
+        </div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="px-6 py-4">Thời gian</th><th className="px-4 py-4">Xe / Trạm</th><th className="px-4 py-4">Pin tháo ra</th><th className="px-4 py-4">Pin lắp vào</th><th className="px-4 py-4">Nhân viên</th><th className="px-6 py-4">Ghi chú</th></tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {historyLoading?<tr><td colSpan={6} className="px-6 py-10 text-center text-slate-500">Đang tải lịch sử thay pin...</td></tr>:history.map(item=><tr key={item.id}>
+              <td className="whitespace-nowrap px-6 py-4"><strong>{new Date(item.createdAt).toLocaleDateString('vi-VN')}</strong><p className="mt-1 text-xs text-slate-400">{new Date(item.createdAt).toLocaleTimeString('vi-VN')}</p></td>
+              <td className="px-4 py-4"><strong>{item.vehicle?.code??'Xe #'+item.vehicleId}</strong><p className="mt-1 text-xs text-slate-500">{item.station?.name??'—'}</p></td>
+              <td className="px-4 py-4"><strong>{item.removedBattery?.serialNumber??'—'}</strong><p className="mt-1 text-xs text-slate-500">Chuyển sang chờ sạc</p></td>
+              <td className="px-4 py-4"><strong>{item.installedBattery?.serialNumber??'—'}</strong><p className="mt-1 text-xs text-slate-500">Đã lắp trên xe</p></td>
+              <td className="px-4 py-4">{item.performedBy?.fullName??'Nhân viên #'+item.performedById}</td>
+              <td className="max-w-56 px-6 py-4 text-slate-500">{item.note||'—'}</td>
+            </tr>)}
+            {!historyLoading&&!history.length&&<tr><td colSpan={6} className="px-6 py-10 text-center"><p className="font-semibold text-slate-700">Chưa có giao dịch phù hợp</p><p className="mt-1 text-xs text-slate-400">Thử điều chỉnh bộ lọc hoặc khoảng thời gian.</p></td></tr>}
+          </tbody>
+        </table></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4"><p className="text-xs text-slate-500">Trang {historyPage} / {Math.max(1,historyPages)} · {historyTotal} giao dịch</p><div className="flex gap-2"><button className="btn-outline" disabled={historyPage<=1||historyLoading} onClick={()=>setHistoryPage(p=>p-1)}>Trước</button><button className="btn-outline" disabled={historyPage>=historyPages||historyLoading} onClick={()=>setHistoryPage(p=>p+1)}>Tiếp</button></div></div>
+      </section>
     </>}
   </div>;
 }

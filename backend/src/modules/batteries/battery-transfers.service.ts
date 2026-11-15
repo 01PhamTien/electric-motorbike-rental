@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 import { Role } from '../../common/enums/role.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { AuditService } from '../audit/audit.service';
@@ -38,7 +38,7 @@ export class BatteryTransfersService {
       const now=new Date();
       const held=await reservationRepo.createQueryBuilder('r').where('r.stationId=:stationId',{stationId:source.id})
         .andWhere('r.status=:status',{status:BatteryReservationStatus.RESERVED}).andWhere('r.expiresAt>:now',{now}).getCount();
-      const totalFull=await batteryRepo.count({where:{stationId:source.id,status:BatteryStatus.FULL,vehicleId:null}});
+      const totalFull=await batteryRepo.count({where:{stationId:source.id,status:BatteryStatus.FULL,vehicleId:IsNull()}});
       if(totalFull-held<ids.length)throw new ConflictException('Không đủ pin khả dụng sau khi trừ các lượt giữ trước tại trạm');
       for(const battery of batteries){
         if(battery.stationId!==source.id||battery.status!==BatteryStatus.FULL||battery.vehicleId!==null)throw new BadRequestException('Chỉ được điều chuyển pin FULL đang nằm trong kho trạm gửi');

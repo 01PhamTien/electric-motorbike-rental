@@ -10,6 +10,7 @@ export class AddBatteryHealthMaintenance1795046400000 implements MigrationInterf
         [note] nvarchar(500) NULL,[recordedById] int NOT NULL,
         [createdAt] datetime2 NOT NULL CONSTRAINT [DF_battery_health_checks_created] DEFAULT SYSUTCDATETIME(),
         CONSTRAINT [FK_battery_health_checks_battery] FOREIGN KEY([batteryId]) REFERENCES [batteries]([id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_battery_health_checks_station] FOREIGN KEY([stationId]) REFERENCES [stations]([id]) ON DELETE NO ACTION,
         CONSTRAINT [FK_battery_health_checks_user] FOREIGN KEY([recordedById]) REFERENCES [users]([id]) ON DELETE NO ACTION,
         CONSTRAINT [CK_battery_health_checks_health] CHECK([healthPercent] BETWEEN 1 AND 100),
         CONSTRAINT [CK_battery_health_checks_cycles] CHECK([cycleCount]>=0)
@@ -24,6 +25,7 @@ export class AddBatteryHealthMaintenance1795046400000 implements MigrationInterf
         [cost] decimal(12,2) NULL,[startedAt] datetime2 NULL,[completedAt] datetime2 NULL,
         [createdAt] datetime2 NOT NULL CONSTRAINT [DF_battery_maintenance_created] DEFAULT SYSUTCDATETIME(),
         CONSTRAINT [FK_battery_maintenance_battery] FOREIGN KEY([batteryId]) REFERENCES [batteries]([id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_battery_maintenance_station] FOREIGN KEY([stationId]) REFERENCES [stations]([id]) ON DELETE NO ACTION,
         CONSTRAINT [FK_battery_maintenance_creator] FOREIGN KEY([createdById]) REFERENCES [users]([id]) ON DELETE NO ACTION,
         CONSTRAINT [FK_battery_maintenance_completer] FOREIGN KEY([completedById]) REFERENCES [users]([id]) ON DELETE NO ACTION,
         CONSTRAINT [CK_battery_maintenance_status] CHECK([status] IN ('OPEN','IN_PROGRESS','COMPLETED','CANCELLED')),

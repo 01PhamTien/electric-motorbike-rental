@@ -47,13 +47,12 @@ export class BatteriesService {
   }
 
   async list(user: JwtUser, stationId?: number, status?: BatteryStatus) {
+    if (stationId) this.assertStation(user, stationId);
+    if (user.role === Role.STAFF && user.stationId == null) return [];
+    const effectiveStationId = stationId ?? (user.role === Role.STAFF ? user.stationId : undefined);
     const qb = this.batteries.createQueryBuilder('battery').leftJoinAndSelect('battery.station','station')
       .leftJoinAndSelect('battery.vehicle','vehicle').orderBy('battery.updatedAt','DESC').take(500);
-    if (stationId) { this.assertStation(user, stationId); qb.andWhere('battery.stationId = :stationId',{stationId}); }
-    else if (user.role === Role.STAFF) {
-      if (!user.stationId) return [];
-      qb.andWhere('battery.stationId = :stationId',{stationId:user.stationId});
-    }
+    if (effectiveStationId != null) qb.andWhere('battery.stationId = :stationId',{stationId:effectiveStationId});
     if (status) qb.andWhere('battery.status = :status',{status});
     return qb.getMany();
   }
@@ -173,11 +172,13 @@ export class BatteriesService {
   }
 
   async listReservations(user:JwtUser,stationId?:number) {
+    if(stationId) this.assertStation(user,stationId);
+    if(user.role===Role.STAFF&&user.stationId==null)return [];
+    const effectiveStationId=stationId??(user.role===Role.STAFF?user.stationId:undefined);
     const qb=this.reservations.createQueryBuilder('r').leftJoinAndSelect('r.station','station')
       .leftJoinAndSelect('r.vehicle','vehicle').leftJoinAndSelect('r.booking','booking')
       .orderBy('r.createdAt','DESC').take(200);
-    if(stationId){this.assertStation(user,stationId);qb.andWhere('r.stationId = :stationId',{stationId});}
-    else if(user.role===Role.STAFF){if(user.stationId==null)return [];qb.andWhere('r.stationId = :stationId',{stationId:user.stationId});}
+    if(effectiveStationId!=null)qb.andWhere('r.stationId = :stationId',{stationId:effectiveStationId});
     return qb.getMany();
   }
 
@@ -253,11 +254,13 @@ export class BatteriesService {
   }
 
   async history(user: JwtUser, stationId?: number) {
+    if(stationId) this.assertStation(user,stationId);
+    if(user.role===Role.STAFF&&user.stationId==null)return [];
+    const effectiveStationId=stationId??(user.role===Role.STAFF?user.stationId:undefined);
     const qb=this.swaps.createQueryBuilder('swap').leftJoinAndSelect('swap.vehicle','vehicle')
       .leftJoinAndSelect('swap.station','station').leftJoinAndSelect('swap.removedBattery','removedBattery')
       .leftJoinAndSelect('swap.installedBattery','installedBattery').orderBy('swap.createdAt','DESC').take(300);
-    if(stationId){this.assertStation(user,stationId);qb.andWhere('swap.stationId = :stationId',{stationId});}
-    else if(user.role===Role.STAFF){if(!user.stationId)return [];qb.andWhere('swap.stationId = :stationId',{stationId:user.stationId});}
+    if(effectiveStationId!=null)qb.andWhere('swap.stationId = :stationId',{stationId:effectiveStationId});
     return qb.getMany();
   }
 }

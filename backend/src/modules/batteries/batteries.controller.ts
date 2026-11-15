@@ -7,14 +7,14 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BatteryStatus } from './battery.entity';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { BatteriesService } from './batteries.service';
 import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
 
 class BatteryInventoryQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) stationId?: number;
-  @IsOptional() @IsString() status?: BatteryStatus;
+  @IsOptional() @IsEnum(BatteryStatus) status?: BatteryStatus;
   @IsOptional() @IsString() search?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 20;

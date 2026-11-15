@@ -55,7 +55,7 @@ export class BatteryStocktakesService {
       if(!item)throw new NotFoundException('Không tìm thấy dòng kiểm kê');
       if(item.exempt)throw new BadRequestException('Pin đang điều chuyển được miễn kiểm đếm trong đợt này');
       if(item.batteryId===null)throw new BadRequestException('Dòng pin thừa không thể cập nhật như pin trong snapshot');
-      if(![BatteryStocktakeCountStatus.PRESENT,BatteryStocktakeCountStatus.MISSING].includes(dto.countStatus))throw new BadRequestException('Kết quả chỉ được là PRESENT hoặc MISSING');
+      if(dto.countStatus!=='PRESENT'&&dto.countStatus!=='MISSING')throw new BadRequestException('Kết quả chỉ được là PRESENT hoặc MISSING');
       item.countStatus=dto.countStatus;item.observedStatus=dto.observedStatus?.trim()||null;item.note=dto.note?.trim()||null;
       return itemRepo.save(item);
     });
@@ -95,7 +95,7 @@ export class BatteryStocktakesService {
   async approve(user:JwtUser,stocktakeId:number){
     if(user.role!==Role.ADMIN)throw new ForbiddenException('Chỉ ADMIN mới được duyệt biên bản kiểm kê');
     const result=await this.dataSource.transaction(async manager=>{
-      const repo=manager.getRepository(BatteryStocktake),itemRepo=manager.getRepository(BatteryStocktakeItem);
+      const repo=manager.getRepository(BatteryStocktake);
       const stocktake=await repo.findOne({where:{id:stocktakeId},lock:{mode:'pessimistic_write'}});
       if(!stocktake)throw new NotFoundException('Không tìm thấy đợt kiểm kê');
       if(stocktake.status!==BatteryStocktakeStatus.COMPLETED)throw new BadRequestException('Chỉ được duyệt biên bản đã hoàn tất');

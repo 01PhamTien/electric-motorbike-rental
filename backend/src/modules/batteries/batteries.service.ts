@@ -210,7 +210,7 @@ export class BatteriesService {
       return {battery:saved,session};
     });
     await this.audit?.record(user.sub,'BATTERY_CHARGED','BATTERY',result.battery.id,{cycleCount:result.battery.cycleCount,healthPercent:result.battery.healthPercent,chargingSessionId:result.session.id});
-    return result;
+    return {...result.battery,chargingSession:result.session};
   }
 
   async chargingHistory(user:JwtUser,stationId?:number,batteryId?:number) {

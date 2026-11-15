@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Station } from '../stations/station.entity';
 import { User } from '../users/user.entity';
+import { Battery } from './battery.entity';
 
 export enum BatteryTransferStatus { PENDING='PENDING', IN_TRANSIT='IN_TRANSIT', COMPLETED='COMPLETED', CANCELLED='CANCELLED' }
 
@@ -36,6 +37,5 @@ export class BatteryTransferItem {
   @Column({type:'int'}) transferId:number;
   @ManyToOne(()=>BatteryTransfer,transfer=>transfer.items,{onDelete:'NO ACTION'}) @JoinColumn({name:'transferId',foreignKeyConstraintName:'FK_battery_transfer_items_transfer'}) transfer:BatteryTransfer;
   @Column({type:'int'}) batteryId:number;
-  @Column({type:'int'}) serialSnapshotId:number;
-  @ManyToOne('Battery',{onDelete:'NO ACTION'}) @JoinColumn({name:'batteryId',foreignKeyConstraintName:'FK_battery_transfer_items_battery'}) battery:unknown;
+  @ManyToOne(()=>Battery,{onDelete:'NO ACTION'}) @JoinColumn({name:'batteryId',foreignKeyConstraintName:'FK_battery_transfer_items_battery'}) battery:Battery;
 }

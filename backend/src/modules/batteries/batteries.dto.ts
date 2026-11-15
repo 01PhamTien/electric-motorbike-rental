@@ -49,3 +49,19 @@ export class AddBatteryStocktakeExtraDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(20) observedStatus?:string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
 }
+
+export class RecordBatteryHealthDto {
+  @ApiProperty({example:92}) @IsInt() @Min(1) @Max(100) healthPercent:number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}
+export class CreateBatteryMaintenanceTaskDto {
+  @ApiProperty({example:12}) @IsInt() @Min(1) batteryId:number;
+  @ApiProperty({example:'CAPACITY_TEST'}) @IsString() @MaxLength(40) taskType:string;
+  @ApiPropertyOptional({enum:['LOW','NORMAL','HIGH','URGENT']}) @IsOptional() @IsString() priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT';
+  @ApiPropertyOptional({example:'2026-12-01T09:00:00.000Z'}) @IsOptional() @IsString() dueAt?:string;
+  @ApiProperty({example:'Đo dung lượng thực tế và kiểm tra đầu nối.'}) @IsString() @MaxLength(1000) description:string;
+}
+export class CompleteBatteryMaintenanceTaskDto {
+  @ApiProperty({example:'Đã vệ sinh đầu nối, kiểm tra điện áp và thử tải đạt yêu cầu.'}) @IsString() @MaxLength(2000) result:string;
+  @ApiPropertyOptional({example:150000}) @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) cost?:number;
+}

@@ -105,7 +105,7 @@ export function CustomerBatterySwapPage(){
           </div>}
           <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-100 p-5">
             <div><p className="font-bold">Pin đầy có thể đổi</p><p className="mt-1 text-sm text-slate-500">{stationAvailability?stationAvailability.availableBatteryCount+' viên đang sẵn sàng tại trạm':'Không có dữ liệu tồn kho của trạm'}</p></div>
-            <button disabled={busy||Boolean(activeReservation)||!stationId||!stationAvailability?.supportsBatterySwap} onClick={()=>void reserve()} className="btn-primary">{busy?'Đang xử lý...':'Giữ pin trong 10 phút'}</button>
+            <button disabled={busy||Boolean(activeReservation)||!stationId||!stationAvailability?.supportsBatterySwap} onClick={()=>void reserve()} className="btn-primary">{busy?'Đang xử lý...':'Giữ pin ngay'}</button>
           </div>
           {!stationId&&<p className="mt-3 text-sm text-amber-700">Đơn thuê chưa có thông tin trạm hiện tại. Vui lòng liên hệ nhân viên để cập nhật vị trí xe.</p>}
           {stationId&&stationAvailability&&!stationAvailability.supportsBatterySwap&&<p className="mt-3 text-sm text-amber-700">Trạm hiện chưa có pin đầy khả dụng. Bạn có thể thử lại sau khi nhân viên cập nhật kho pin.</p>}

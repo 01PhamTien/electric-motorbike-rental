@@ -154,7 +154,7 @@ export class BatteriesService {
   async swap(user: JwtUser, dto: SwapBatteryDto) {
     const result=await this.dataSource.transaction(async manager=>{
       const batteryRepo=manager.getRepository(Battery),vehicleRepo=manager.getRepository(Vehicle),swapRepo=manager.getRepository(BatterySwap);
-      const stationRepo=manager.getRepository(Station),reservationRepo=manager.getRepository(BatteryReservation);
+      const stationRepo=manager.getRepository(Station),reservationRepo=manager.getRepository(BatteryReservation),chargingRepo=manager.getRepository(BatteryChargingSession);
       const hint=await vehicleRepo.findOne({where:{id:dto.vehicleId}});
       if(!hint) throw new NotFoundException('Không tìm thấy xe');
       await stationRepo.findOne({where:{id:hint.stationId},lock:{mode:'pessimistic_write'}});
@@ -176,8 +176,6 @@ export class BatteriesService {
       removed.status=BatteryStatus.CHARGING;removed.vehicleId=null;
       replacement.status=BatteryStatus.INSTALLED;replacement.vehicleId=vehicle.id;
       await batteryRepo.save(removed);await batteryRepo.save(replacement);
-      const chargingRepo=manager.getRepository(BatteryChargingSession);
-      await chargingRepo.save(chargingRepo.create({batteryId:removed.id,stationId:reservation.stationId,startedById:user.sub,completedById:null,startedAt:new Date(),completedAt:null,status:BatteryChargingStatus.IN_PROGRESS,note:'Đổi pin theo lượt giữ trước #'+reservation.id}));
       await chargingRepo.save(chargingRepo.create({batteryId:removed.id,stationId:vehicle.stationId,startedById:user.sub,completedById:null,startedAt:new Date(),completedAt:null,status:BatteryChargingStatus.IN_PROGRESS,note:dto.note?.trim()||null}));
       const swap=await swapRepo.save(swapRepo.create({
         vehicleId:vehicle.id,stationId:vehicle.stationId,removedBatteryId:removed.id,
@@ -355,6 +353,8 @@ export class BatteriesService {
       removed.status=BatteryStatus.CHARGING;removed.vehicleId=null;
       replacement.status=BatteryStatus.INSTALLED;replacement.vehicleId=vehicle.id;
       await batteryRepo.save(removed);await batteryRepo.save(replacement);
+      const chargingRepo=manager.getRepository(BatteryChargingSession);
+      await chargingRepo.save(chargingRepo.create({batteryId:removed.id,stationId:reservation.stationId,startedById:user.sub,completedById:null,startedAt:new Date(),completedAt:null,status:BatteryChargingStatus.IN_PROGRESS,note:'Đổi pin theo lượt giữ trước #'+reservation.id}));
       const swap=await swapRepo.save(swapRepo.create({
         vehicleId:vehicle.id,stationId:reservation.stationId,removedBatteryId:removed.id,
         installedBatteryId:replacement.id,performedById:user.sub,note:dto.note?.trim()||'Đổi pin theo lượt giữ trước #'+reservation.id,

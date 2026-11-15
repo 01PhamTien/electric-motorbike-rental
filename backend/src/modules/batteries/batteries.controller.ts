@@ -7,8 +7,20 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BatteryStatus } from './battery.entity';
+import { Type } from 'class-transformer';
+import { IsDateString, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { BatteriesService } from './batteries.service';
 import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
+
+class BatterySwapHistoryQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) stationId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) vehicleId?: number;
+  @IsOptional() @IsString() serial?: string;
+  @IsOptional() @IsDateString() from?: string;
+  @IsOptional() @IsDateString() to?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 20;
+}
 
 @ApiTags('Batteries and swaps')
 @ApiBearerAuth()

@@ -26,3 +26,15 @@ export class RedeemBatteryReservationDto {
   @ApiProperty({example:3}) @IsInt() @Min(1) replacementBatteryId:number;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
 }
+
+export class CompleteBatteryChargingDto {
+  @ApiPropertyOptional({example:96}) @IsOptional() @IsInt() @Min(1) @Max(100) healthPercent?:number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}
+export class UpdateBatteryHealthDto {
+  @ApiProperty({example:82}) @IsInt() @Min(1) @Max(100) healthPercent:number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}
+export class BatteryMaintenanceDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}

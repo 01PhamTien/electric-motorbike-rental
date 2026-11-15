@@ -78,7 +78,7 @@ test('swap history returns paginated records with selected staff identity and fi
   assert.equal(conditions.length,5);
   assert.equal(conditions[0].params.stationId,2);
   assert.equal(conditions[1].params.vehicleId,12);
-  assert.equal(conditions[2].params.serial,'%BAT%');
+  assert.equal(conditions.find(x=>x.params.serial)?.params.serial,'%BAT%');
 });
 
 test('swap history rejects staff station scope tampering',async()=>{

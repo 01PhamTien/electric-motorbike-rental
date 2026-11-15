@@ -7,6 +7,8 @@ export enum BatteryChargingStatus { IN_PROGRESS='IN_PROGRESS', COMPLETED='COMPLE
 
 @Entity('battery_charging_sessions')
 @Check('CK_battery_charging_sessions_status', "[status] IN ('IN_PROGRESS','COMPLETED','CANCELLED')")
+@Check('CK_battery_charging_sessions_completion', "([status]='IN_PROGRESS' AND [completedAt] IS NULL) OR ([status]<>'IN_PROGRESS' AND [completedAt] IS NOT NULL)")
+@Index('UQ_battery_charging_sessions_active', ['batteryId'], { unique: true, where: "[status] = 'IN_PROGRESS'" })
 @Index('IDX_battery_charging_sessions_battery_status', ['batteryId','status'])
 @Index('IDX_battery_charging_sessions_station_started', ['stationId','startedAt'])
 export class BatteryChargingSession {

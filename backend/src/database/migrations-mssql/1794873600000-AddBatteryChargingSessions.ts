@@ -27,6 +27,7 @@ export class AddBatteryChargingSessions1794873600000 implements MigrationInterfa
     }
     await queryRunner.query("IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IDX_battery_charging_sessions_battery_status') CREATE INDEX [IDX_battery_charging_sessions_battery_status] ON [battery_charging_sessions]([batteryId],[status])");
     await queryRunner.query("IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IDX_battery_charging_sessions_station_started') CREATE INDEX [IDX_battery_charging_sessions_station_started] ON [battery_charging_sessions]([stationId],[startedAt])");
+    await queryRunner.query("IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'UQ_battery_charging_sessions_active') CREATE UNIQUE INDEX [UQ_battery_charging_sessions_active] ON [battery_charging_sessions]([batteryId]) WHERE [status]='IN_PROGRESS'");
   }
   async down(queryRunner:QueryRunner):Promise<void>{
     if(await queryRunner.hasTable('battery_charging_sessions')) await queryRunner.dropTable('battery_charging_sessions');

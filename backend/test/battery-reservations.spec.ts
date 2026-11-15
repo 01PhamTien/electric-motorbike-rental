@@ -106,11 +106,11 @@ test('concurrent customers cannot reserve more holds than the last available bat
     createQueryBuilder:(alias?:string)=>{
       if(alias){
         let stationId:number|undefined;
-        return {
-          where:(_sql:string,params:any)=>{stationId=params.stationId;return this;},
-          andWhere:()=>this,
-          getCount:async()=>reservations.filter(r=>r.stationId===stationId&&r.status===BatteryReservationStatus.RESERVED&&r.expiresAt>new Date()).length,
-        };
+        const qb:any={};
+        qb.where=(_sql:string,params:any)=>{stationId=params.stationId;return qb;};
+        qb.andWhere=()=>qb;
+        qb.getCount=async()=>reservations.filter(r=>r.stationId===stationId&&r.status===BatteryReservationStatus.RESERVED&&r.expiresAt>new Date()).length;
+        return qb;
       }
       const builder:any={
         update:()=>builder,set:()=>builder,where:()=>builder,

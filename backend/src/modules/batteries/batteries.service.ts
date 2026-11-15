@@ -300,12 +300,16 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
 
   async publicAvailability() {
     await this.expireReservations();
-    const rows=await this.batteries.createQueryBuilder('battery')
-      .select('battery.stationId','stationId')
-      .addSelect('COUNT(*)','availableBatteryCount')
-      .where('battery.status = :status',{status:BatteryStatus.FULL})
-      .andWhere('battery.vehicleId IS NULL')
-      .groupBy('battery.stationId')
+    // Start from active stations so an empty station is returned with a
+    // count of zero instead of disappearing from the public availability list.
+    const rows=await this.stations.createQueryBuilder('station')
+      .leftJoin(Battery,'battery',
+        'battery.stationId = station.id AND battery.status = :status AND battery.vehicleId IS NULL',
+        {status:BatteryStatus.FULL})
+      .select('station.id','stationId')
+      .addSelect('COUNT(battery.id)','availableBatteryCount')
+      .where('station.isActive = :isActive',{isActive:true})
+      .groupBy('station.id')
       .getRawMany();
     const now=new Date();
     const holds=await this.reservations.createQueryBuilder('r').select('r.stationId','stationId')

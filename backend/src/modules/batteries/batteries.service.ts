@@ -182,7 +182,7 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
 
   async reserve(user:JwtUser,dto:CreateBatteryReservationDto) {
     const reservation=await this.dataSource.transaction(async manager=>{
-      const stationRepo=manager.getRepository(Station),bookingRepo=manager.getRepository(Booking),userRepo=manager.getRepository(User);
+      const stationRepo=manager.getRepository(Station),bookingRepo=manager.getRepository(Booking),userRepo=manager.getRepository(User),vehicleRepo=manager.getRepository(Vehicle);
       const customer=await userRepo.findOne({where:{id:user.sub},lock:{mode:'pessimistic_write'}});
       if(!customer) throw new NotFoundException('Không tìm thấy tài khoản khách hàng');
       const batteryRepo=manager.getRepository(Battery),reservationRepo=manager.getRepository(BatteryReservation);
@@ -191,7 +191,8 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
       const booking=await bookingRepo.findOne({where:{id:dto.bookingId,customerId:user.sub},lock:{mode:'pessimistic_write'}});
       if(!booking) throw new NotFoundException('Không tìm thấy đơn thuê của bạn');
       if(booking.status!==BookingStatus.RENTING) throw new BadRequestException('Chỉ đơn thuê đang sử dụng xe mới được đặt trước pin');
-      if(booking.vehicle?.stationId!==station.id) throw new BadRequestException('Xe thuê hiện không ở trạm này. Vui lòng chọn trạm hiện tại của xe.');
+      const vehicle=await vehicleRepo.findOne({where:{id:booking.vehicleId},lock:{mode:'pessimistic_write'}});
+      if(!vehicle||!vehicle.isActive||vehicle.stationId!==station.id) throw new BadRequestException('Xe thuê hiện không ở trạm này. Vui lòng chọn trạm hiện tại của xe.');
       const now=new Date();
       // Lazy expiry for both this station and this customer. The station row lock
       // serializes competing holds for the last available battery at this station.

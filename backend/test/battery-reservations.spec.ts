@@ -148,3 +148,42 @@ test('concurrent customers cannot reserve more holds than the last available bat
   assert.equal(attempts.filter(x=>x.status==='rejected').length,1);
   assert.equal(reservations.filter(r=>r.status===BatteryReservationStatus.RESERVED).length,1);
 });
+
+test('late reservation redemption persists EXPIRED before returning an error',async()=>{
+  const reservation:any={
+    id:55,customerId:77,stationId:2,status:BatteryReservationStatus.RESERVED,
+    expiresAt:new Date(Date.now()-1000),redeemedAt:null,cancelledAt:null,
+  };
+  const reservationRepo:any={
+    findOne:async()=>reservation,
+    save:async(value:any)=>value,
+  };
+  const stationRepo:any={findOne:async()=>({id:2,isActive:true})};
+  const manager:any={getRepository:(entity:any)=>entity===BatteryReservation?reservationRepo:stationRepo};
+  const dataSource:any={transaction:async(fn:any)=>fn(manager)};
+  const service=new BatteriesService(dataSource,{} as any,{} as any,reservationRepo,stationRepo,{} as any);
+  const staff={sub:8,email:'staff@example.test',role:Role.STAFF,stationId:2};
+  await assert.rejects(
+    ()=>service.redeemReservation(staff,55,{replacementBatteryId:3}),
+    /đã hết hạn/,
+  );
+  assert.equal(reservation.status,BatteryReservationStatus.EXPIRED);
+});
+
+test('cancelling an already elapsed hold records EXPIRED, not CANCELLED',async()=>{
+  const reservation:any={
+    id:56,customerId:42,stationId:2,status:BatteryReservationStatus.RESERVED,
+    expiresAt:new Date(Date.now()-1000),cancelledAt:null,
+  };
+  const reservationRepo:any={
+    findOne:async()=>reservation,
+    save:async(value:any)=>value,
+  };
+  const manager:any={getRepository:()=>reservationRepo};
+  const dataSource:any={transaction:async(fn:any)=>fn(manager)};
+  const service=new BatteriesService(dataSource,{} as any,{} as any,reservationRepo,{} as any,{} as any);
+  const customer={sub:42,email:'customer@example.test',role:Role.CUSTOMER,stationId:null};
+  const result=await service.cancelReservation(customer,56);
+  assert.equal(result.status,BatteryReservationStatus.EXPIRED);
+  assert.equal(result.cancelledAt,null);
+});

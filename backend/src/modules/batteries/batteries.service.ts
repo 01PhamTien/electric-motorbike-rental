@@ -169,6 +169,27 @@ export class BatteriesService {
     return { ...result.battery, latestChargeSessionId: result.session.id };
   }
 
+  async updateHealth(user: JwtUser, batteryId: number, dto: UpdateBatteryHealthDto) {
+    const result = await this.dataSource.transaction(async manager => {
+      const repo = manager.getRepository(Battery);
+      const hint = await repo.findOne({ where: { id: batteryId } });
+      if (!hint) throw new NotFoundException('Không tìm thấy pin');
+      this.assertStation(user, hint.stationId);
+      const battery = await repo.findOne({ where: { id: batteryId }, lock: { mode: 'pessimistic_write' } });
+      if (!battery) throw new NotFoundException('Không tìm thấy pin');
+      if (battery.status === BatteryStatus.INSTALLED || battery.status === BatteryStatus.RETIRED) {
+        throw new BadRequestException('Chỉ cập nhật sức khỏe pin khi pin đang ở trạm và chưa ngừng sử dụng');
+      }
+      battery.healthPercent = dto.healthPercent;
+      if (dto.note?.trim()) battery.note = dto.note.trim();
+      return repo.save(battery);
+    });
+    await this.audit?.record(user.sub, 'BATTERY_HEALTH_UPDATED', 'BATTERY', result.id, {
+      healthPercent: result.healthPercent, note: dto.note?.trim() || null,
+    });
+    return result;
+  }
+
   async updateStatus(user: JwtUser, batteryId: number, dto: UpdateBatteryStatusDto) {
     const target = dto.status as BatteryStatus;
     const result = await this.dataSource.transaction(async manager => {

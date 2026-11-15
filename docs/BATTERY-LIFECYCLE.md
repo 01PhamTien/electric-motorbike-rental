@@ -23,7 +23,7 @@ For a battery already in CHARGING before this session table was deployed, the fi
 
 ## API
 
-- `PATCH /batteries/:id/complete-charging` — optional `healthPercent` and `note`.
+- `PATCH /batteries/:id/complete-charging` — optional `healthPercent` and `note`; preserves the original battery response fields and adds `chargingSession`.
 - `GET /batteries/charging/history?stationId=&batteryId=` — station-scoped history.
 - `PATCH /batteries/:id/health` — update health percentage and optional note.
 - `PATCH /batteries/:id/maintenance` — move an eligible FULL battery to maintenance.

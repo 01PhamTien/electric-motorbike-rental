@@ -71,11 +71,11 @@ test('charging completion closes the active session and increments cycle exactly
   await service.swap(staff,{vehicleId:12,replacementBatteryId:2});
   const before=batteries[0].cycleCount;
   const result=await service.completeCharging(staff,1,91,'Đạt kiểm tra sau sạc');
-  assert.equal(result.battery.status,BatteryStatus.FULL);
-  assert.equal(result.battery.cycleCount,before+1);
-  assert.equal(result.battery.healthPercent,91);
-  assert.equal(result.session.status,BatteryChargingStatus.COMPLETED);
-  assert.equal(result.session.completedById,staff.sub);
+  assert.equal(result.status,BatteryStatus.FULL);
+  assert.equal(result.cycleCount,before+1);
+  assert.equal(result.healthPercent,91);
+  assert.equal(result.chargingSession.status,BatteryChargingStatus.COMPLETED);
+  assert.equal(result.chargingSession.completedById,staff.sub);
   await assert.rejects(()=>service.completeCharging(staff,1),/đang sạc/);
   assert.equal(batteries[0].cycleCount,before+1);
 });
@@ -87,7 +87,7 @@ test('charging completion safely records legacy charging batteries without a ses
   assert.equal(result.battery.status,BatteryStatus.FULL);
   assert.equal(result.battery.cycleCount,11);
   assert.equal(result.session.status,BatteryChargingStatus.COMPLETED);
-  assert.ok(result.session.note?.includes('trước khi bật theo dõi'));
+  assert.ok(result.chargingSession.note?.includes('trước khi bật theo dõi'));
   assert.equal(sessions.length,1);
 });
 

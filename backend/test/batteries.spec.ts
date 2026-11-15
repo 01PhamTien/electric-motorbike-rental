@@ -87,7 +87,7 @@ test('charging completion safely records legacy charging batteries without a ses
   assert.equal(result.battery.status,BatteryStatus.FULL);
   assert.equal(result.battery.cycleCount,11);
   assert.equal(result.session.status,BatteryChargingStatus.COMPLETED);
-  assert.match(result.session.note,/trước khi bật theo dõi/);
+  assert.ok(result.session.note?.includes('trước khi bật theo dõi'));
   assert.equal(sessions.length,1);
 });
 

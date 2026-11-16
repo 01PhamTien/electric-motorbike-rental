@@ -14,7 +14,7 @@ import { BatteryTransfersService } from './battery-transfers.service';
 import { BatteryStocktakesService } from './battery-stocktakes.service';
 import { BatteryHealthService } from './battery-health.service';
 import { CreateBatteryTransferDto, CreateBatteryStocktakeDto, UpdateBatteryStocktakeItemDto, AddBatteryStocktakeExtraDto, RecordBatteryHealthDto, CreateBatteryMaintenanceTaskDto, CompleteBatteryMaintenanceTaskDto, CreateBatteryOperatingCostDto } from './batteries.dto';
-import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
+import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto, CompleteBatteryChargingDto, UpdateBatteryStatusDto, BatteryChargeHistoryQueryDto } from './batteries.dto';
 
 class BatterySwapHistoryQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) stationId?: number;
@@ -137,5 +137,7 @@ export class BatteriesController {
   @Post('install') install(@CurrentUser() user:JwtUser,@Body() dto:InstallBatteryDto){return this.service.install(user,dto);}
   @Post('swap') swap(@CurrentUser() user:JwtUser,@Body() dto:SwapBatteryDto){return this.service.swap(user,dto);}
   @Get('swaps/history') history(@CurrentUser() user:JwtUser,@Query() query:BatterySwapHistoryQueryDto){return this.service.history(user,query);}
-  @Patch(':id/complete-charging') completeCharging(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number){return this.service.completeCharging(user,id);}
+  @Patch(':id/complete-charging') completeCharging(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:CompleteBatteryChargingDto){return this.service.completeCharging(user,id,dto);}
+  @Patch(':id/status') updateStatus(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:UpdateBatteryStatusDto){return this.service.updateStatus(user,id,dto);}
+  @Get('charging/history') chargingHistory(@CurrentUser() user:JwtUser,@Query() query:BatteryChargeHistoryQueryDto){return this.service.chargingHistory(user,query);}
 }

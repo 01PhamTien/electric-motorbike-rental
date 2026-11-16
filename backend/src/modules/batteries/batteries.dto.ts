@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IsArray, ArrayNotEmpty, ArrayMaxSize, ArrayUnique } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
@@ -74,4 +75,22 @@ export class CreateBatteryOperatingCostDto {
   @ApiPropertyOptional({example:2500}) @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) unitPrice?:number;
   @ApiProperty({example:'2026-11-15T09:00:00.000Z'}) @IsDateString() occurredAt:string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}
+
+
+export class CompleteBatteryChargingDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+export class UpdateBatteryStatusDto {
+  @ApiProperty({ example: 'MAINTENANCE', enum: ['FULL','CHARGING','INSTALLED','MAINTENANCE','RETIRED'] })
+  @IsString() @IsIn(['FULL','CHARGING','INSTALLED','MAINTENANCE','RETIRED']) status: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+export class BatteryChargeHistoryQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) stationId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) batteryId?: number;
+  @IsOptional() @IsDateString() from?: string;
+  @IsOptional() @IsDateString() to?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 20;
 }

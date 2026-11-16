@@ -7,6 +7,7 @@ import { Vehicle } from '../vehicles/vehicle.entity';
 import { Battery } from './battery.entity';
 import { BatterySwap } from './battery-swap.entity';
 import { BatteryReservation } from './battery-reservation.entity';
+import { BatteryChargeSession } from './battery-charge-session.entity';
 import { BatteryTransfer, BatteryTransferItem } from './battery-transfer.entity';
 import { BatteryTransfersService } from './battery-transfers.service';
 import { BatteryStocktake, BatteryStocktakeItem } from './battery-stocktake.entity';
@@ -21,7 +22,7 @@ import { BatterySwapPublicController } from './battery-swap-public.controller';
 import { BatteriesService } from './batteries.service';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([Battery,BatterySwap,BatteryReservation,BatteryTransfer,BatteryTransferItem,BatteryStocktake,BatteryStocktakeItem,BatteryHealthCheck,BatteryMaintenanceTask,BatteryOperatingCost,Station,Vehicle,Booking,User]),AuthModule,AuditModule],
+  imports:[TypeOrmModule.forFeature([Battery,BatterySwap,BatteryReservation,BatteryChargeSession,BatteryTransfer,BatteryTransferItem,BatteryStocktake,BatteryStocktakeItem,BatteryHealthCheck,BatteryMaintenanceTask,BatteryOperatingCost,Station,Vehicle,Booking,User]),AuthModule,AuditModule],
   controllers:[BatteriesController,BatterySwapPublicController],providers:[BatteriesService,BatteryTransfersService,BatteryStocktakesService,BatteryHealthService],
 })
 export class BatteriesModule {}

@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Station } from '../stations/station.entity';
 import { User } from '../users/user.entity';
 import { Battery } from './battery.entity';
@@ -8,6 +8,7 @@ export enum BatteryStocktakeCountStatus { PENDING='PENDING', PRESENT='PRESENT', 
 
 @Entity('battery_stocktakes')
 @Index('IDX_battery_stocktakes_station_status',['stationId','status'])
+@Index('UX_battery_stocktakes_one_open_per_station',['stationId'],{unique:true,where:"[status]='OPEN'"})
 export class BatteryStocktake {
   @PrimaryGeneratedColumn() id:number;
   @Column({type:'int'}) stationId:number;
@@ -29,8 +30,11 @@ export class BatteryStocktake {
 }
 
 @Entity('battery_stocktake_items')
+@Check('CK_battery_stocktake_items_count', "[countStatus] IN ('PENDING','PRESENT','MISSING','EXTRA')")
+@Check('CK_battery_stocktake_items_battery_count', "([batteryId] IS NULL AND [countStatus]='EXTRA') OR ([batteryId] IS NOT NULL AND [countStatus]<>'EXTRA')")
 @Index('IDX_battery_stocktake_items_stocktake',['stocktakeId'])
 @Index('IDX_battery_stocktake_items_battery',['batteryId'])
+@Index('UX_battery_stocktake_items_serial',['stocktakeId','serialSnapshot'],{unique:true})
 export class BatteryStocktakeItem {
   @PrimaryGeneratedColumn() id:number;
   @Column({type:'int'}) stocktakeId:number;

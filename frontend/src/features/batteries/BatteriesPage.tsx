@@ -145,7 +145,7 @@ export function BatteriesPage(){
   async function addBattery(e:React.FormEvent){
     e.preventDefault();
     await act(()=>api.post('/batteries',{serialNumber:serial.trim(),stationId:Number(stationId),capacityKwh:capacity?Number(capacity):undefined,healthPercent:health?Number(health):undefined,note:newBatteryNote.trim()||undefined}),'Đã nhập pin mới vào kho. Pin được đánh dấu đầy và sẵn sàng.');
-    setSerial('');setCapacity('');setHealth('100');setNewBatteryNote('');
+    setSerial('');setCapacity('');setHealth('');setNewBatteryNote('');
   }
   async function installBattery(e:React.FormEvent){
     e.preventDefault();

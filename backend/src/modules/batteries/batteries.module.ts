@@ -22,7 +22,7 @@ import { BatterySwapPublicController } from './battery-swap-public.controller';
 import { BatteriesService } from './batteries.service';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([Battery,BatterySwap,BatteryReservation,BatteryTransfer,BatteryTransferItem,BatteryStocktake,BatteryStocktakeItem,BatteryHealthCheck,BatteryMaintenanceTask,BatteryOperatingCost,Station,Vehicle,Booking,User]),AuthModule,AuditModule],
+  imports:[TypeOrmModule.forFeature([Battery,BatterySwap,BatteryReservation,BatteryChargeSession,BatteryTransfer,BatteryTransferItem,BatteryStocktake,BatteryStocktakeItem,BatteryHealthCheck,BatteryMaintenanceTask,BatteryOperatingCost,Station,Vehicle,Booking,User]),AuthModule,AuditModule],
   controllers:[BatteriesController,BatterySwapPublicController],providers:[BatteriesService,BatteryTransfersService,BatteryStocktakesService,BatteryHealthService],
 })
 export class BatteriesModule {}

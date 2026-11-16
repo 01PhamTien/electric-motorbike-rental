@@ -68,7 +68,7 @@ export class VnPayService {
       const booking = await bookingRepo.findOne({ where: { id: bookingId }, lock: { mode: 'pessimistic_write' } });
       if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê.');
       if (booking.customerId !== user.sub) throw new ForbiddenException();
-      if (dto.purpose === PaymentPurpose.DEPOSIT && ![BookingStatus.PENDING, BookingStatus.CONFIRMED].includes(booking.status)) {
+      if (dto.purpose === PaymentPurpose.DEPOSIT && booking.status !== BookingStatus.CONFIRMED) {
         throw new BadRequestException('Đơn không còn ở trạng thái cho phép thanh toán tiền cọc.');
       }
       if (dto.purpose === PaymentPurpose.RENT && ![BookingStatus.CONFIRMED, BookingStatus.RENTING, BookingStatus.COMPLETED].includes(booking.status)) {

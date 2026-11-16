@@ -304,6 +304,7 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
         [BatteryStatus.CHARGING]: [BatteryStatus.MAINTENANCE],
         [BatteryStatus.MAINTENANCE]: [BatteryStatus.FULL, BatteryStatus.RETIRED],
         [BatteryStatus.RETIRED]: [],
+        [BatteryStatus.TRANSFERRING]: [],
       };
       if (!allowed[battery.status].includes(target)) {
         throw new BadRequestException(`Không thể chuyển trạng thái pin từ ${battery.status} sang ${target}`);

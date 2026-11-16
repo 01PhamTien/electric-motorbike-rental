@@ -45,8 +45,9 @@ export function formatVnPayDate(date: Date): string {
 
 export function toVnPayAmount(amount: string | number): string {
   const value = Number(amount);
-  if (!Number.isSafeInteger(Math.round(value * 100)) || !Number.isFinite(value) || value <= 0) {
+  const scaled = value * 100;
+  if (!Number.isFinite(value) || value <= 0 || !Number.isSafeInteger(Math.round(scaled)) || Math.abs(scaled - Math.round(scaled)) > 1e-7) {
     throw new Error('VNPay amount must be a positive VND amount with at most two decimal places.');
   }
-  return String(Math.round(value * 100));
+  return String(Math.round(scaled));
 }

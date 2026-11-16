@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm';
 import { Station } from '../stations/station.entity';
 import { User } from '../users/user.entity';
 import { Battery } from './battery.entity';
@@ -6,6 +6,8 @@ import { Battery } from './battery.entity';
 export enum BatteryTransferStatus { PENDING='PENDING', IN_TRANSIT='IN_TRANSIT', COMPLETED='COMPLETED', CANCELLED='CANCELLED' }
 
 @Entity('battery_transfers')
+@Check('CK_battery_transfers_status', "[status] IN ('PENDING','IN_TRANSIT','COMPLETED','CANCELLED')")
+@Check('CK_battery_transfers_stations', '[sourceStationId] <> [destinationStationId]')
 @Index('IDX_battery_transfers_source_status',['sourceStationId','status'])
 @Index('IDX_battery_transfers_destination_status',['destinationStationId','status'])
 export class BatteryTransfer {
@@ -31,6 +33,7 @@ export class BatteryTransfer {
 }
 
 @Entity('battery_transfer_items')
+@Unique('UQ_battery_transfer_items_transfer_battery',['transferId','batteryId'])
 @Index('IDX_battery_transfer_items_battery',['batteryId'])
 export class BatteryTransferItem {
   @PrimaryGeneratedColumn() id:number;

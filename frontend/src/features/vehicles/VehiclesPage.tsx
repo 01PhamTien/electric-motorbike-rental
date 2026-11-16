@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../../services/api';
 import { EmptyState, LoadingState, money, SectionHeading } from '../../components/Brand';
 import { ModelPhoto } from '../../components/ModelPhoto';
@@ -42,6 +42,11 @@ export function VehiclesPage() {
   const [voucherBusy, setVoucherBusy] = useState(false);
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { vehicleId } = useParams();
+  const bookingPage = location.pathname.endsWith('/booking');
+  const detailPage = Boolean(vehicleId) && !bookingPage;
+  const subPage = detailPage || bookingPage;
   const { user, loading: authLoading } = useAuth();
   const isOperator = user?.role === 'ADMIN' || user?.role === 'STAFF';
 
@@ -51,9 +56,12 @@ export function VehiclesPage() {
       if (!active) return;
       const list: Vehicle[] = Array.isArray(data) ? data : data?.items ?? [];
       setItems(list);
-      const requested = Number(params.get('vehicle'));
+      const requested = Number(vehicleId || params.get('vehicle'));
       const chosen = list.find(item => item.id === requested);
-      if (chosen) openBooking(chosen);
+      if (chosen) {
+        if (bookingPage || params.has('vehicle')) openBooking(chosen);
+        else if (detailPage) { setDetails(chosen); void loadReviews(chosen); }
+      }
     }).catch(() => { if (active) setLoadError('Không thể tải danh sách xe. Vui lòng kiểm tra kết nối hoặc thử lại.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -70,15 +78,20 @@ export function VehiclesPage() {
   }), [items, query, station, availability]);
   const availableAtSelectedStation = useMemo(() => items.filter(v => v.station?.id === selectedStationId && v.station?.isActive !== false && v.status === 'ACTIVE'), [items, selectedStationId]);
   const activeCountAtStation = (stationId: number) => items.filter(v => v.station?.id === stationId && v.status === 'ACTIVE').length;
-  const closeBooking = () => {
-    setSelected(null); setBookingError(''); setAcceptedTerms(false); setVoucherCode(''); setVoucherPreview(null); setVoucherMessage('');
-    if (params.has('vehicle')) { params.delete('vehicle'); setParams(params, { replace: true }); }
-  };
-  async function openDetails(vehicle: Vehicle) {
-    setDetails(vehicle); setReviews([]); setReviewSummary({total:0,averageRating:null}); setReviewsLoading(true);
+  const closeDetails = () => { setDetails(null); navigate('/vehicles'); };
+  async function loadReviews(vehicle: Vehicle) {
+    setReviews([]); setReviewSummary({total:0,averageRating:null}); setReviewsLoading(true);
     try { const {data} = await api.get('/vehicles/'+vehicle.id+'/reviews'); setReviews(data?.items ?? []); setReviewSummary({total:data?.total ?? 0,averageRating:data?.averageRating ?? null}); }
     catch { setReviews([]); }
     finally { setReviewsLoading(false); }
+  }
+  const closeBooking = () => {
+    setSelected(null); setBookingError(''); setAcceptedTerms(false); setVoucherCode(''); setVoucherPreview(null); setVoucherMessage('');
+    if (params.has('vehicle')) { params.delete('vehicle'); setParams(params, { replace: true }); }
+    if (bookingPage) navigate('/vehicles');
+  };
+  async function openDetails(vehicle: Vehicle) {
+    setDetails(vehicle); navigate('/vehicles/'+vehicle.id); void loadReviews(vehicle);
   }
   function openBooking(vehicle: Vehicle) {
     setSelected(vehicle);
@@ -87,6 +100,7 @@ export function VehiclesPage() {
     setAcceptedTerms(false);
     setVoucherCode(''); setVoucherPreview(null); setVoucherMessage('');
     setDetails(null);
+    navigate('/vehicles/'+vehicle.id+'/booking');
   }
   const estimatedDays = Math.max(0, Math.ceil((new Date(returnDate).getTime() - new Date(pickup).getTime()) / 86_400_000));
   const rentalTotal = estimatedDays * Number(selected?.dailyRate ?? 0);
@@ -115,7 +129,7 @@ export function VehiclesPage() {
     if (!selected || submitting || authLoading) return;
     if (selected.station?.isActive === false) { setBookingError('Trạm nhận xe hiện không hoạt động. Vui lòng chọn trạm khác.'); return; }
     if (isOperator) { setBookingError('Chỉ tài khoản khách hàng (CUSTOMER) được tạo đơn thuê. Hãy đăng xuất và đăng nhập tài khoản khách hàng để đặt xe.'); return; }
-    if (!user || !localStorage.getItem('accessToken')) { navigate('/login?redirect=' + encodeURIComponent('/vehicles?vehicle=' + selected.id)); return; }
+    if (!user || !localStorage.getItem('accessToken')) { navigate('/login?redirect=' + encodeURIComponent('/vehicles/' + selected.id + '/booking')); return; }
     if (!validPeriod || estimatedDays < 1) { setBookingError('Hãy chọn thời gian nhận trong tương lai và thời gian trả sau thời gian nhận.'); return; }
     if (!acceptedTerms) { setBookingError('Vui lòng xác nhận đã đọc thông tin chi phí và điều kiện đặt xe.'); return; }
     setSubmitting(true); setBookingError('');
@@ -127,7 +141,8 @@ export function VehiclesPage() {
     finally { setSubmitting(false); }
   }
 
-  return <div className="container-page py-10 sm:py-14">
+  return <div className="container-page py-8 sm:py-10">
+    {!subPage && <>
     <div className="flex flex-wrap items-end justify-between gap-5"><SectionHeading eyebrow="ĐỘI XE VOLTGO" title="Tìm chiếc xe dành cho bạn" description="Xem thông tin từng dòng xe, chọn trạm nhận, thời gian thuê và kiểm tra toàn bộ khoản dự kiến trước khi gửi yêu cầu."/><span className="tag">{items.length} xe trong hệ thống</span></div>
     <div className="panel mt-9 grid gap-4 border-[#e7eee9] p-5 shadow-[0_12px_35px_rgba(30,90,65,.045)] md:grid-cols-[1.6fr_1fr_1fr]">
       <label><span className="field-label">Tìm xe</span><input className="field" value={query} onChange={e => setQuery(e.target.value)} placeholder="Tên xe, hãng xe, mã xe..." /></label>
@@ -141,16 +156,17 @@ export function VehiclesPage() {
       <div className="p-6"><span className="text-xs font-bold uppercase tracking-[.15em] text-slate-400">{v.model?.brand} · {v.code}</span><button className="mt-2 block text-left text-xl font-extrabold tracking-tight hover:text-emerald-700" onClick={() => void openDetails(v)}>{v.model?.name}</button><p className="mt-2 text-sm text-slate-500">⌖ {v.station?.name || 'Chưa xác định trạm'}</p><div className="mt-5 flex items-end justify-between border-t border-slate-100 pt-5"><div><p className="text-xl font-extrabold text-[#159b70]">{money(v.dailyRate)}</p><p className="mt-1 text-xs text-slate-400">/ ngày · Cọc {money(v.depositAmount)}</p></div><div className="flex flex-col items-end gap-2"><button onClick={() => void openDetails(v)} className="text-xs font-bold text-emerald-700 underline underline-offset-4">Xem chi tiết</button><button disabled={v.status !== 'ACTIVE' || authLoading || isOperator} title={isOperator ? 'Chỉ tài khoản khách hàng được đặt xe' : undefined} onClick={() => openBooking(v)} className="btn-dark">{isOperator ? 'Chỉ dành cho khách' : 'Đặt xe ↗'}</button></div></div></div>
     </article>)}</div>}
 
-    {details && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#183b32]/35 p-4 backdrop-blur-md" onMouseDown={e => {if(e.target===e.currentTarget)setDetails(null);}}><section role="dialog" aria-modal="true" aria-labelledby="vehicle-detail-title" className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-[26px] border border-[#e5eee8] bg-white p-6 shadow-[0_28px_90px_rgba(24,55,43,.22)] sm:p-8">
-      <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">HỒ SƠ PHƯƠNG TIỆN</p><h2 id="vehicle-detail-title" className="mt-2 text-2xl font-extrabold">{details.model?.brand} {details.model?.name}</h2><p className="mt-2 text-sm text-slate-500">{details.code} · {details.station?.name}</p></div><button onClick={()=>setDetails(null)} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Đóng">✕</button></div>
+    </>}
+    {details && <section aria-labelledby="vehicle-detail-title" className="mx-auto w-full max-w-5xl rounded-[26px] border border-[#e5eee8] bg-white p-6 shadow-[0_18px_55px_rgba(24,55,43,.07)] sm:p-8">
+      <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">HỒ SƠ PHƯƠNG TIỆN</p><h2 id="vehicle-detail-title" className="mt-2 text-2xl font-extrabold">{details.model?.brand} {details.model?.name}</h2><p className="mt-2 text-sm text-slate-500">{details.code} · {details.station?.name}</p></div><button onClick={closeDetails} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Quay lại danh sách xe">←</button></div>
       <div className="mt-6 grid gap-6 md:grid-cols-[.9fr_1.1fr]"><div className="vehicle-art flex min-h-56 items-center justify-center overflow-hidden rounded-2xl p-4"><ModelPhoto url={details.model?.imageUrl} alt={details.model?.name ?? 'Xe điện'}/></div><div><h3 className="text-lg font-extrabold">Thông tin xe</h3><div className="mt-4 grid grid-cols-2 gap-3 text-sm"><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Hãng</p><strong>{details.model?.brand}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Mã xe</p><strong>{details.code}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Biển số</p><strong>{details.licensePlate || 'Chưa cập nhật'}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Trạng thái</p><strong>{details.status === 'ACTIVE' ? 'Sẵn sàng' : details.status === 'CHARGING' ? 'Đang sạc' : details.status === 'MAINTENANCE' ? 'Bảo dưỡng' : 'Ngừng hoạt động'}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Giá thuê/ngày</p><strong>{money(details.dailyRate)}</strong></div><div className="rounded-xl bg-slate-50 p-3"><p className="field-label">Tiền cọc</p><strong>{money(details.depositAmount)}</strong></div></div><p className="mt-4 text-sm leading-6 text-slate-600">Điểm nhận: {details.station?.name}. Tình trạng: {details.status === 'ACTIVE' ? 'Sẵn sàng' : details.status}.</p></div></div>
       <div className="mt-7"><h3 className="text-lg font-extrabold">Thông số kỹ thuật và mô tả</h3><div className="mt-3 whitespace-pre-line rounded-2xl bg-slate-50 p-5 text-sm leading-7 text-slate-700">{details.model?.specifications || 'Thông số và mô tả chi tiết của mẫu xe đang được cập nhật.'}</div></div>
       <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-extrabold text-amber-950">Đánh giá từ khách đã thuê</h3><strong className="text-amber-900">{reviewSummary.averageRating===null?"Chưa có đánh giá":"★ "+reviewSummary.averageRating+"/5"} · {reviewSummary.total} lượt</strong></div>{reviewsLoading?<p className="mt-3 text-sm text-amber-800">Đang tải đánh giá...</p>:!reviews.length?<p className="mt-3 text-sm leading-6 text-amber-800">Chưa có đánh giá xác thực. Chỉ khách đã hoàn thành chuyến thuê mới được gửi đánh giá.</p>:<div className="mt-4 space-y-3">{reviews.map(review=><div key={review.id} className="rounded-xl bg-white/80 p-3"><div className="flex justify-between gap-3"><strong className="text-sm">{review.customer?.fullName||"Khách hàng VoltGo"}</strong><span className="text-amber-600">{"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}</span></div>{review.comment&&<p className="mt-2 text-sm leading-6 text-slate-700">{review.comment}</p>}<p className="mt-1 text-xs text-slate-400">{new Date(review.createdAt).toLocaleDateString("vi-VN")}</p></div>)}</div>}</div>
-      <div className="mt-7 flex flex-wrap justify-end gap-3"><button className="btn-outline" onClick={()=>setDetails(null)}>Đóng</button><button disabled={details.status!=='ACTIVE'||isOperator||authLoading} className="btn-primary" onClick={()=>openBooking(details)}>Chọn xe này →</button></div>
+      <div className="mt-7 flex flex-wrap justify-end gap-3"><button className="btn-outline" onClick={closeDetails}>Quay lại danh sách</button><button disabled={details.status!=='ACTIVE'||isOperator||authLoading} className="btn-primary" onClick={()=>openBooking(details)}>Chọn xe này →</button></div>
     </section></div>}
 
     {selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071c21]/70 p-4 backdrop-blur-sm" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) closeBooking(); }}><section role="dialog" aria-modal="true" aria-labelledby="booking-title" className="max-h-[96vh] w-full max-w-2xl overflow-y-auto rounded-[26px] border border-[#e5eee8] bg-white p-6 shadow-[0_28px_90px_rgba(24,55,43,.20)] sm:p-8">
-      <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">XÁC NHẬN YÊU CẦU THUÊ XE</p><h2 id="booking-title" className="mt-2 text-2xl font-extrabold">{selected.model?.brand} {selected.model?.name}</h2><p className="mt-2 text-sm text-slate-500">{selected.code}</p></div><button className="rounded-lg bg-slate-100 px-3 py-2 text-slate-600" onClick={closeBooking} aria-label="Đóng">✕</button></div>
+      <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">XÁC NHẬN YÊU CẦU THUÊ XE</p><h2 id="booking-title" className="mt-2 text-2xl font-extrabold">{selected.model?.brand} {selected.model?.name}</h2><p className="mt-2 text-sm text-slate-500">{selected.code}</p></div><button className="rounded-lg bg-slate-100 px-3 py-2 text-slate-600" onClick={closeBooking} aria-label="Quay lại danh sách xe">←</button></div>
       <form onSubmit={book} className="mt-6 space-y-5">
         <div className="grid gap-4 sm:grid-cols-2"><div className="flex items-center gap-4 rounded-2xl border border-[#e7eee9] bg-[#f7fbf8] p-3"><div className="h-20 w-24 shrink-0"><ModelPhoto url={selected.model?.imageUrl} alt={selected.model?.name ?? 'Xe điện'}/></div><div><p className="font-extrabold">{selected.model?.name}</p><p className="mt-1 text-xs text-slate-500">{selected.code}</p><p className="mt-1 text-xs font-bold text-emerald-700">{money(selected.dailyRate)}/ngày</p></div></div>
           <label><span className="field-label">Trạm nhận xe</span><select required className="field" value={selectedStationId} onChange={e=>{const id=Number(e.target.value);setSelectedStationId(id);const first=items.find(v=>v.station?.id===id&&v.station?.isActive!==false&&v.status==='ACTIVE');if(first)setSelected(first);}}>{stations.map(s=>{const count=activeCountAtStation(s.id);return <option key={s.id} value={s.id} disabled={count===0}>{s.name} · {count} xe sẵn sàng</option>;})}</select><span className="mt-1 block text-xs text-slate-500">Chỉ chọn được trạm đang có xe sẵn sàng. Số lượng xe được cập nhật từ danh sách xe hiện tại.</span></label>
@@ -166,9 +182,9 @@ export function VehiclesPage() {
         <div className="rounded-xl border border-[#dcebf0] bg-[#f3f9fb] p-4 text-sm leading-6 text-[#426b78]"><strong>Thanh toán:</strong> Hiện VoltGo ghi nhận thanh toán tại quầy bởi nhân viên. Website chưa kết nối cổng thanh toán trực tuyến, nên thao tác này chỉ gửi yêu cầu đặt xe; chưa trừ tiền hoặc thu tiền cọc.</div>
         <label className="flex items-start gap-3 text-sm leading-6 text-slate-600"><input type="checkbox" className="mt-1" checked={acceptedTerms} onChange={e=>setAcceptedTerms(e.target.checked)}/><span>Tôi đã kiểm tra thông tin xe, trạm nhận, thời gian và bảng kê chi phí dự kiến trước khi gửi yêu cầu.</span></label>
         {bookingError && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{bookingError}</p>}
-        <div className="flex flex-wrap gap-3"><button type="button" onClick={closeBooking} className="btn-outline flex-1">Quay lại</button><button disabled={submitting||authLoading||isOperator||!validPeriod||!acceptedTerms||!availableAtSelectedStation.length} className="btn-primary flex-1">{submitting?'Đang gửi yêu cầu...':'Gửi yêu cầu đặt xe →'}</button></div>
+        <div className="flex flex-wrap gap-3"><button type="button" onClick={closeBooking} className="btn-outline flex-1">Quay lại danh sách xe</button><button disabled={submitting||authLoading||isOperator||!validPeriod||!acceptedTerms||!availableAtSelectedStation.length} className="btn-primary flex-1">{submitting?'Đang gửi yêu cầu...':'Gửi yêu cầu đặt xe →'}</button></div>
       </form>
     </section></div>}
-    <div className="mt-10 text-center text-sm text-slate-500">Bạn muốn xem nơi nhận xe? <Link to="/stations" className="font-bold text-[#159b70] underline underline-offset-4">Khám phá các điểm thuê ↗</Link></div>
+    <div className="mt-10 text-center text-sm text-slate-500">Bạn muốn xem nơi nhận xe? <Link to="/stations" className="font-bold text-[#159b70] underline underline-offset-4">Khám phá các điểm thuê ↗</Link></div>}
   </div>;
 }

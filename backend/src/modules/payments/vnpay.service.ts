@@ -104,7 +104,7 @@ export class VnPayService {
         where: { bookingId, purpose: dto.purpose, status: VnPayAttemptStatus.PENDING },
         order: { createdAt: 'DESC' },
       });
-      if (pending && pending.expiresAt > new Date()) {
+      if (pending && pending.expiresAt > new Date() && Math.round(Number(pending.amount) * 100) === due) {
         return { paymentUrl: this.makePaymentUrl(pending, ipAddress), txnRef: pending.txnRef, amount: pending.amount, expiresAt: pending.expiresAt };
       }
       if (pending) {
@@ -132,7 +132,7 @@ export class VnPayService {
   async handleIpn(query: VnPayParams): Promise<{ RspCode: string; Message: string }> {
     const secret = this.config.get<string>('VNPAY_HASH_SECRET')?.trim();
     const tmnCode = this.config.get<string>('VNPAY_TMN_CODE')?.trim();
-    if (!secret || !tmnCode || !verifyVnPaySignature(query, secret)) {
+    if (!secret || !tmnCode || !query.vnp_TxnRef || !/^\\d+$/.test(query.vnp_Amount || '') || !verifyVnPaySignature(query, secret)) {
       return { RspCode: '97', Message: 'Invalid signature' };
     }
     if (query.vnp_TmnCode !== tmnCode) return { RspCode: '97', Message: 'Invalid merchant' };
@@ -148,7 +148,6 @@ export class VnPayService {
           return { RspCode: '04', Message: 'Invalid amount' };
         }
         if (attempt.status === VnPayAttemptStatus.PAID) return { RspCode: '00', Message: 'Confirm Success' };
-        if (attempt.status !== VnPayAttemptStatus.PENDING) return { RspCode: '02', Message: 'Order already confirmed' };
 
         const successful = query.vnp_ResponseCode === '00' && query.vnp_TransactionStatus === '00';
         attempt.responseCode = query.vnp_ResponseCode || '99';
@@ -156,11 +155,16 @@ export class VnPayService {
         attempt.bankCode = query.vnp_BankCode || null;
         attempt.payDate = query.vnp_PayDate || null;
         if (!successful) {
-          attempt.status = VnPayAttemptStatus.FAILED;
-          await attemptRepo.save(attempt);
+          if (attempt.status === VnPayAttemptStatus.PENDING) {
+            attempt.status = VnPayAttemptStatus.FAILED;
+            await attemptRepo.save(attempt);
+          }
           return { RspCode: '00', Message: 'Confirm Success' };
         }
 
+        // A verified success callback is authoritative even if the local attempt
+        // expired while the customer was completing checkout. Funds actually
+        // received must be recorded for reconciliation, never silently ignored.
         const paymentRepo = manager.getRepository(PaymentTransaction);
         const idempotencyKey = 'vnpay:' + attempt.txnRef;
         const existingPayment = await paymentRepo.findOne({ where: { idempotencyKey } });

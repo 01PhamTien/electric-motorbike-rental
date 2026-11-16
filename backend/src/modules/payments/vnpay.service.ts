@@ -221,14 +221,21 @@ export class VnPayService {
   }
 
   async getStatus(user: JwtUser, txnRef: string) {
-    const repo = this.dataSource.getRepository(VnPayPaymentAttempt);
-    const attempt = await repo.findOne({ where: { txnRef } });
-    if (!attempt) throw new NotFoundException('Không tìm thấy giao dịch.');
-    if (attempt.createdById !== user.sub && user.role !== Role.ADMIN) throw new ForbiddenException();
-    if (attempt.status === VnPayAttemptStatus.PENDING && attempt.expiresAt <= new Date()) {
-      attempt.status = VnPayAttemptStatus.EXPIRED;
-      await repo.save(attempt);
-    }
-    return { txnRef: attempt.txnRef, bookingId: attempt.bookingId, purpose: attempt.purpose, amount: attempt.amount, status: attempt.status, responseCode: attempt.responseCode, paidAt: attempt.paidAt };
+    return this.dataSource.transaction(async manager => {
+      const repo = manager.getRepository(VnPayPaymentAttempt);
+      const lookup = await repo.findOne({ where: { txnRef } });
+      if (!lookup) throw new NotFoundException('Không tìm thấy giao dịch.');
+      if (lookup.createdById !== user.sub && user.role !== Role.ADMIN) throw new ForbiddenException();
+      await manager.getRepository(Booking).findOne({
+        where: { id: lookup.bookingId }, lock: { mode: 'pessimistic_write' },
+      });
+      const attempt = await repo.findOne({ where: { id: lookup.id }, lock: { mode: 'pessimistic_write' } });
+      if (!attempt) throw new NotFoundException('Không tìm thấy giao dịch.');
+      if (attempt.status === VnPayAttemptStatus.PENDING && attempt.expiresAt <= new Date()) {
+        attempt.status = VnPayAttemptStatus.EXPIRED;
+        await repo.save(attempt);
+      }
+      return { txnRef: attempt.txnRef, bookingId: attempt.bookingId, purpose: attempt.purpose, amount: attempt.amount, status: attempt.status, responseCode: attempt.responseCode, paidAt: attempt.paidAt };
+    });
   }
 }

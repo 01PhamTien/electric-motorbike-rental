@@ -56,3 +56,19 @@ test('battery swap is restricted to the staff assigned station',async()=>{
   const {service}=fixture();
   await assert.rejects(()=>service.swap({...staff,stationId:9},{vehicleId:12,replacementBatteryId:2}),/ngoài trạm được phân công/);
 });
+
+test('unassigned STAFF cannot read battery inventory, reservations or swap history',async()=>{
+  const {service}=fixture();
+  const unassigned={...staff,stationId:null};
+  assert.deepEqual(await service.list(unassigned),[]);
+  assert.deepEqual(await service.listReservations(unassigned),[]);
+  assert.deepEqual(await service.history(unassigned),[]);
+});
+
+test('STAFF cannot use inventory or reservation filters to inspect another station',async()=>{
+  const {service}=fixture();
+  const foreignStaff={...staff,stationId:9};
+  await assert.rejects(()=>service.list(foreignStaff,2),/ngoài trạm được phân công/);
+  await assert.rejects(()=>service.listReservations(foreignStaff,2),/ngoài trạm được phân công/);
+  await assert.rejects(()=>service.history(foreignStaff,2),/ngoài trạm được phân công/);
+});

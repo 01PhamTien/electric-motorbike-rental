@@ -165,7 +165,7 @@ export class VnPayService {
         if (String(Math.round(Number(attempt.amount) * 100)) !== query.vnp_Amount) {
           return { RspCode: '04', Message: 'Invalid amount' };
         }
-        if (attempt.status === VnPayAttemptStatus.PAID) return { RspCode: '00', Message: 'Confirm Success' };
+        if ([VnPayAttemptStatus.PAID, VnPayAttemptStatus.PAID_REVIEW].includes(attempt.status)) return { RspCode: '00', Message: 'Confirm Success' };
 
         const successful = query.vnp_ResponseCode === '00' && query.vnp_TransactionStatus === '00';
         attempt.responseCode = query.vnp_ResponseCode || '99';
@@ -191,18 +191,20 @@ export class VnPayService {
           const alreadyPaid = settled.reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0);
           const cap = Math.round(Number(attempt.purpose === PaymentPurpose.DEPOSIT ? booking.depositSnapshot : booking.rentalAmount) * 100);
           const wouldExceed = alreadyPaid + Math.round(Number(attempt.amount) * 100) > cap;
-          const note = 'VNPay transaction ' + (attempt.transactionNo || attempt.txnRef) + (wouldExceed ? ' · OVERPAYMENT_REQUIRES_MANUAL_RECONCILIATION' : '');
+          const lateOrClosed = attempt.status === VnPayAttemptStatus.EXPIRED || attempt.expiresAt <= new Date() || [BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status);
+          const needsReview = wouldExceed || lateOrClosed;
+          const note = 'VNPay transaction ' + (attempt.transactionNo || attempt.txnRef) + (wouldExceed ? ' · OVERPAYMENT_REQUIRES_MANUAL_RECONCILIATION' : '') + (lateOrClosed ? ' · LATE_OR_CLOSED_BOOKING_REQUIRES_MANUAL_RECONCILIATION' : '');
           await paymentRepo.save(paymentRepo.create({
             bookingId: attempt.bookingId,
             purpose: attempt.purpose,
-            method: PaymentMethod.TRANSFER,
+            method: PaymentMethod.VNPAY,
             amount: attempt.amount,
             idempotencyKey,
             note,
             recordedById: attempt.createdById,
           }));
         }
-        attempt.status = VnPayAttemptStatus.PAID;
+        attempt.status = needsReview ? VnPayAttemptStatus.PAID_REVIEW : VnPayAttemptStatus.PAID;
         attempt.paidAt = new Date();
         await attemptRepo.save(attempt);
         return { RspCode: '00', Message: 'Confirm Success' };

@@ -8,7 +8,7 @@ VoltGo integrates VNPay using the official redirect payment flow (API version 2.
 2. The backend creates a unique pending attempt and redirects the customer to the VNPay Sandbox payment URL.
 3. VNPay calls the public IPN endpoint. The backend verifies HMAC-SHA512, merchant code, transaction reference and amount before writing a settled TRANSFER ledger entry.
 4. The browser Return URL only redirects back to the booking page. It never marks a payment successful; IPN is authoritative.
-5. A successful deposit payment is recorded in the ledger but does not automatically confirm the booking. Existing station staff confirmation remains in place.
+5. Deposit checkout is available only after station staff confirms the booking. Payment success is recorded in the ledger; it does not change the booking status or replace the existing staff workflow.
 5. Duplicate IPN notifications are idempotent. A pending attempt is separate from the settled payment ledger.
 
 ## Environment

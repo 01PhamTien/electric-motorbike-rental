@@ -42,6 +42,10 @@ export class SePayService {
         'SePay ' + environment.toUpperCase() + ' chưa được cấu hình đầy đủ. Thiếu: ' + missingConfig.join(', '),
       );
     }
+    // Keep explicit guards so TypeScript narrows the optional environment values.
+    if (!merchantId || !secretKey || !frontendUrl || !publicApiUrl) {
+      throw new InternalServerErrorException('SePay checkout configuration is incomplete');
+    }
 
     const attempt = await this.ds.transaction(async manager => {
       const bookingRepo = manager.getRepository(Booking);

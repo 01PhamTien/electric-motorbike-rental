@@ -9,7 +9,8 @@ export enum SePayAttemptStatus {
 }
 
 @Entity('sepay_payment_attempts')
-@Index(['bookingId', 'createdAt'])
+@Index('IDX_sepay_attempt_booking_created', ['bookingId', 'createdAt'])
+@Index('UQ_sepay_attempt_invoice', ['invoiceNumber'], { unique: true })
 export class SePayPaymentAttempt {
   @PrimaryGeneratedColumn()
   id: number;
@@ -21,7 +22,7 @@ export class SePayPaymentAttempt {
   @Column({ type: 'int' })
   bookingId: number;
 
-  @Column({ type: 'varchar', length: 64, unique: true })
+  @Column({ type: 'varchar', length: 64 })
   invoiceNumber: string;
 
   @Column({ type: 'varchar', length: 64, nullable: true })

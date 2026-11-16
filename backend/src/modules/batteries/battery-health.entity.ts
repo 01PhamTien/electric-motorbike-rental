@@ -1,14 +1,18 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from '../users/user.entity';
+import { Station } from '../stations/station.entity';
 import { Battery } from './battery.entity';
 
 @Entity('battery_health_checks')
+@Check('CK_battery_health_checks_health','[healthPercent] BETWEEN 1 AND 100')
+@Check('CK_battery_health_checks_cycles','[cycleCount] >= 0')
 @Index('IDX_battery_health_checks_battery_created',['batteryId','createdAt'])
 export class BatteryHealthCheck {
   @PrimaryGeneratedColumn() id:number;
   @Column({type:'int'}) batteryId:number;
   @ManyToOne(()=>Battery,{onDelete:'NO ACTION'}) @JoinColumn({name:'batteryId',foreignKeyConstraintName:'FK_battery_health_checks_battery'}) battery:Battery;
   @Column({type:'int'}) stationId:number;
+  @ManyToOne(()=>Station,{onDelete:'NO ACTION'}) @JoinColumn({name:'stationId',foreignKeyConstraintName:'FK_battery_health_checks_station'}) station:Station;
   @Column({type:'int'}) healthPercent:number;
   @Column({type:'int'}) cycleCount:number;
   @Column({type:'nvarchar',length:500,nullable:true}) note:string|null;
@@ -20,6 +24,9 @@ export class BatteryHealthCheck {
 export enum BatteryMaintenanceStatus { OPEN='OPEN', IN_PROGRESS='IN_PROGRESS', COMPLETED='COMPLETED', CANCELLED='CANCELLED' }
 
 @Entity('battery_maintenance_tasks')
+@Check('CK_battery_maintenance_status', "[status] IN ('OPEN','IN_PROGRESS','COMPLETED','CANCELLED')")
+@Check('CK_battery_maintenance_priority', "[priority] IN ('LOW','NORMAL','HIGH','URGENT')")
+@Check('CK_battery_maintenance_cost','[cost] IS NULL OR [cost] >= 0')
 @Index('IDX_battery_maintenance_station_status_due',['stationId','status','dueAt'])
 @Index('IDX_battery_maintenance_battery_created',['batteryId','createdAt'])
 export class BatteryMaintenanceTask {
@@ -27,6 +34,7 @@ export class BatteryMaintenanceTask {
   @Column({type:'int'}) batteryId:number;
   @ManyToOne(()=>Battery,{onDelete:'NO ACTION'}) @JoinColumn({name:'batteryId',foreignKeyConstraintName:'FK_battery_maintenance_battery'}) battery:Battery;
   @Column({type:'int'}) stationId:number;
+  @ManyToOne(()=>Station,{onDelete:'NO ACTION'}) @JoinColumn({name:'stationId',foreignKeyConstraintName:'FK_battery_maintenance_station'}) station:Station;
   @Column({type:'int'}) createdById:number;
   @ManyToOne(()=>User,{onDelete:'NO ACTION'}) @JoinColumn({name:'createdById',foreignKeyConstraintName:'FK_battery_maintenance_creator'}) createdBy:User;
   @Column({type:'int',nullable:true}) completedById:number|null;

@@ -220,6 +220,13 @@ export class BookingsService {
     });
   }
 
+  async statusHistory(current: JwtUser, id: number) {
+    const booking = await this.bookingRepo.findOne({ where: { id } });
+    if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+    this.assertAccess(current, booking);
+    return this.dataSource.getRepository(BookingStatusHistory).find({ where: { bookingId: id }, order: { createdAt: 'ASC', id: 'ASC' } });
+  }
+
   async addCharge(current: JwtUser, id: number, dto: CreateBookingChargeDto) {
     return this.dataSource.transaction(async manager => {
       const booking = await manager.getRepository(Booking).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });

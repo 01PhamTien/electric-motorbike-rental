@@ -14,6 +14,8 @@ type Stocktake={id:number;stationId:number;status:'OPEN'|'COMPLETED'|'APPROVED';
 type HealthCheck={id:number;healthPercent:number;cycleCount:number;note:string|null;createdAt:string;recordedBy?:{id:number;fullName:string}};
 type HealthSummary={thresholds:{warningPercent:number;criticalPercent:number;cycleWarning:number};total:number;healthy:number;watch:number;critical:number;retired:number};
 type MaintenanceTask={id:number;batteryId:number;stationId:number;taskType:string;priority:string;status:'OPEN'|'IN_PROGRESS'|'COMPLETED'|'CANCELLED';dueAt:string|null;description:string;result:string|null;cost:string|null;createdAt:string;battery?:Battery};
+type OperatingCost={id:number;batteryId:number;stationId:number;costType:'CHARGING'|'MAINTENANCE'|'REPLACEMENT'|'OTHER';amount:string;energyKwh:string|null;unitPrice:string|null;occurredAt:string;note:string|null;battery?:Battery;station?:Station;recordedBy?:{id:number;fullName:string}};
+type CostSummary={count:number;total:number;byType:{costType:string;count:number;amount:number}[];byBattery:{batteryId:number;serialNumber:string;count:number;amount:number}[];monthly:{month:string;amount:number}[]};
 type Reservation={id:number;customerId:number;stationId:number;bookingId:number;vehicleId:number;vehicle?:Vehicle;station?:Station;status:'RESERVED'|'REDEEMED'|'CANCELLED'|'EXPIRED';expiresAt:string;createdAt:string};
 const statusLabel:Record<BatteryStatus,string>={FULL:'Pin đầy · sẵn sàng',INSTALLED:'Đang lắp trên xe',CHARGING:'Đang sạc',MAINTENANCE:'Bảo dưỡng',RETIRED:'Ngừng sử dụng',TRANSFERRING:'Đang điều chuyển'};
 const errText=(err:unknown)=>{const m=(err as {response?:{data?:{message?:string|string[]}}})?.response?.data?.message;return Array.isArray(m)?m.join(', '):m||'Không thể thực hiện thao tác.';};
@@ -31,6 +33,19 @@ export function BatteriesPage(){
   const [healthHistory,setHealthHistory]=useState<HealthCheck[]>([]);
   const [historyBatteryId,setHistoryBatteryId]=useState<number|null>(null);
   const [maintenanceTasks,setMaintenanceTasks]=useState<MaintenanceTask[]>([]);
+  const [operatingCosts,setOperatingCosts]=useState<OperatingCost[]>([]);
+  const [costSummary,setCostSummary]=useState<CostSummary|null>(null);
+  const [costFrom,setCostFrom]=useState(new Date(Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),1)).toISOString().slice(0,10));
+  const [costTo,setCostTo]=useState(new Date().toISOString().slice(0,10));
+  const [costFilterType,setCostFilterType]=useState('');
+  const [costBatteryId,setCostBatteryId]=useState('');
+  const [newCostBatteryId,setNewCostBatteryId]=useState('');
+  const [newCostType,setNewCostType]=useState('CHARGING');
+  const [costEnergy,setCostEnergy]=useState('');
+  const [costUnitPrice,setCostUnitPrice]=useState('');
+  const [costAmount,setCostAmount]=useState('');
+  const [costOccurredAt,setCostOccurredAt]=useState(new Date().toISOString().slice(0,16));
+  const [costNote,setCostNote]=useState('');
   const [healthBatteryId,setHealthBatteryId]=useState('');
   const [healthValue,setHealthValue]=useState('');
   const [healthNote,setHealthNote]=useState('');
@@ -60,13 +75,15 @@ export function BatteriesPage(){
     setLoading(true);setError('');
     try{
       const params=stationId?{stationId:Number(stationId)}:{};
-      const [sr,vr,br,hr,rr,tr,str,hs,mt]=await Promise.all([api.get('/stations'),api.get('/vehicles'),api.get('/batteries',{params}),api.get('/batteries/swaps/history',{params}),api.get('/batteries/reservations',{params}),api.get('/batteries/transfers'),api.get('/batteries/stocktakes',{params}),api.get('/batteries/health/summary',{params}),api.get('/batteries/maintenance',{params})]);
+      const costParams={...(stationId?{stationId:Number(stationId)}:{}),...(costFrom?{from:costFrom+'T00:00:00.000Z'}:{}),...(costTo?{to:costTo+'T23:59:59.999Z'}:{}),...(costFilterType?{costType:costFilterType}:{}),...(costBatteryId?{batteryId:Number(costBatteryId)}:{})};
+      const summaryParams={...(stationId?{stationId:Number(stationId)}:{}),...(costFrom?{from:costFrom+'T00:00:00.000Z'}:{}),...(costTo?{to:costTo+'T23:59:59.999Z'}:{})};
+      const [sr,vr,br,hr,rr,tr,str,hs,mt,cs,cl]=await Promise.all([api.get('/stations'),api.get('/vehicles'),api.get('/batteries',{params}),api.get('/batteries/swaps/history',{params}),api.get('/batteries/reservations',{params}),api.get('/batteries/transfers'),api.get('/batteries/stocktakes',{params}),api.get('/batteries/health/summary',{params}),api.get('/batteries/maintenance',{params}),api.get('/batteries/operating-costs/summary',{params:summaryParams}),api.get('/batteries/operating-costs',{params:costParams})]);
       setStations(Array.isArray(sr.data)?sr.data:[]);setVehicles(Array.isArray(vr.data)?vr.data:[]);
-      setBatteries(Array.isArray(br.data)?br.data:[]);setHistory(Array.isArray(hr.data)?hr.data:[]);setReservations(Array.isArray(rr.data)?rr.data:[]);setTransfers(Array.isArray(tr.data)?tr.data:[]);setStocktakes(Array.isArray(str.data)?str.data:[]);setHealthSummary(hs.data);setMaintenanceTasks(Array.isArray(mt.data)?mt.data:[]);
+      setBatteries(Array.isArray(br.data)?br.data:[]);setHistory(Array.isArray(hr.data)?hr.data:[]);setReservations(Array.isArray(rr.data)?rr.data:[]);setTransfers(Array.isArray(tr.data)?tr.data:[]);setStocktakes(Array.isArray(str.data)?str.data:[]);setHealthSummary(hs.data);setMaintenanceTasks(Array.isArray(mt.data)?mt.data:[]);setCostSummary(cs.data);setOperatingCosts(Array.isArray(cl.data)?cl.data:[]);
     }catch(e){setError(errText(e));}finally{setLoading(false);}
   }
   useEffect(()=>{if(user?.stationId)setStationId(String(user.stationId));},[user?.stationId]);
-  useEffect(()=>{void load();},[stationId]);
+  useEffect(()=>{void load();},[stationId,costFrom,costTo,costFilterType,costBatteryId]);
   async function act(fn:()=>Promise<unknown>,success:string){
     setBusy(true);setError('');setNotice('');
     try{await fn();setNotice(success);await load();}catch(e){setError(errText(e));}finally{setBusy(false);}
@@ -85,6 +102,20 @@ export function BatteriesPage(){
     e.preventDefault();
     await act(()=>api.post('/batteries/swap',{vehicleId:Number(swapVehicleId),replacementBatteryId:Number(swapBatteryId),note:swapNote.trim()||undefined}),'Đổi pin thành công. Pin cũ đã chuyển sang trạng thái chờ sạc.');
     setSwapVehicleId('');setSwapBatteryId('');setSwapNote('');
+  }
+
+  async function recordOperatingCost(e:React.FormEvent){
+    e.preventDefault();if(!newCostBatteryId)return;
+    const payload=newCostType==='CHARGING'?{batteryId:Number(newCostBatteryId),costType:newCostType,energyKwh:Number(costEnergy),unitPrice:Number(costUnitPrice),occurredAt:new Date(costOccurredAt).toISOString(),note:costNote.trim()||undefined}:{batteryId:Number(newCostBatteryId),costType:newCostType,amount:Number(costAmount),occurredAt:new Date(costOccurredAt).toISOString(),note:costNote.trim()||undefined};
+    await act(()=>api.post('/batteries/operating-costs',payload),'Đã ghi nhận chi phí vận hành pin.');
+    setCostEnergy('');setCostUnitPrice('');setCostAmount('');setCostNote('');
+  }
+  function exportOperatingCosts(){
+    const header=['ID','Serial pin','Trạm','Loại chi phí','Thành tiền (VND)','Điện năng (kWh)','Đơn giá (VND/kWh)','Ngày phát sinh','Ghi chú'];
+    const rows=operatingCosts.map(x=>[x.id,x.battery?.serialNumber??x.batteryId,x.station?.name??x.stationId,x.costType,x.amount,x.energyKwh??'',x.unitPrice??'',x.occurredAt,x.note??'']);
+    const csv=[header,...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='battery-operating-costs.csv';a.click();URL.revokeObjectURL(url);
   }
   async function loadHealthHistory(id:number){setHistoryBatteryId(id);try{const r=await api.get('/batteries/'+id+'/health-history');setHealthHistory(Array.isArray(r.data)?r.data:[]);}catch(e){setError(errText(e));}}
   async function recordBatteryHealth(e:React.FormEvent){
@@ -168,6 +199,15 @@ export function BatteriesPage(){
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-500">Pin đang điều chuyển được miễn kiểm đếm. Các dòng snapshot khác phải được đánh dấu có mặt hoặc thiếu.</p><button disabled={busy||openStocktake.items.some(i=>i.countStatus==='PENDING')} className="btn-primary" onClick={()=>void stocktakeAction(openStocktake.id,'complete')}>Hoàn tất kiểm kê</button></div>
         </div>:<p className="mt-5 text-sm text-slate-500">Không có đợt kiểm kê đang mở tại trạm này.</p>}
         <div className="mt-6 border-t border-slate-100 pt-5"><h3 className="font-extrabold">Lịch sử kiểm kê</h3><div className="mt-3 divide-y divide-slate-100">{stocktakes.filter(s=>s.status!=='OPEN').map(s=><div key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"><div><strong>Đợt #{s.id} · {s.station?.name??'Trạm '+s.stationId}</strong><p className="mt-1 text-xs text-slate-500">{new Date(s.createdAt).toLocaleString('vi-VN')} · {s.items.filter(i=>i.countStatus==='MISSING').length} pin thiếu · {s.items.filter(i=>i.countStatus==='EXTRA').length} pin thừa · {s.items.length} dòng</p>{s.items.some(i=>i.countStatus==='MISSING'||i.countStatus==='EXTRA')&&<p className="mt-1 text-xs text-rose-700">Chênh lệch: {s.items.filter(i=>i.countStatus==='MISSING').map(i=>i.serialSnapshot).join(', ')||'Không có pin thiếu'}; {s.items.filter(i=>i.countStatus==='EXTRA').map(i=>i.serialSnapshot).join(', ')||'Không có pin thừa'}</p>}<p className="text-xs text-slate-500">{s.status==='APPROVED'?'Đã duyệt':'Chờ ADMIN duyệt'}</p></div>{s.status==='COMPLETED'&&user?.role==='ADMIN'&&<button disabled={busy} className="btn-primary" onClick={()=>void stocktakeAction(s.id,'approve')}>Duyệt biên bản</button>}</div>)}{!stocktakes.some(s=>s.status!=='OPEN')&&<p className="py-3 text-sm text-slate-400">Chưa có lịch sử kiểm kê.</p>}</div></div>
+      </section>
+      <section className="panel mt-7 p-6">
+        <p className="eyebrow">CHI PHÍ VÒNG ĐỜI PIN</p><h2 className="mt-2 text-xl font-extrabold">Sổ chi phí vận hành</h2>
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Tổng chi phí</p><p className="mt-1 text-xl font-extrabold">{(costSummary?.total??0).toLocaleString('vi-VN')} ₫</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Số khoản</p><p className="mt-1 text-xl font-extrabold">{costSummary?.count??0}</p></div>{(costSummary?.byType??[]).map(x=><div key={x.costType} className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{{CHARGING:'Sạc điện',MAINTENANCE:'Bảo dưỡng',REPLACEMENT:'Thay thế',OTHER:'Khác'}[x.costType]??x.costType}</p><p className="mt-1 text-lg font-bold">{x.amount.toLocaleString('vi-VN')} ₫</p></div>)}</div>
+        <div className="mt-5 grid gap-3 md:grid-cols-5"><label><span className="field-label">Từ ngày (UTC)</span><input className="field mt-2" type="date" value={costFrom} onChange={e=>setCostFrom(e.target.value)}/></label><label><span className="field-label">Đến ngày (UTC)</span><input className="field mt-2" type="date" value={costTo} onChange={e=>setCostTo(e.target.value)}/></label><label><span className="field-label">Loại chi phí</span><select className="field mt-2" value={costFilterType} onChange={e=>setCostFilterType(e.target.value)}><option value="">Tất cả</option><option value="CHARGING">Sạc điện</option><option value="MAINTENANCE">Bảo dưỡng</option><option value="REPLACEMENT">Thay thế</option><option value="OTHER">Khác</option></select></label><label><span className="field-label">Lọc theo pin</span><select className="field mt-2" value={costBatteryId} onChange={e=>setCostBatteryId(e.target.value)}><option value="">Tất cả pin</option>{batteries.map(b=><option key={b.id} value={b.id}>{b.serialNumber}</option>)}</select></label><div className="flex items-end"><button className="btn-outline w-full" onClick={exportOperatingCosts} disabled={!operatingCosts.length}>Xuất CSV ({operatingCosts.length})</button></div></div>
+        <form onSubmit={recordOperatingCost} className="mt-5 rounded-xl border border-slate-200 p-4"><h3 className="font-bold">Ghi nhận khoản chi mới</h3><div className="mt-3 grid gap-3 md:grid-cols-5"><label><span className="field-label">Pin</span><select required className="field mt-2" value={newCostBatteryId} onChange={e=>setNewCostBatteryId(e.target.value)}><option value="">Chọn pin</option>{batteries.map(b=><option key={b.id} value={b.id}>{b.serialNumber}</option>)}</select></label><label><span className="field-label">Loại</span><select className="field mt-2" value={newCostType} onChange={e=>setNewCostType(e.target.value)}><option value="CHARGING">Sạc điện</option><option value="REPLACEMENT">Thay thế</option><option value="OTHER">Khác</option></select></label>{newCostType==='CHARGING'?<><label><span className="field-label">Điện năng (kWh)</span><input required className="field mt-2" type="number" min="0.001" step="0.001" value={costEnergy} onChange={e=>setCostEnergy(e.target.value)}/></label><label><span className="field-label">Đơn giá (₫/kWh)</span><input required className="field mt-2" type="number" min="0" step="0.01" value={costUnitPrice} onChange={e=>setCostUnitPrice(e.target.value)}/></label></>:<label><span className="field-label">Thành tiền (₫)</span><input required className="field mt-2" type="number" min="0" step="0.01" value={costAmount} onChange={e=>setCostAmount(e.target.value)}/></label>}<label><span className="field-label">Ngày phát sinh</span><input required className="field mt-2" type="datetime-local" value={costOccurredAt} onChange={e=>setCostOccurredAt(e.target.value)}/></label><label className="md:col-span-2"><span className="field-label">Ghi chú</span><input className="field mt-2" maxLength={500} value={costNote} onChange={e=>setCostNote(e.target.value)} placeholder="Hóa đơn điện, thay cell, vật tư..."/></label><div className="flex items-end"><button disabled={busy||!newCostBatteryId||(newCostType==='CHARGING'?(!costEnergy||!costUnitPrice):costAmount==='')} className="btn-primary w-full">Lưu khoản chi</button></div></div><p className="mt-2 text-xs text-slate-500">Chi phí bảo dưỡng được tự động ghi sổ khi hoàn tất phiếu, tránh nhập trùng. Các khoản đã ghi nhận không thể sửa trực tiếp.</p></form>
+        <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="px-3 py-3">Ngày</th><th className="px-3 py-3">Pin / Trạm</th><th className="px-3 py-3">Loại</th><th className="px-3 py-3">Điện năng</th><th className="px-3 py-3">Thành tiền</th><th className="px-3 py-3">Ghi chú</th></tr></thead><tbody className="divide-y divide-slate-100">{operatingCosts.map(x=><tr key={x.id}><td className="px-3 py-3">{new Date(x.occurredAt).toLocaleDateString('vi-VN')}</td><td className="px-3 py-3">{x.battery?.serialNumber??'Pin #'+x.batteryId}<p className="text-xs text-slate-500">{x.station?.name??'Trạm #'+x.stationId}</p></td><td className="px-3 py-3">{{CHARGING:'Sạc điện',MAINTENANCE:'Bảo dưỡng',REPLACEMENT:'Thay thế',OTHER:'Khác'}[x.costType]}</td><td className="px-3 py-3">{x.energyKwh?x.energyKwh+' kWh':'—'}</td><td className="px-3 py-3 font-semibold">{Number(x.amount).toLocaleString('vi-VN')} ₫</td><td className="px-3 py-3">{x.note??'—'}</td></tr>)}{!operatingCosts.length&&<tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">Chưa có khoản chi trong bộ lọc.</td></tr>}</tbody></table></div>
+        {!!costSummary?.byBattery.length&&<div className="mt-5"><h3 className="font-bold">Top pin có chi phí cao</h3><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{costSummary.byBattery.map(b=><div key={b.batteryId} className="rounded-lg border border-slate-100 p-3"><p className="text-sm font-semibold">{b.serialNumber}</p><p className="mt-1 text-sm">{b.amount.toLocaleString('vi-VN')} ₫</p><p className="text-xs text-slate-500">{b.count} khoản chi</p></div>)}</div></div>}
+        {!!costSummary?.monthly.length&&<div className="mt-5"><h3 className="font-bold">Chi phí theo tháng</h3><div className="mt-2 grid gap-2 sm:grid-cols-3 md:grid-cols-6">{costSummary.monthly.slice(-6).map(m=><div key={m.month} className="rounded-lg bg-slate-50 p-3"><p className="text-xs text-slate-500">{m.month}</p><p className="mt-1 text-sm font-bold">{m.amount.toLocaleString('vi-VN')} ₫</p></div>)}</div></div>}
       </section>
       <section className="panel mt-7 p-6">
         <p className="eyebrow">TÌNH TRẠNG & TUỔI THỌ PIN</p><h2 className="mt-2 text-xl font-extrabold">Sức khỏe pin</h2>

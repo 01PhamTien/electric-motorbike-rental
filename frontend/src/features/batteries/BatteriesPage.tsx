@@ -4,6 +4,7 @@ import { SectionHeading, LoadingState } from '../../components/Brand';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../../services/api';
 import type { Station, Vehicle } from '../../types';
+import { BatteryInventoryPanel } from './BatteryInventoryPanel';
 
 type BatteryStatus='FULL'|'INSTALLED'|'CHARGING'|'MAINTENANCE'|'RETIRED'|'TRANSFERRING';
 type Battery={id:number;serialNumber:string;stationId:number;station?:Station;vehicleId:number|null;vehicle?:Vehicle|null;status:BatteryStatus;capacityKwh:string|null;healthPercent:number;cycleCount:number;lastChargedAt:string|null;note:string|null};
@@ -172,6 +173,7 @@ export function BatteriesPage(){
     {notice&&<p role="status" className="mt-6 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</p>}
     <div className="mt-8 flex flex-wrap items-center justify-between gap-3"><label className="min-w-64"><span className="field-label">Trạm đang quản lý</span><select className="field mt-2" value={stationId} disabled={user?.role==='STAFF'} onChange={e=>setStationId(e.target.value)}><option value="">Tất cả trạm</option>{stations.filter(s=>s.isActive!==false&&(user?.role!=='STAFF'||s.id===user?.stationId)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><button className="btn-outline" onClick={()=>void load()}>Làm mới dữ liệu</button></div>
     {loading?<div className="mt-8"><LoadingState label="Đang tải kho pin..."/></div>:<>
+      <BatteryInventoryPanel stationId={stationId} />
       <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">{[{label:'Pin đầy sẵn sàng',value:counts.full},{label:'Đang lắp trên xe',value:counts.installed},{label:'Đang sạc',value:counts.charging},{label:'Cần kiểm tra',value:counts.maintenance}].map(x=><div key={x.label} className="panel p-5"><p className="text-xs text-slate-500">{x.label}</p><strong className="mt-2 block text-3xl">{x.value}</strong></div>)}</div>
       <div className="mt-7 grid gap-6 xl:grid-cols-3">
         <form onSubmit={addBattery} className="panel space-y-4 p-6"><div><p className="eyebrow">NHẬP KHO</p><h2 className="mt-2 text-lg font-extrabold">Thêm viên pin</h2></div><label className="block"><span className="field-label">Mã serial pin</span><input className="field mt-2" required maxLength={80} value={serial} onChange={e=>setSerial(e.target.value)} placeholder="VG-BAT-0001"/></label><label className="block"><span className="field-label">Dung lượng (kWh)</span><input className="field mt-2" type="number" min="0.1" step="0.01" value={capacity} onChange={e=>setCapacity(e.target.value)} placeholder="Ví dụ 2.4"/></label><label className="block"><span className="field-label">Sức khỏe pin (%)</span><input className="field mt-2" type="number" min="1" max="100" value={health} onChange={e=>setHealth(e.target.value)}/></label><button disabled={busy||!stationId} className="btn-primary w-full">Thêm pin đầy vào kho</button></form>

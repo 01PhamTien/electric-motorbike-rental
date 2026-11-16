@@ -56,16 +56,22 @@ export function VehiclesPage() {
       if (!active) return;
       const list: Vehicle[] = Array.isArray(data) ? data : data?.items ?? [];
       setItems(list);
-      const requested = Number(vehicleId || params.get('vehicle'));
-      const chosen = list.find(item => item.id === requested);
-      if (chosen) {
-        if (bookingPage || params.has('vehicle')) openBooking(chosen);
-        else if (detailPage) { setDetails(chosen); void loadReviews(chosen); }
-      }
     }).catch(() => { if (active) setLoadError('Không thể tải danh sách xe. Vui lòng kiểm tra kết nối hoặc thử lại.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!items.length) return;
+    if (!vehicleId) { setDetails(null); setSelected(null); return; }
+    const chosen = items.find(item => item.id === Number(vehicleId));
+    if (!chosen) return;
+    if (bookingPage) {
+      setSelected(chosen); setSelectedStationId(chosen.station?.id ?? ''); setDetails(null);
+    } else {
+      setDetails(chosen); setSelected(null); void loadReviews(chosen);
+    }
+  }, [vehicleId, bookingPage, items]);
 
   const stations = useMemo(() => {
     const unique = new Map<number, {id:number;name:string}>();

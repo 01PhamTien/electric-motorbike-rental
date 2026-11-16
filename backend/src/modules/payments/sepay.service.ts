@@ -64,7 +64,7 @@ export class SePayService {
       }));
     });
 
-    const returnBase = frontendUrl.replace(/\/+$/, '');
+    const returnBase = publicApiUrl.replace(/\/+$/, '');
     const fields: SePayCheckoutFields = {
       order_amount: String(Math.round(Number(attempt.amount))),
       merchant: merchantId,

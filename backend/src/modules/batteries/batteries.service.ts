@@ -97,7 +97,7 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
     const battery = await this.batteries.save(this.batteries.create({
       serialNumber: dto.serialNumber.trim(), stationId: station.id, vehicleId: null,
       status: BatteryStatus.FULL, capacityKwh: dto.capacityKwh == null ? null : String(dto.capacityKwh),
-      healthPercent: dto.healthPercent ?? 100, cycleCount: 0, lastChargedAt: null, note: dto.note?.trim() || null,
+      healthPercent: dto.healthPercent ?? null, cycleCount: 0, lastChargedAt: null, note: dto.note?.trim() || null,
     }));
     await this.audit?.record(user.sub, 'BATTERY_CREATED', 'BATTERY', battery.id, { stationId: battery.stationId, serialNumber: battery.serialNumber });
     return battery;

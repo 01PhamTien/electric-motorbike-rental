@@ -387,6 +387,11 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
     if (filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) {
       throw new BadRequestException('Ngày bắt đầu không được sau ngày kết thúc');
     }
+    if (filters.stationId != null) this.assertStation(user, filters.stationId);
+    if (user.role === Role.STAFF && user.stationId == null) {
+      return { items: [], total: 0, page, limit, totalPages: 0 };
+    }
+    const effectiveStationId = filters.stationId ?? (user.role === Role.STAFF ? user.stationId : undefined);
     const qb = this.swaps.createQueryBuilder('swap')
       .leftJoinAndSelect('swap.vehicle', 'vehicle')
       .leftJoinAndSelect('swap.station', 'station')
@@ -397,13 +402,7 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
       .orderBy('swap.createdAt', 'DESC')
       .addOrderBy('swap.id', 'DESC');
 
-    if (filters.stationId != null) {
-      this.assertStation(user, filters.stationId);
-      qb.andWhere('swap.stationId = :stationId', { stationId: filters.stationId });
-    } else if (user.role === Role.STAFF) {
-      if (user.stationId == null) return { items: [], total: 0, page, limit, totalPages: 0 };
-      qb.andWhere('swap.stationId = :stationId', { stationId: user.stationId });
-    }
+    if (effectiveStationId != null) qb.andWhere('swap.stationId = :stationId', { stationId: effectiveStationId });
     if (filters.vehicleId != null) qb.andWhere('swap.vehicleId = :vehicleId', { vehicleId: filters.vehicleId });
     if (filters.from) qb.andWhere('swap.createdAt >= :fromDate', { fromDate: new Date(filters.from) });
     if (filters.to) {

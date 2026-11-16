@@ -10,7 +10,10 @@ import { PaymentMethod, PaymentPurpose, PaymentTransaction } from './payment.ent
 import { SePayPaymentAttempt, SePayAttemptStatus } from './sepay-payment-attempt.entity';
 import { createSePaySignature, SePayCheckoutFields, safeSecretEquals } from './sepay-signature';
 
-const CHECKOUT_URL = 'https://pay-sandbox.sepay.vn/v1/checkout/init';
+const CHECKOUT_URLS = {
+  sandbox: 'https://pay-sandbox.sepay.vn/v1/checkout/init',
+  production: 'https://pay.sepay.vn/v1/checkout/init',
+} as const;
 
 @Injectable()
 export class SePayService {
@@ -18,8 +21,14 @@ export class SePayService {
 
   async createCheckout(user: JwtUser, bookingId: number, purpose: PaymentPurpose.RENT | PaymentPurpose.DEPOSIT) {
     if (user.role !== Role.CUSTOMER) throw new ForbiddenException('Chỉ khách hàng mới có thể tự tạo thanh toán');
-    const merchantId = this.config.get<string>('SEPAY_MERCHANT_ID');
-    const secretKey = this.config.get<string>('SEPAY_SECRET_KEY');
+    const environment = (this.config.get<string>('SEPAY_ENV') || 'sandbox').toLowerCase();
+    if (environment !== 'sandbox' && environment !== 'production') {
+      throw new InternalServerErrorException('SEPAY_ENV chỉ nhận sandbox hoặc production');
+    }
+    const merchantId = this.config.get<string>('SEPAY_MERCHANT_ID_' + environment.toUpperCase())
+      || (environment === 'sandbox' ? this.config.get<string>('SEPAY_MERCHANT_ID') : undefined);
+    const secretKey = this.config.get<string>('SEPAY_SECRET_KEY_' + environment.toUpperCase())
+      || (environment === 'sandbox' ? this.config.get<string>('SEPAY_SECRET_KEY') : undefined);
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
     const publicApiUrl = this.config.get<string>('SEPAY_PUBLIC_URL');
     if (!merchantId || !secretKey || !frontendUrl || !publicApiUrl) {
@@ -78,15 +87,17 @@ export class SePayService {
     };
     return {
       provider: 'SEPAY',
-      environment: 'SANDBOX',
-      action: CHECKOUT_URL,
+      environment: environment.toUpperCase(),
+      action: CHECKOUT_URLS[environment],
       method: 'POST',
       fields: { ...fields, lang: 'vi', signature: createSePaySignature(fields, secretKey) },
     };
   }
 
   async handleIpn(payload: any, suppliedSecret: string | undefined) {
-    const ipnSecret = this.config.get<string>('SEPAY_IPN_SECRET');
+    const environment = (this.config.get<string>('SEPAY_ENV') || 'sandbox').toUpperCase();
+    const ipnSecret = this.config.get<string>('SEPAY_IPN_SECRET_' + environment)
+      || (environment === 'SANDBOX' ? this.config.get<string>('SEPAY_IPN_SECRET') : undefined);
     if (!ipnSecret || !safeSecretEquals(suppliedSecret, ipnSecret)) {
       throw new ForbiddenException('SePay IPN authentication failed');
     }
@@ -137,7 +148,7 @@ export class SePayService {
           method: PaymentMethod.SEPAY,
           amount: attempt.amount,
           idempotencyKey,
-          note: 'SePay Sandbox transaction ' + String(payload.transaction.transaction_id || ''),
+          note: 'SePay ' + environment + ' transaction ' + String(payload.transaction.transaction_id || ''),
           recordedById: booking.customerId,
         }));
       }

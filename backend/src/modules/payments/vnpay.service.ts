@@ -138,7 +138,10 @@ export class VnPayService {
     }
     const secret = this.config.get<string>('VNPAY_HASH_SECRET')?.trim();
     const tmnCode = this.config.get<string>('VNPAY_TMN_CODE')?.trim();
-    if (!secret || !tmnCode || !query.vnp_TxnRef || !/^\d+$/.test(query.vnp_Amount || '') || !verifyVnPaySignature(query, secret)) {
+    if (this.config.get<string>('VNPAY_ENABLED') !== 'true' || !secret || !tmnCode ||
+        !query.vnp_TxnRef || !/^\d+$/.test(query.vnp_Amount || '') ||
+        !/^\d{2}$/.test(query.vnp_ResponseCode || '') || !/^\d{2}$/.test(query.vnp_TransactionStatus || '') ||
+        !verifyVnPaySignature(query, secret)) {
       return { RspCode: '97', Message: 'Invalid signature' };
     }
     if (query.vnp_TmnCode !== tmnCode || query.vnp_CurrCode !== 'VND' || query.vnp_Command !== 'pay' || query.vnp_Version !== '2.1.0') {

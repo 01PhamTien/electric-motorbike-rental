@@ -7,6 +7,7 @@ export enum BatteryStocktakeStatus { OPEN='OPEN', COMPLETED='COMPLETED', APPROVE
 export enum BatteryStocktakeCountStatus { PENDING='PENDING', PRESENT='PRESENT', MISSING='MISSING', EXTRA='EXTRA' }
 
 @Entity('battery_stocktakes')
+@Check('CK_battery_stocktakes_status', "[status] IN ('OPEN','COMPLETED','APPROVED')")
 @Index('IDX_battery_stocktakes_station_status',['stationId','status'])
 @Index('UX_battery_stocktakes_one_open_per_station',['stationId'],{unique:true,where:"[status]='OPEN'"})
 export class BatteryStocktake {

@@ -211,7 +211,11 @@ export class BookingsService {
   }
 
   myBookings(current: JwtUser) {
-    return this.bookingRepo.find({ where: { customerId: current.sub }, order: { id: 'DESC' } });
+    return this.bookingRepo.find({
+      where: { customerId: current.sub },
+      relations: { vehicle: { station: true, model: true } },
+      order: { id: 'DESC' },
+    });
   }
 
   async findOne(current: JwtUser, id: number) {

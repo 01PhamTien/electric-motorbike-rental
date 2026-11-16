@@ -7,7 +7,7 @@ import { api } from '../services/api';
 type NavItem={to:string;label:string;end?:boolean};
 type NavGroup={title:string;items:NavItem[]};
 const customerNav:NavItem[]=[
- {to:'/',label:'Trang chủ',end:true},{to:'/vehicles',label:'Khám phá xe'},{to:'/stations',label:'Điểm nhận xe'},{to:'/bookings/my',label:'Đơn thuê của tôi'}
+ {to:'/',label:'Trang chủ',end:true},{to:'/vehicles',label:'Khám phá xe'},{to:'/stations',label:'Điểm nhận xe'},{to:'/bookings/my',label:'Đơn thuê của tôi'},{to:'/battery-swap',label:'Đổi pin nhanh'}
 ];
 const staffGroups:NavGroup[]=[
  {title:'CÔNG VIỆC',items:[{to:'/operations',label:'Tổng quan vận hành'},{to:'/my-schedule',label:'Lịch trực của tôi'},{to:'/locations',label:'Bản đồ & vị trí xe'}]},

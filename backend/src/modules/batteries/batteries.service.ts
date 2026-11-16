@@ -182,17 +182,16 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
 
   async reserve(user:JwtUser,dto:CreateBatteryReservationDto) {
     const reservation=await this.dataSource.transaction(async manager=>{
-      const stationRepo=manager.getRepository(Station),bookingRepo=manager.getRepository(Booking),userRepo=manager.getRepository(User);
+      const stationRepo=manager.getRepository(Station),bookingRepo=manager.getRepository(Booking),userRepo=manager.getRepository(User),vehicleRepo=manager.getRepository(Vehicle);
       const customer=await userRepo.findOne({where:{id:user.sub},lock:{mode:'pessimistic_write'}});
       if(!customer) throw new NotFoundException('Không tìm thấy tài khoản khách hàng');
       const batteryRepo=manager.getRepository(Battery),reservationRepo=manager.getRepository(BatteryReservation);
       const station=await stationRepo.findOne({where:{id:dto.stationId,isActive:true},lock:{mode:'pessimistic_write'}});
       if(!station) throw new NotFoundException('Trạm đổi pin không tồn tại hoặc đã ngừng hoạt động');
-      // Read the booking ID first, then lock vehicle before booking consistently
-      // with booking lifecycle operations. Booking.vehicle is not loaded here.
+      // Match the booking lifecycle lock order (vehicle first, then booking)
+      // to avoid deadlocks with concurrent return/transfer operations.
       const bookingHint=await bookingRepo.findOne({where:{id:dto.bookingId,customerId:user.sub}});
       if(!bookingHint) throw new NotFoundException('Không tìm thấy đơn thuê của bạn');
-      const vehicleRepo=manager.getRepository(Vehicle);
       const vehicle=await vehicleRepo.findOne({where:{id:bookingHint.vehicleId},lock:{mode:'pessimistic_write'}});
       if(!vehicle||!vehicle.isActive||vehicle.stationId!==station.id) throw new BadRequestException('Xe thuê hiện không ở trạm này. Vui lòng chọn trạm hiện tại của xe.');
       const booking=await bookingRepo.findOne({where:{id:dto.bookingId,customerId:user.sub},lock:{mode:'pessimistic_write'}});
@@ -301,12 +300,16 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
 
   async publicAvailability() {
     await this.expireReservations();
-    const rows=await this.batteries.createQueryBuilder('battery')
-      .select('battery.stationId','stationId')
-      .addSelect('COUNT(*)','availableBatteryCount')
-      .where('battery.status = :status',{status:BatteryStatus.FULL})
-      .andWhere('battery.vehicleId IS NULL')
-      .groupBy('battery.stationId')
+    // Start from active stations so an empty station is returned with a
+    // count of zero instead of disappearing from the public availability list.
+    const rows=await this.stations.createQueryBuilder('station')
+      .leftJoin(Battery,'battery',
+        'battery.stationId = station.id AND battery.status = :status AND battery.vehicleId IS NULL',
+        {status:BatteryStatus.FULL})
+      .select('station.id','stationId')
+      .addSelect('COUNT(battery.id)','availableBatteryCount')
+      .where('station.isActive = :isActive',{isActive:true})
+      .groupBy('station.id')
       .getRawMany();
     const now=new Date();
     const holds=await this.reservations.createQueryBuilder('r').select('r.stationId','stationId')

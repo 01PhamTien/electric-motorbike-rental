@@ -142,8 +142,15 @@ export class VnPayService {
     try {
       return await this.dataSource.transaction(async manager => {
         const attemptRepo = manager.getRepository(VnPayPaymentAttempt);
+        const lookup = await attemptRepo.findOne({ where: { txnRef: query.vnp_TxnRef } });
+        if (!lookup) return { RspCode: '01', Message: 'Order not found' };
+        // Keep lock order consistent with the manual payment ledger: booking first, attempt second.
+        const booking = await manager.getRepository(Booking).findOne({
+          where: { id: lookup.bookingId }, lock: { mode: 'pessimistic_write' },
+        });
+        if (!booking) return { RspCode: '01', Message: 'Booking not found' };
         const attempt = await attemptRepo.findOne({
-          where: { txnRef: query.vnp_TxnRef },
+          where: { id: lookup.id },
           lock: { mode: 'pessimistic_write' },
         });
         if (!attempt) return { RspCode: '01', Message: 'Order not found' };
@@ -168,10 +175,6 @@ export class VnPayService {
         // A verified success callback is authoritative even if the local attempt
         // expired while the customer was completing checkout. Funds actually
         // received must be recorded for reconciliation, never silently ignored.
-        const booking = await manager.getRepository(Booking).findOne({
-          where: { id: attempt.bookingId }, lock: { mode: 'pessimistic_write' },
-        });
-        if (!booking) return { RspCode: '01', Message: 'Booking not found' };
         const paymentRepo = manager.getRepository(PaymentTransaction);
         const idempotencyKey = 'vnpay:' + attempt.txnRef;
         const existingPayment = await paymentRepo.findOne({ where: { idempotencyKey } });

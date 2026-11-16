@@ -44,7 +44,7 @@ export class BatteryStocktakesService {
     await this.audit.record(user.sub,'BATTERY_STOCKTAKE_CREATED','BATTERY_STOCKTAKE',id,{stationId:dto.stationId});
     return this.dataSource.getRepository(BatteryStocktake).findOne({where:{id},relations:{station:true,items:true}});
   }
-  async updateItem(user:JwtUser,stocktakeId:number,itemId:number,dto:{countStatus:BatteryStocktakeCountStatus;observedStatus?:string;note?:string}){
+  async updateItem(user:JwtUser,stocktakeId:number,itemId:number,dto:{countStatus:'PRESENT'|'MISSING';observedStatus?:string;note?:string}){
     const result=await this.dataSource.transaction(async manager=>{
       const repo=manager.getRepository(BatteryStocktake),itemRepo=manager.getRepository(BatteryStocktakeItem);
       const stocktake=await repo.findOne({where:{id:stocktakeId},lock:{mode:'pessimistic_write'}});
@@ -61,7 +61,7 @@ export class BatteryStocktakesService {
           throw new ConflictException('Pin đã thay đổi sau thời điểm chụp snapshot; cần kiểm tra lại trước khi đánh dấu thiếu');
       }
       if(dto.countStatus!=='PRESENT'&&dto.countStatus!=='MISSING')throw new BadRequestException('Kết quả chỉ được là PRESENT hoặc MISSING');
-      item.countStatus=dto.countStatus;item.observedStatus=dto.observedStatus?.trim()||null;item.note=dto.note?.trim()||null;
+      item.countStatus=dto.countStatus as BatteryStocktakeCountStatus;item.observedStatus=dto.observedStatus?.trim()||null;item.note=dto.note?.trim()||null;
       return itemRepo.save(item);
     });
     await this.audit.record(user.sub,'BATTERY_STOCKTAKE_ITEM_RECORDED','BATTERY_STOCKTAKE',stocktakeId,{itemId,countStatus:dto.countStatus});

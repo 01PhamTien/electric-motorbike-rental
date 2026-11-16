@@ -31,8 +31,16 @@ export class SePayService {
       || (environment === 'sandbox' ? this.config.get<string>('SEPAY_SECRET_KEY') : undefined);
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
     const publicApiUrl = this.config.get<string>('SEPAY_PUBLIC_URL');
-    if (!merchantId || !secretKey || !frontendUrl || !publicApiUrl) {
-      throw new InternalServerErrorException('SePay Sandbox chưa được cấu hình đầy đủ');
+    const missingConfig = [
+      !merchantId ? 'SEPAY_MERCHANT_ID_' + environment.toUpperCase() : null,
+      !secretKey ? 'SEPAY_SECRET_KEY_' + environment.toUpperCase() : null,
+      !frontendUrl ? 'FRONTEND_URL' : null,
+      !publicApiUrl ? 'SEPAY_PUBLIC_URL' : null,
+    ].filter((name): name is string => Boolean(name));
+    if (missingConfig.length) {
+      throw new InternalServerErrorException(
+        'SePay ' + environment.toUpperCase() + ' chưa được cấu hình đầy đủ. Thiếu: ' + missingConfig.join(', '),
+      );
     }
 
     const attempt = await this.ds.transaction(async manager => {

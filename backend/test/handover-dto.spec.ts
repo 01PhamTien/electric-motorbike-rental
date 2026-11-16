@@ -24,6 +24,16 @@ test('accepts a valid checklist, damage note and HTTPS evidence links', () => {
   assert.equal(errors.length, 0);
 });
 
+test('accepts explicit return-maintenance flag while preserving legacy payloads', () => {
+  assert.equal(validate({ ...base, requiresMaintenance: true, damageNotes: 'Phanh sau có tiếng kêu' }).length, 0);
+  assert.equal(validate({ ...base, requiresMaintenance: false }).length, 0);
+});
+
+test('rejects non-boolean return-maintenance flag', () => {
+  const errors = validate({ ...base, requiresMaintenance: 'true' });
+  assert.ok(errors.some(error => error.property === 'requiresMaintenance'));
+});
+
 test('rejects unknown checklist values', () => {
   const errors = validate({ ...base, inspectionChecklist: ['BODY', 'SQL_INJECTION'] });
   assert.ok(errors.some(error => error.property === 'inspectionChecklist'));

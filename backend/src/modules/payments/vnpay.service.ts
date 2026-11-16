@@ -130,7 +130,12 @@ export class VnPayService {
     });
   }
 
-  async handleIpn(query: VnPayParams): Promise<{ RspCode: string; Message: string }> {
+  async handleIpn(input: Record<string, unknown>): Promise<{ RspCode: string; Message: string }> {
+    const query: VnPayParams = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (typeof value !== 'string') return { RspCode: '97', Message: 'Invalid parameters' };
+      query[key] = value;
+    }
     const secret = this.config.get<string>('VNPAY_HASH_SECRET')?.trim();
     const tmnCode = this.config.get<string>('VNPAY_TMN_CODE')?.trim();
     if (!secret || !tmnCode || !query.vnp_TxnRef || !/^\d+$/.test(query.vnp_Amount || '') || !verifyVnPaySignature(query, secret)) {

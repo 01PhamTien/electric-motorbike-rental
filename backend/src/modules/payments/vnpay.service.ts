@@ -221,9 +221,14 @@ export class VnPayService {
   }
 
   async getStatus(user: JwtUser, txnRef: string) {
-    const attempt = await this.dataSource.getRepository(VnPayPaymentAttempt).findOne({ where: { txnRef } });
+    const repo = this.dataSource.getRepository(VnPayPaymentAttempt);
+    const attempt = await repo.findOne({ where: { txnRef } });
     if (!attempt) throw new NotFoundException('Không tìm thấy giao dịch.');
     if (attempt.createdById !== user.sub && user.role !== Role.ADMIN) throw new ForbiddenException();
+    if (attempt.status === VnPayAttemptStatus.PENDING && attempt.expiresAt <= new Date()) {
+      attempt.status = VnPayAttemptStatus.EXPIRED;
+      await repo.save(attempt);
+    }
     return { txnRef: attempt.txnRef, bookingId: attempt.bookingId, purpose: attempt.purpose, amount: attempt.amount, status: attempt.status, responseCode: attempt.responseCode, paidAt: attempt.paidAt };
   }
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { Role } from '../../common/enums/role.enum';
@@ -16,7 +16,9 @@ import { CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batt
 import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto } from './batteries.dto';
 
 @Injectable()
-export class BatteriesService {
+export class BatteriesService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(BatteriesService.name);
+  private expiryTimer?: NodeJS.Timeout;
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(Battery) private readonly batteries: Repository<Battery>,
@@ -26,6 +28,49 @@ export class BatteriesService {
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
     @Optional() private readonly audit?: AuditService,
   ) {}
+
+  onModuleInit() {
+    if (process.env.BATTERY_RESERVATION_EXPIRY_ENABLED === 'false') return;
+    this.reservationTtlMinutes();
+    const intervalMs = Number(process.env.BATTERY_RESERVATION_EXPIRY_INTERVAL_MS ?? 60_000);
+    if (!Number.isInteger(intervalMs) || intervalMs < 5_000) {
+      throw new Error('BATTERY_RESERVATION_EXPIRY_INTERVAL_MS must be an integer >= 5000');
+    }
+    this.expiryTimer = setInterval(() => {
+      void this.expireReservations().catch(error => {
+        this.logger.error('Failed to expire battery reservations', error instanceof Error ? error.stack : String(error));
+      });
+    }, intervalMs);
+    this.expiryTimer.unref?.();
+    void this.expireReservations().catch(error => {
+      this.logger.error('Initial battery reservation expiry failed', error instanceof Error ? error.stack : String(error));
+    });
+  }
+
+  onModuleDestroy() {
+    if (this.expiryTimer) clearInterval(this.expiryTimer);
+  }
+
+  /** Marks elapsed holds as EXPIRED. Safe to call repeatedly and from lazy-read paths. */
+  async expireReservations(now = new Date()) {
+    const result = await this.reservations.createQueryBuilder()
+      .update(BatteryReservation)
+      .set({ status: BatteryReservationStatus.EXPIRED })
+      .where('status = :status AND expiresAt <= :now', {
+        status: BatteryReservationStatus.RESERVED,
+        now,
+      })
+      .execute();
+    return result.affected ?? 0;
+  }
+
+  private reservationTtlMinutes() {
+    const minutes = Number(process.env.BATTERY_RESERVATION_TTL_MINUTES ?? 10);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) {
+      throw new Error('BATTERY_RESERVATION_TTL_MINUTES must be an integer between 1 and 120');
+    }
+    return minutes;
+  }
 
   private assertStation(user: JwtUser, stationId: number) {
     if (user.role === Role.STAFF && user.stationId !== stationId) throw new ForbiddenException('Không được thao tác pin ngoài trạm được phân công');
@@ -143,16 +188,29 @@ export class BatteriesService {
       const batteryRepo=manager.getRepository(Battery),reservationRepo=manager.getRepository(BatteryReservation);
       const station=await stationRepo.findOne({where:{id:dto.stationId,isActive:true},lock:{mode:'pessimistic_write'}});
       if(!station) throw new NotFoundException('Trạm đổi pin không tồn tại hoặc đã ngừng hoạt động');
+      // Read the booking ID first, then lock vehicle before booking consistently
+      // with booking lifecycle operations. Booking.vehicle is not loaded here.
+      const bookingHint=await bookingRepo.findOne({where:{id:dto.bookingId,customerId:user.sub}});
+      if(!bookingHint) throw new NotFoundException('Không tìm thấy đơn thuê của bạn');
+      const vehicleRepo=manager.getRepository(Vehicle);
+      const vehicle=await vehicleRepo.findOne({where:{id:bookingHint.vehicleId},lock:{mode:'pessimistic_write'}});
+      if(!vehicle||!vehicle.isActive||vehicle.stationId!==station.id) throw new BadRequestException('Xe thuê hiện không ở trạm này. Vui lòng chọn trạm hiện tại của xe.');
       const booking=await bookingRepo.findOne({where:{id:dto.bookingId,customerId:user.sub},lock:{mode:'pessimistic_write'}});
       if(!booking) throw new NotFoundException('Không tìm thấy đơn thuê của bạn');
+      if(booking.vehicleId!==vehicle.id) throw new ConflictException('Xe trong đơn thuê đã thay đổi. Vui lòng tải lại thông tin.');
       if(booking.status!==BookingStatus.RENTING) throw new BadRequestException('Chỉ đơn thuê đang sử dụng xe mới được đặt trước pin');
-      if(booking.vehicle?.stationId!==station.id) throw new BadRequestException('Xe thuê hiện không ở trạm này. Vui lòng chọn trạm hiện tại của xe.');
       const now=new Date();
+      // Lazy expiry for both this station and this customer. The station row lock
+      // serializes competing holds for the last available battery at this station.
       await reservationRepo.createQueryBuilder().update(BatteryReservation)
         .set({status:BatteryReservationStatus.EXPIRED})
-        .where('stationId = :stationId AND status = :status AND expiresAt <= :now',{stationId:station.id,status:BatteryReservationStatus.RESERVED,now}).execute();
-      const existing=await reservationRepo.findOne({where:{customerId:user.sub,status:BatteryReservationStatus.RESERVED}});
-      if(existing&&existing.expiresAt>now) throw new ConflictException('Bạn đang có một lượt giữ pin. Hãy sử dụng hoặc hủy lượt giữ hiện tại trước.');
+        .where('status = :status AND expiresAt <= :now AND (stationId = :stationId OR customerId = :customerId)', {
+          status:BatteryReservationStatus.RESERVED, now, stationId:station.id, customerId:user.sub,
+        }).execute();
+      const existing=await reservationRepo.findOne({
+        where:{customerId:user.sub,status:BatteryReservationStatus.RESERVED},
+      });
+      if(existing) throw new ConflictException('Bạn đang có một lượt giữ pin. Hãy sử dụng hoặc hủy lượt giữ hiện tại trước.');
       const available=await batteryRepo.count({where:{stationId:station.id,status:BatteryStatus.FULL,vehicleId:IsNull()}});
       const held=await reservationRepo.createQueryBuilder('r').where('r.stationId = :stationId',{stationId:station.id})
         .andWhere('r.status = :status',{status:BatteryReservationStatus.RESERVED})
@@ -160,7 +218,7 @@ export class BatteriesService {
       if(available-held<=0) throw new ConflictException('Trạm hiện đã hết pin có thể giữ trước. Vui lòng chọn trạm khác.');
       return reservationRepo.save(reservationRepo.create({
         customerId:user.sub,stationId:station.id,bookingId:booking.id,vehicleId:booking.vehicleId,
-        status:BatteryReservationStatus.RESERVED,expiresAt:new Date(now.getTime()+10*60_000),
+        status:BatteryReservationStatus.RESERVED,expiresAt:new Date(now.getTime()+this.reservationTtlMinutes()*60_000),
         redeemedAt:null,cancelledAt:null,redeemedById:null,batterySwapId:null,
       }));
     });
@@ -169,10 +227,12 @@ export class BatteriesService {
   }
 
   async myReservations(user:JwtUser) {
+    await this.expireReservations();
     return this.reservations.find({where:{customerId:user.sub},relations:{station:true,vehicle:true},order:{createdAt:'DESC'},take:50});
   }
 
   async listReservations(user:JwtUser,stationId?:number) {
+    await this.expireReservations();
     const qb=this.reservations.createQueryBuilder('r').leftJoinAndSelect('r.station','station')
       .leftJoinAndSelect('r.vehicle','vehicle').leftJoinAndSelect('r.booking','booking')
       .orderBy('r.createdAt','DESC').take(200);
@@ -188,11 +248,14 @@ export class BatteriesService {
       if(!reservation) throw new NotFoundException('Không tìm thấy lượt giữ pin');
       if(reservation.customerId!==user.sub) throw new ForbiddenException('Bạn không có quyền hủy lượt giữ pin này');
       if(reservation.status!==BatteryReservationStatus.RESERVED) throw new BadRequestException('Lượt giữ pin này không còn hiệu lực');
-      reservation.status=reservation.expiresAt<=new Date()?BatteryReservationStatus.EXPIRED:BatteryReservationStatus.CANCELLED;
-      reservation.cancelledAt=new Date();
+      const expired=reservation.expiresAt<=new Date();
+      reservation.status=expired?BatteryReservationStatus.EXPIRED:BatteryReservationStatus.CANCELLED;
+      reservation.cancelledAt=expired?null:new Date();
       return repo.save(reservation);
     });
-    await this.audit?.record(user.sub,'BATTERY_RESERVATION_CANCELLED','BATTERY_RESERVATION',id);
+    await this.audit?.record(user.sub,
+      result.status===BatteryReservationStatus.EXPIRED?'BATTERY_RESERVATION_EXPIRED':'BATTERY_RESERVATION_CANCELLED',
+      'BATTERY_RESERVATION',id);
     return result;
   }
 
@@ -208,7 +271,9 @@ export class BatteriesService {
       this.assertStation(user,reservation.stationId);
       if(reservation.status!==BatteryReservationStatus.RESERVED) throw new BadRequestException('Lượt giữ pin không còn hiệu lực');
       if(reservation.expiresAt<=new Date()){
-        throw new BadRequestException('Lượt giữ pin đã hết hạn. Vui lòng tạo lượt giữ mới.');
+        reservation.status=BatteryReservationStatus.EXPIRED;
+        await reservationRepo.save(reservation);
+        return {expired:true as const};
       }
       const vehicle=await vehicleRepo.findOne({where:{id:reservation.vehicleId},lock:{mode:'pessimistic_write'}});
       if(!vehicle||vehicle.stationId!==reservation.stationId||!vehicle.isActive) throw new BadRequestException('Xe thuê không còn ở trạm giữ pin');
@@ -227,13 +292,15 @@ export class BatteriesService {
       reservation.status=BatteryReservationStatus.REDEEMED;reservation.redeemedAt=new Date();
       reservation.redeemedById=user.sub;reservation.batterySwapId=swap.id;
       await reservationRepo.save(reservation);
-      return {reservation,swap,removedBattery:removed,installedBattery:replacement};
+      return {expired:false as const,reservation,swap,removedBattery:removed,installedBattery:replacement};
     });
+    if(result.expired) throw new BadRequestException('Lượt giữ pin đã hết hạn. Vui lòng tạo lượt giữ mới.');
     await this.audit?.record(user.sub,'BATTERY_RESERVATION_REDEEMED','BATTERY_RESERVATION',id,{swapId:result.swap.id,vehicleId:result.swap.vehicleId});
     return result;
   }
 
   async publicAvailability() {
+    await this.expireReservations();
     const rows=await this.batteries.createQueryBuilder('battery')
       .select('battery.stationId','stationId')
       .addSelect('COUNT(*)','availableBatteryCount')

@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException,
 import { DataSource } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { Vehicle } from '../vehicles/vehicle.entity';
+import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 import { BookingStatusHistory } from '../bookings/booking-status-history.entity';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
@@ -36,6 +37,8 @@ export class HandoversService {
       });
       if (!booking) throw new NotFoundException('Không tìm thấy đơn');
       if (booking.vehicleId !== vehicle.id) throw new BadRequestException('Xe của đơn đã thay đổi, vui lòng thử lại');
+      if (kind === HandoverKind.PICKUP && dto.requiresMaintenance) throw new BadRequestException('Chỉ có thể đánh dấu cần bảo dưỡng khi nhận trả xe');
+      if (kind === HandoverKind.RETURN && dto.requiresMaintenance && !dto.damageNotes?.trim()) throw new BadRequestException('Cần mô tả hư hỏng hoặc vấn đề an toàn trước khi đưa xe vào bảo dưỡng');
       if (kind === HandoverKind.PICKUP && vehicle.status !== VehicleStatus.ACTIVE)
         throw new BadRequestException('Xe hiện không sẵn sàng để bàn giao');
       if (kind === HandoverKind.PICKUP && (!vehicle.isActive || !vehicle.station?.isActive))
@@ -54,22 +57,33 @@ export class HandoversService {
       const record = await manager.getRepository(HandoverRecord).save(manager.getRepository(HandoverRecord).create({
         bookingId, kind, batteryPercent: dto.batteryPercent, odometerKm: String(dto.odometerKm), conditionNote: dto.conditionNote, staffId: current.sub,
         inspectionChecklist: dto.inspectionChecklist?.length ? JSON.stringify([...new Set(dto.inspectionChecklist)]) : null,
-        damageNotes: dto.damageNotes?.trim() || null,
+        damageNotes: dto.damageNotes?.trim() || null, requiresMaintenance: kind === HandoverKind.RETURN && dto.requiresMaintenance === true,
         photoUrls: dto.photoUrls?.length ? JSON.stringify(dto.photoUrls) : null,
       }));
       booking.status = next;
       await manager.getRepository(Booking).save(booking);
       // A rented vehicle must not appear available for another reservation.
       // It becomes bookable again only after the return handover is recorded.
-      vehicle.status = kind === HandoverKind.PICKUP ? VehicleStatus.INACTIVE : VehicleStatus.ACTIVE;
+      let maintenanceRecordId: number | null = null;
+      if (kind === HandoverKind.RETURN && dto.requiresMaintenance === true) {
+        const maintenance = await manager.getRepository(MaintenanceRecord).save(manager.getRepository(MaintenanceRecord).create({
+          vehicleId: vehicle.id, scheduledAt: new Date(), completedAt: null, reason: 'Kiểm tra sau trả xe #' + bookingId,
+          description: dto.damageNotes!.trim() + (dto.conditionNote.trim() ? '\n\nTình trạng tổng quát: ' + dto.conditionNote.trim() : ''),
+          cost: '0.00', status: MaintenanceStatus.SCHEDULED, createdById: current.sub,
+        }));
+        maintenanceRecordId = maintenance.id;
+        vehicle.status = VehicleStatus.MAINTENANCE;
+      } else {
+        vehicle.status = kind === HandoverKind.PICKUP ? VehicleStatus.INACTIVE : (vehicle.isActive ? VehicleStatus.ACTIVE : VehicleStatus.INACTIVE);
+      }
       await manager.getRepository(Vehicle).save(vehicle);
       await manager.getRepository(BookingStatusHistory).save({ bookingId, fromStatus: expected, toStatus: next, performedById: current.sub,
         reason: kind === HandoverKind.PICKUP ? 'Đã giao xe' : 'Đã nhận xe trả' });
-      return { bookingId, status: next, record, customerId: booking.customerId };
+      return { bookingId, status: next, record, maintenanceRecordId, customerId: booking.customerId };
     });
-    await this.audit?.record(current.sub, kind === HandoverKind.PICKUP ? 'VEHICLE_PICKED_UP' : 'VEHICLE_RETURNED', 'BOOKING', bookingId, { batteryPercent: dto.batteryPercent, odometerKm: dto.odometerKm, inspectionChecklist: dto.inspectionChecklist, damageNotes: dto.damageNotes, photoCount: dto.photoUrls?.length ?? 0 });
+    await this.audit?.record(current.sub, kind === HandoverKind.PICKUP ? 'VEHICLE_PICKED_UP' : 'VEHICLE_RETURNED', 'BOOKING', bookingId, { batteryPercent: dto.batteryPercent, odometerKm: dto.odometerKm, inspectionChecklist: dto.inspectionChecklist, damageNotes: dto.damageNotes, requiresMaintenance: dto.requiresMaintenance === true, maintenanceRecordId: outcome.maintenanceRecordId, photoCount: dto.photoUrls?.length ?? 0 });
     await this.notifications?.create(outcome.customerId, 'HANDOVER', kind === HandoverKind.PICKUP ? 'Đã nhận xe' : 'Đã trả xe',
-      kind === HandoverKind.PICKUP ? 'Đơn thuê #' + bookingId + ' đã được bàn giao xe.' : 'Đơn thuê #' + bookingId + ' đã hoàn tất trả xe.', bookingId);
+      kind === HandoverKind.PICKUP ? 'Đơn thuê #' + bookingId + ' đã được bàn giao xe.' : (outcome.maintenanceRecordId ? 'Đơn thuê #' + bookingId + ' đã nhận trả. Xe được chuyển sang bảo dưỡng để kiểm tra an toàn.' : 'Đơn thuê #' + bookingId + ' đã hoàn tất trả xe.'), bookingId);
     const { customerId: _customerId, ...result } = outcome;
     return result;
   }

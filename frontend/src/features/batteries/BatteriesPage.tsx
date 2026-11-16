@@ -27,7 +27,8 @@ export function BatteriesPage(){
   const [vehicles,setVehicles]=useState<Vehicle[]>([]);
   const [batteries,setBatteries]=useState<Battery[]>([]);
   const [history,setHistory]=useState<Swap[]>([]);
-  const [historySearch,setHistorySearch]=useState('');\n  const [historyVehicleId,setHistoryVehicleId]=useState('');\n  const [historyFrom,setHistoryFrom]=useState('');\n  const [historyTo,setHistoryTo]=useState('');\n  const [historyPage,setHistoryPage]=useState(1);\n  const [historyTotal,setHistoryTotal]=useState(0);\n  const [historyPages,setHistoryPages]=useState(0);\n  const [historyLoading,setHistoryLoading]=useState(false);
+  const [historySearch,setHistorySearch]=useState('');
+  const [historyVehicleId,setHistoryVehicleId]=useState('');\n  const [historyFrom,setHistoryFrom]=useState('');\n  const [historyTo,setHistoryTo]=useState('');\n  const [historyPage,setHistoryPage]=useState(1);\n  const [historyTotal,setHistoryTotal]=useState(0);\n  const [historyPages,setHistoryPages]=useState(0);\n  const [historyLoading,setHistoryLoading]=useState(false);
   const [reservations,setReservations]=useState<Reservation[]>([]);
   const [transfers,setTransfers]=useState<BatteryTransfer[]>([]); 
   const [stocktakes,setStocktakes]=useState<Stocktake[]>([]);
@@ -71,7 +72,8 @@ export function BatteriesPage(){
   const [serial,setSerial]=useState(''),[capacity,setCapacity]=useState(''),[health,setHealth]=useState('100'),[newBatteryNote,setNewBatteryNote]=useState(''),[swapNote,setSwapNote]=useState('');
   const [installVehicleId,setInstallVehicleId]=useState(''),[swapVehicleId,setSwapVehicleId]=useState(''),[installBatteryId,setInstallBatteryId]=useState(''),[swapBatteryId,setSwapBatteryId]=useState('');
   const scopedVehicles=useMemo(()=>vehicles.filter(v=>String(v.station?.id)===stationId),[vehicles,stationId]);
-  const historyVehicles=stationId?scopedVehicles:vehicles;\n  const fullBatteries=batteries.filter(b=>b.status==='FULL'&&!b.vehicleId);
+  const historyVehicles=stationId?scopedVehicles:vehicles;
+  const fullBatteries=batteries.filter(b=>b.status==='FULL'&&!b.vehicleId);
   const unassignedVehicles=scopedVehicles.filter(v=>!batteries.some(b=>b.vehicleId===v.id&&b.status==='INSTALLED'));
   async function load(){
     setLoading(true);setError('');

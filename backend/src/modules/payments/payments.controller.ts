@@ -8,12 +8,35 @@ import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreatePaymentDto } from './dto';
 import { PaymentsService } from './payments.service';
-import { VnPayService } from './vnpay.service';
 import { CreateVnPayPaymentDto } from './vnpay.dto';
-@ApiTags('Payments') @ApiBearerAuth() @UseGuards(JwtAuthGuard, RolesGuard) @Controller('bookings/:id/payments')
+import { VnPayService } from './vnpay.service';
+
+@ApiTags('Payments')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('bookings/:id/payments')
 export class PaymentsController {
   constructor(private readonly service: PaymentsService, private readonly vnPay: VnPayService) {}
-  @Post('vnpay') @Roles(Role.CUSTOMER)\n  createVnPay(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: CreateVnPayPaymentDto, @Req() request: { ip?: string }) { return this.vnPay.createCheckout(user, id, dto, request.ip ?? '127.0.0.1'); }\n  @Post() @Roles(Role.ADMIN, Role.STAFF)
-  create(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: CreatePaymentDto) { return this.service.create(user, id, dto); }
-  @Get() list(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) { return this.service.list(user, id); }
+
+  @Post('vnpay')
+  @Roles(Role.CUSTOMER)
+  createVnPay(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateVnPayPaymentDto,
+    @Req() request: { ip?: string },
+  ) {
+    return this.vnPay.createCheckout(user, id, dto, request.ip ?? '127.0.0.1');
+  }
+
+  @Post()
+  @Roles(Role.ADMIN, Role.STAFF)
+  create(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: CreatePaymentDto) {
+    return this.service.create(user, id, dto);
+  }
+
+  @Get()
+  list(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.service.list(user, id);
+  }
 }

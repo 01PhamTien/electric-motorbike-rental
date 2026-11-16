@@ -26,7 +26,8 @@ export function BatteriesPage(){
   const [stations,setStations]=useState<Station[]>([]);
   const [vehicles,setVehicles]=useState<Vehicle[]>([]);
   const [batteries,setBatteries]=useState<Battery[]>([]);
-  const [history,setHistory]=useState<Swap[]>([]);\n  const [historySearch,setHistorySearch]=useState('');\n  const [historyVehicleId,setHistoryVehicleId]=useState('');\n  const [historyFrom,setHistoryFrom]=useState('');\n  const [historyTo,setHistoryTo]=useState('');\n  const [historyPage,setHistoryPage]=useState(1);\n  const [historyTotal,setHistoryTotal]=useState(0);\n  const [historyPages,setHistoryPages]=useState(0);\n  const [historyLoading,setHistoryLoading]=useState(false);
+  const [history,setHistory]=useState<Swap[]>([]);
+  const [historySearch,setHistorySearch]=useState('');\n  const [historyVehicleId,setHistoryVehicleId]=useState('');\n  const [historyFrom,setHistoryFrom]=useState('');\n  const [historyTo,setHistoryTo]=useState('');\n  const [historyPage,setHistoryPage]=useState(1);\n  const [historyTotal,setHistoryTotal]=useState(0);\n  const [historyPages,setHistoryPages]=useState(0);\n  const [historyLoading,setHistoryLoading]=useState(false);
   const [reservations,setReservations]=useState<Reservation[]>([]);
   const [transfers,setTransfers]=useState<BatteryTransfer[]>([]); 
   const [stocktakes,setStocktakes]=useState<Stocktake[]>([]);
@@ -83,7 +84,8 @@ export function BatteriesPage(){
       setBatteries(Array.isArray(br.data)?br.data:[]);setReservations(Array.isArray(rr.data)?rr.data:[]);setTransfers(Array.isArray(tr.data)?tr.data:[]);setStocktakes(Array.isArray(str.data)?str.data:[]);setHealthSummary(hs.data);setMaintenanceTasks(Array.isArray(mt.data)?mt.data:[]);setCostSummary(cs.data);setOperatingCosts(Array.isArray(cl.data)?cl.data:[]);
     }catch(e){setError(errText(e));}finally{setLoading(false);}
   }
-  useEffect(()=>{if(user?.stationId)setStationId(String(user.stationId));},[user?.stationId]);\n  useEffect(()=>{
+  useEffect(()=>{if(user?.stationId)setStationId(String(user.stationId));},[user?.stationId]);
+  useEffect(()=>{
     let active=true;
     const params:Record<string,string|number>={page:historyPage,limit:10};
     if(stationId)params.stationId=Number(stationId);

@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { PaymentPurpose } from './payment.entity';
 
@@ -9,6 +9,9 @@ export enum SePayAttemptStatus {
 }
 
 @Entity('sepay_payment_attempts')
+@Check('CK_sepay_attempt_purpose', "[purpose] IN ('RENT', 'DEPOSIT')")
+@Check('CK_sepay_attempt_status', "[status] IN ('PENDING', 'PAID', 'VOID')")
+@Check('CK_sepay_attempt_amount', '[amount] > 0')
 @Index('IDX_sepay_attempt_booking_created', ['bookingId', 'createdAt'])
 @Index('UQ_sepay_attempt_invoice', ['invoiceNumber'], { unique: true })
 export class SePayPaymentAttempt {
@@ -16,7 +19,7 @@ export class SePayPaymentAttempt {
   id: number;
 
   @ManyToOne(() => Booking, { onDelete: process.env.DB_TYPE === 'mssql' ? 'NO ACTION' : 'RESTRICT' })
-  @JoinColumn({ name: 'bookingId' })
+  @JoinColumn({ name: 'bookingId', foreignKeyConstraintName: 'FK_6d2cdafb292405e6e9f9f9ce2f4' })
   booking: Booking;
 
   @Column({ type: 'int' })
@@ -40,7 +43,7 @@ export class SePayPaymentAttempt {
   @Column({ type: 'varchar', length: 32, nullable: true })
   providerTransactionId: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'datetime2', nullable: true })
   paidAt: Date | null;
 
   @CreateDateColumn()

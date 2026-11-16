@@ -7,6 +7,7 @@ export enum VnPayAttemptStatus {
   PAID = 'PAID',
   FAILED = 'FAILED',
   EXPIRED = 'EXPIRED',
+  PAID_REVIEW = 'PAID_REVIEW',
 }
 
 @Entity('vnpay_payment_attempts')

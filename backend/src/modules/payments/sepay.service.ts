@@ -21,7 +21,8 @@ export class SePayService {
     const merchantId = this.config.get<string>('SEPAY_MERCHANT_ID');
     const secretKey = this.config.get<string>('SEPAY_SECRET_KEY');
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
-    if (!merchantId || !secretKey || !frontendUrl) {
+    const publicApiUrl = this.config.get<string>('SEPAY_PUBLIC_URL');
+    if (!merchantId || !secretKey || !frontendUrl || !publicApiUrl) {
       throw new InternalServerErrorException('SePay Sandbox chưa được cấu hình đầy đủ');
     }
 
@@ -73,16 +74,16 @@ export class SePayService {
       order_invoice_number: attempt.invoiceNumber,
       payment_method: 'BANK_TRANSFER',
       customer_id: String(user.sub),
-      success_url: returnBase + '/bookings/' + bookingId + '/payments?sepay=' + encodeURIComponent(attempt.invoiceNumber) + '&result=success',
-      error_url: returnBase + '/bookings/' + bookingId + '/payments?sepay=' + encodeURIComponent(attempt.invoiceNumber) + '&result=error',
-      cancel_url: returnBase + '/bookings/' + bookingId + '/payments?sepay=' + encodeURIComponent(attempt.invoiceNumber) + '&result=cancel',
+      success_url: returnBase + '/api/payments/sepay/return?bookingId=' + bookingId + '&invoice=' + encodeURIComponent(attempt.invoiceNumber) + '&result=success',
+      error_url: returnBase + '/api/payments/sepay/return?bookingId=' + bookingId + '&invoice=' + encodeURIComponent(attempt.invoiceNumber) + '&result=error',
+      cancel_url: returnBase + '/api/payments/sepay/return?bookingId=' + bookingId + '&invoice=' + encodeURIComponent(attempt.invoiceNumber) + '&result=cancel',
     };
     return {
       provider: 'SEPAY',
       environment: 'SANDBOX',
       action: CHECKOUT_URL,
       method: 'POST',
-      fields: { ...fields, lang: 'vi', signature: createSePaySignature(fields, secretKey) },
+      fields: { ...fields, signature: createSePaySignature(fields, secretKey) },
     };
   }
 

@@ -135,7 +135,9 @@ export class VnPayService {
     if (!secret || !tmnCode || !query.vnp_TxnRef || !/^\d+$/.test(query.vnp_Amount || '') || !verifyVnPaySignature(query, secret)) {
       return { RspCode: '97', Message: 'Invalid signature' };
     }
-    if (query.vnp_TmnCode !== tmnCode) return { RspCode: '97', Message: 'Invalid merchant' };
+    if (query.vnp_TmnCode !== tmnCode || query.vnp_CurrCode !== 'VND' || query.vnp_Command !== 'pay' || query.vnp_Version !== '2.1.0') {
+      return { RspCode: '97', Message: 'Invalid payment parameters' };
+    }
     try {
       return await this.dataSource.transaction(async manager => {
         const attemptRepo = manager.getRepository(VnPayPaymentAttempt);

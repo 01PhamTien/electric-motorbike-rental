@@ -11,6 +11,7 @@ export enum OnlinePaymentStatus {
 
 @Entity('online_payment_attempts')
 @Index('UX_online_payment_attempts_txnRef', ['txnRef'], { unique: true })
+@Index('UX_online_payment_attempts_idempotencyKey', ['idempotencyKey'], { unique: true })
 @Index('IX_online_payment_attempts_booking_status', ['bookingId', 'status'])
 export class OnlinePaymentAttempt {
   @PrimaryGeneratedColumn()

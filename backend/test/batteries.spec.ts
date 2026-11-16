@@ -72,3 +72,40 @@ test('STAFF cannot use inventory or reservation filters to inspect another stati
   await assert.rejects(()=>service.listReservations(foreignStaff,2),/ngoài trạm được phân công/);
   await assert.rejects(()=>service.history(foreignStaff,2),/ngoài trạm được phân công/);
 });
+
+
+test('swap history supports station, vehicle, serial, date filters and stable pagination',async()=>{
+  const conditions:any[]=[];
+  const records:any[]=[{id:7,performedBy:{id:5,fullName:'Staff A'}}];
+  const qb:any={
+    leftJoinAndSelect:()=>qb,leftJoin:()=>qb,addSelect:()=>qb,orderBy:()=>qb,addOrderBy:()=>qb,
+    andWhere:(sql:string,params:any)=>{conditions.push({sql,params});return qb;},
+    skip:(value:number)=>{qb.offset=value;return qb;},take:(value:number)=>{qb.limit=value;return qb;},
+    getManyAndCount:async()=>[records,21],
+  };
+  const service=new BatteriesService({} as any,{} as any,{createQueryBuilder:()=>qb} as any,{} as any,{} as any,{} as any);
+  const result=await service.history(staff,{stationId:2,vehicleId:12,serial:'BAT',from:'2026-11-01',to:'2026-11-15',page:2,limit:10});
+  assert.equal(result.total,21);
+  assert.equal(result.page,2);
+  assert.equal(result.totalPages,3);
+  assert.equal(result.items[0].performedBy.fullName,'Staff A');
+  assert.equal(qb.offset,10);
+  assert.equal(qb.limit,10);
+  assert.equal(conditions.length,5);
+  assert.equal(conditions[0].params.stationId,2);
+  assert.equal(conditions[1].params.vehicleId,12);
+  assert.equal(conditions.find(x=>x.params.serial)?.params.serial,'%BAT%');
+  assert.ok(conditions.some(x=>x.sql.includes('createdAt >= :fromDate')));
+  assert.ok(conditions.some(x=>x.sql.includes('createdAt <= :toDate')));
+});
+
+test('swap history returns no records for unassigned staff and rejects station scope tampering',async()=>{
+  const {service}=fixture();
+  assert.deepEqual(await service.history({...staff,stationId:null},{}),{items:[],total:0,page:1,limit:20,totalPages:0});
+  await assert.rejects(()=>service.history({...staff,stationId:9},{stationId:2}),/ngoài trạm được phân công/);
+});
+
+test('swap history rejects inverted date range',async()=>{
+  const {service}=fixture();
+  await assert.rejects(()=>service.history(staff,{from:'2026-11-20',to:'2026-11-01'}),/Ngày bắt đầu không được sau ngày kết thúc/);
+});

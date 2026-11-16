@@ -14,7 +14,7 @@ export enum VnPayAttemptStatus {
 @Index('UX_vnpay_attempts_idempotency', ['idempotencyKey'], { unique: true })
 @Index('IX_vnpay_attempts_booking_purpose_status', ['bookingId', 'purpose', 'status'])
 export class VnPayPaymentAttempt {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_vnpay_payment_attempts' })
   id: number;
 
   @ManyToOne(() => Booking, { onDelete: 'NO ACTION' })

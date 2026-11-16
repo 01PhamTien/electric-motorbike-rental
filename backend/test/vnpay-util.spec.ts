@@ -1,6 +1,6 @@
 import assert = require('node:assert/strict');
 import test = require('node:test');
-import { buildVnPayQuery, formatVnPayDate, signVnPayParams, verifyVnPaySignature } from '../src/modules/payments/vnpay.util';
+import { buildVnPayHashData, formatVnPayDate, signVnPayParams, verifyVnPaySignature } from '../src/modules/payments/vnpay.util';
 
 const secret = 'sandbox-secret-for-unit-tests-only';
 const params = {
@@ -13,8 +13,8 @@ const params = {
 
 test('sorts VNPay parameters lexicographically before signing', () => {
   assert.equal(
-    buildVnPayQuery({ b: 'two words', a: 'value' }),
-    'a=value&b=two+words',
+    buildVnPayHashData({ b: 'two words', a: 'value' }),
+    'a=value&b=two words',
   );
 });
 

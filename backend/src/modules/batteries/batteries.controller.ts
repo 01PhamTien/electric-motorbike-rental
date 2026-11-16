@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -15,6 +15,16 @@ import { BatteryStocktakesService } from './battery-stocktakes.service';
 import { BatteryHealthService } from './battery-health.service';
 import { CreateBatteryTransferDto, CreateBatteryStocktakeDto, UpdateBatteryStocktakeItemDto, AddBatteryStocktakeExtraDto, RecordBatteryHealthDto, CreateBatteryMaintenanceTaskDto, CompleteBatteryMaintenanceTaskDto, CreateBatteryOperatingCostDto } from './batteries.dto';
 import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
+
+class BatterySwapHistoryQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) stationId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) vehicleId?: number;
+  @IsOptional() @IsString() serial?: string;
+  @IsOptional() @IsDateString() from?: string;
+  @IsOptional() @IsDateString() to?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 20;
+}
 
 class BatteryInventoryQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) stationId?: number;
@@ -126,6 +136,6 @@ export class BatteriesController {
   }
   @Post('install') install(@CurrentUser() user:JwtUser,@Body() dto:InstallBatteryDto){return this.service.install(user,dto);}
   @Post('swap') swap(@CurrentUser() user:JwtUser,@Body() dto:SwapBatteryDto){return this.service.swap(user,dto);}
-  @Get('swaps/history') history(@CurrentUser() user:JwtUser,@Query('stationId') stationId?:string){return this.service.history(user,stationId?Number(stationId):undefined);}
+  @Get('swaps/history') history(@CurrentUser() user:JwtUser,@Query() query:BatterySwapHistoryQueryDto){return this.service.history(user,query);}
   @Patch(':id/complete-charging') completeCharging(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number){return this.service.completeCharging(user,id);}
 }

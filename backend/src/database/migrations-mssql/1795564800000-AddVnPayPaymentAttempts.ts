@@ -27,10 +27,9 @@ export class AddVnPayPaymentAttempts1795564800000 implements MigrationInterface 
         [payDate] varchar(14) NULL,
         [expiresAt] datetime2 NOT NULL,
         [paidAt] datetime2 NULL,
-        [createdAt] datetime2 NOT NULL CONSTRAINT [DF_vnpay_attempts_created] DEFAULT (SYSUTCDATETIME()),
-        [updatedAt] datetime2 NOT NULL CONSTRAINT [DF_vnpay_attempts_updated] DEFAULT (SYSUTCDATETIME()),
+        [createdAt] datetime2 NOT NULL CONSTRAINT [DF_vnpay_attempts_created] DEFAULT (GETDATE()),
+        [updatedAt] datetime2 NOT NULL CONSTRAINT [DF_vnpay_attempts_updated] DEFAULT (GETDATE()),
         CONSTRAINT [FK_vnpay_attempts_booking] FOREIGN KEY ([bookingId]) REFERENCES [dbo].[bookings]([id]) ON DELETE NO ACTION,
-        CONSTRAINT [CK_vnpay_attempts_purpose] CHECK ([purpose] IN ('RENT','DEPOSIT')),
         CONSTRAINT [CK_vnpay_attempts_status] CHECK ([status] IN ('PENDING','PAID','FAILED','EXPIRED')),
         CONSTRAINT [CK_vnpay_attempts_amount] CHECK ([amount] > 0)
       )

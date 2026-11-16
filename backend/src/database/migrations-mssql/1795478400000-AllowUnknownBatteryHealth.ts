@@ -15,7 +15,11 @@ export class AllowUnknownBatteryHealth1795478400000 implements MigrationInterfac
       INNER JOIN sys.columns c ON c.[object_id] = dc.[parent_object_id] AND c.[column_id] = dc.[parent_column_id]
       WHERE dc.[parent_object_id] = OBJECT_ID(N'[dbo].[batteries]') AND c.[name] = N'healthPercent';
       IF @constraintName IS NOT NULL
-        EXEC(N'ALTER TABLE [dbo].[batteries] DROP CONSTRAINT ' + QUOTENAME(@constraintName));
+      BEGIN
+        DECLARE @sql nvarchar(max);
+        SET @sql = N'ALTER TABLE [dbo].[batteries] DROP CONSTRAINT ' + QUOTENAME(@constraintName);
+        EXEC sp_executesql @sql;
+      END
     `);
     if (column[0].is_nullable === false || column[0].is_nullable === 0) {
       await queryRunner.query('ALTER TABLE [dbo].[batteries] ALTER COLUMN [healthPercent] int NULL');

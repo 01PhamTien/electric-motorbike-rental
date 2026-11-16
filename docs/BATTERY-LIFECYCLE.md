@@ -32,7 +32,7 @@ Số phần trăm sức khỏe là dữ liệu kiểm tra do nhân viên ghi nh�
 
 - `PATCH /batteries/:id/complete-charging` — hoàn tất phiên sạc, nhận ghi chú tùy chọn.
 - `PATCH /batteries/:id/status` — chuyển trạng thái theo ma trận cho phép.
-- `PATCH /batteries/:id/health` — cập nhật sức khỏe pin và ghi chú.
+- Đánh giá sức khỏe và lưu lịch sử tiếp tục sử dụng module hiện có: `POST /batteries/:id/health-checks`.
 - `GET /batteries/charging/history?page=1&limit=20&stationId=&batteryId=&from=&to=` — truy vấn lịch sử sạc có phân trang và lọc.
 
 Nhân viên chỉ xem và thao tác dữ liệu thuộc trạm được phân công. Quản trị viên có thể truy vấn nhiều trạm hoặc giới hạn theo một trạm.

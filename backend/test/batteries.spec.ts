@@ -62,7 +62,7 @@ test('unassigned STAFF cannot read battery inventory, reservations or swap histo
   const unassigned={...staff,stationId:null};
   assert.deepEqual(await service.list(unassigned),[]);
   assert.deepEqual(await service.listReservations(unassigned),[]);
-  assert.deepEqual(await service.history(unassigned),[]);
+  assert.deepEqual(await service.history(unassigned,{}),{items:[],total:0,page:1,limit:20,totalPages:0});
 });
 
 test('STAFF cannot use inventory or reservation filters to inspect another station',async()=>{
@@ -70,5 +70,5 @@ test('STAFF cannot use inventory or reservation filters to inspect another stati
   const foreignStaff={...staff,stationId:9};
   await assert.rejects(()=>service.list(foreignStaff,2),/ngoài trạm được phân công/);
   await assert.rejects(()=>service.listReservations(foreignStaff,2),/ngoài trạm được phân công/);
-  await assert.rejects(()=>service.history(foreignStaff,2),/ngoài trạm được phân công/);
+  await assert.rejects(()=>service.history(foreignStaff,{stationId:2}),/ngoài trạm được phân công/);
 });

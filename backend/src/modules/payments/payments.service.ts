@@ -17,6 +17,7 @@ export class PaymentsService {
     if (user.role === Role.STAFF && user.stationId !== booking.vehicle.stationId) throw new ForbiddenException();
   }
   async create(user: JwtUser, bookingId: number, dto: CreatePaymentDto) {
+    if (dto.method === PaymentMethod.VNPAY) throw new BadRequestException('Giao dịch VNPay chỉ được ghi nhận qua IPN đã xác thực.');
     const idempotencyKey = typeof dto.idempotencyKey === 'string' ? dto.idempotencyKey.trim() : '';
     if (!idempotencyKey) throw new BadRequestException('Mã chống lặp giao dịch không được để trống');
     return this.ds.transaction(async em => {

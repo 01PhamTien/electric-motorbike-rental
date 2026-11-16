@@ -7,6 +7,7 @@ import { Vehicle } from '../vehicles/vehicle.entity';
 import { Battery } from './battery.entity';
 import { BatterySwap } from './battery-swap.entity';
 import { BatteryReservation } from './battery-reservation.entity';
+import { BatteryChargeSession } from './battery-charge-session.entity';
 import { BatteryTransfer, BatteryTransferItem } from './battery-transfer.entity';
 import { BatteryTransfersService } from './battery-transfers.service';
 import { BatteryStocktake, BatteryStocktakeItem } from './battery-stocktake.entity';

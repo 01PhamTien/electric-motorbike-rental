@@ -186,13 +186,13 @@ export class VnPayService {
         const paymentRepo = manager.getRepository(PaymentTransaction);
         const idempotencyKey = 'vnpay:' + attempt.txnRef;
         const existingPayment = await paymentRepo.findOne({ where: { idempotencyKey } });
+        const settled = await paymentRepo.find({ where: { bookingId: attempt.bookingId, purpose: attempt.purpose } });
+        const alreadyPaid = settled.reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0);
+        const cap = Math.round(Number(attempt.purpose === PaymentPurpose.DEPOSIT ? booking.depositSnapshot : booking.rentalAmount) * 100);
+        const wouldExceed = !existingPayment && alreadyPaid + Math.round(Number(attempt.amount) * 100) > cap;
+        const lateOrClosed = attempt.status === VnPayAttemptStatus.EXPIRED || attempt.expiresAt <= new Date() || [BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status);
+        const needsReview = wouldExceed || lateOrClosed;
         if (!existingPayment) {
-          const settled = await paymentRepo.find({ where: { bookingId: attempt.bookingId, purpose: attempt.purpose } });
-          const alreadyPaid = settled.reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0);
-          const cap = Math.round(Number(attempt.purpose === PaymentPurpose.DEPOSIT ? booking.depositSnapshot : booking.rentalAmount) * 100);
-          const wouldExceed = alreadyPaid + Math.round(Number(attempt.amount) * 100) > cap;
-          const lateOrClosed = attempt.status === VnPayAttemptStatus.EXPIRED || attempt.expiresAt <= new Date() || [BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status);
-          const needsReview = wouldExceed || lateOrClosed;
           const note = 'VNPay transaction ' + (attempt.transactionNo || attempt.txnRef) + (wouldExceed ? ' · OVERPAYMENT_REQUIRES_MANUAL_RECONCILIATION' : '') + (lateOrClosed ? ' · LATE_OR_CLOSED_BOOKING_REQUIRES_MANUAL_RECONCILIATION' : '');
           await paymentRepo.save(paymentRepo.create({
             bookingId: attempt.bookingId,

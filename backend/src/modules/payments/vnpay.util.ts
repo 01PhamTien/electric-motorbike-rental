@@ -2,18 +2,14 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export type VnPayParams = Record<string, string>;
 
-function encode(value: string): string {
-  return encodeURIComponent(value).replace(/%20/g, '+');
-}
-
-export function buildVnPayQuery(params: VnPayParams): string {
+export function buildVnPayHashData(params: VnPayParams): string {
   return Object.keys(params).sort()
-    .map(key => encode(key) + '=' + encode(params[key]))
+    .map(key => key + '=' + params[key])
     .join('&');
 }
 
 export function signVnPayParams(params: VnPayParams, secret: string): string {
-  return createHmac('sha512', secret).update(buildVnPayQuery(params), 'utf8').digest('hex');
+  return createHmac('sha512', secret).update(buildVnPayHashData(params), 'utf8').digest('hex');
 }
 
 export function verifyVnPaySignature(params: VnPayParams, secret: string): boolean {

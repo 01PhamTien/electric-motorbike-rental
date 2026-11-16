@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 export enum PaymentPurpose { RENT = 'RENT', DEPOSIT = 'DEPOSIT', EXTRA = 'EXTRA', REFUND = 'REFUND' }
-export enum PaymentMethod { CASH = 'CASH', TRANSFER = 'TRANSFER' }
+export enum PaymentMethod { CASH = 'CASH', TRANSFER = 'TRANSFER', SEPAY = 'SEPAY' }
 @Entity('payment_transactions')
 export class PaymentTransaction {
   @PrimaryGeneratedColumn() id: number;

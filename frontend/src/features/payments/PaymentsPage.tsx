@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../../services/api';
 
-type Payment = { id: number; purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND'; method: 'CASH'|'TRANSFER'; amount: string; note: string|null; createdAt: string };
+type Payment = { id: number; purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND'; method: 'CASH'|'TRANSFER'|'SEPAY'; amount: string; note: string|null; createdAt: string };
 type BookingFinance = { rentalAmount: string; depositSnapshot: string; status: string };
 const purposes = { RENT:'Tiền thuê', DEPOSIT:'Tiền cọc', EXTRA:'Phụ phí', REFUND:'Hoàn cọc' };
-const methods = { CASH:'Tiền mặt', TRANSFER:'Chuyển khoản' };
+const methods = { CASH:'Tiền mặt', TRANSFER:'Chuyển khoản', SEPAY:'SePay QR' };
 function getError(error: unknown) {
   const message = (error as {response?:{data?:{message?:string|string[]}}})?.response?.data?.message;
   return Array.isArray(message) ? message.join(', ') : message || 'Không thể hoàn tất thao tác.';
@@ -15,6 +15,7 @@ function getError(error: unknown) {
 function newKey() { return 'voltgo-' + Date.now() + '-' + Math.random().toString(36).slice(2, 14); }
 export function PaymentsPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const [items,setItems] = useState<Payment[]>([]);
   const [booking,setBooking] = useState<BookingFinance|null>(null);
   const [loading,setLoading] = useState(true);
@@ -24,6 +25,7 @@ export function PaymentsPage() {
   const [form,setForm] = useState<{purpose:Payment['purpose']; method:Payment['method']; amount:string;note:string;key:string}>({purpose:'RENT',method:'CASH',amount:'',note:'',key:newKey()});
   const { user } = useAuth();
   const staff = user?.role === 'ADMIN' || user?.role === 'STAFF';
+  const customer = user?.role === 'CUSTOMER';
   const load = useCallback(async() => {
     if (!id) return;
     setLoading(true);
@@ -39,6 +41,13 @@ export function PaymentsPage() {
     setLoading(false);
   },[id]);
   useEffect(() => { void load(); },[load]);
+  useEffect(() => {
+    const result = searchParams.get('result');
+    if (result === 'success') setNotice('SePay đã chuyển bạn trở lại. Hệ thống đang chờ IPN xác nhận; trạng thái thanh toán chỉ cập nhật sau khi backend xác thực thông báo từ SePay.');
+    else if (result === 'error') setError('SePay thông báo giao dịch không hoàn tất. Bạn có thể thử lại.');
+    else if (result === 'cancel') setNotice('Bạn đã hủy thao tác thanh toán. Đơn thuê chưa được ghi nhận đã thanh toán.');
+    if (result) void load();
+  },[searchParams,load]);
   const total = (purpose: Payment['purpose']) => items.filter(item => item.purpose === purpose).reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0) / 100;
   const rentPaid = total('RENT');
   const depositPaid = total('DEPOSIT');
@@ -46,6 +55,21 @@ export function PaymentsPage() {
   const rentRemaining = booking ? Math.max(0, Number(booking.rentalAmount) - rentPaid) : null;
   const depositRemainingToCollect = booking ? Math.max(0, Number(booking.depositSnapshot) - depositPaid) : null;
   const depositAvailableToRefund = Math.max(0, depositPaid - refunded);
+  async function startSePay(purpose: 'RENT'|'DEPOSIT') {
+    if (!id) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const response = await api.post('/payments/sepay/bookings/' + id + '/checkout', { purpose });
+      const checkout = response.data;
+      if (!['SANDBOX','PRODUCTION'].includes(checkout?.environment) || checkout?.method !== 'POST' || !checkout?.action || !checkout?.fields) throw new Error('Dữ liệu checkout SePay không hợp lệ.');
+      const formElement = document.createElement('form');
+      formElement.method = 'POST'; formElement.action = checkout.action;
+      Object.entries(checkout.fields as Record<string,string>).forEach(([name,value]) => {
+        const input = document.createElement('input'); input.type = 'hidden'; input.name = name; input.value = value; formElement.appendChild(input);
+      });
+      document.body.appendChild(formElement); formElement.submit();
+    } catch(e) { setError(getError(e)); setBusy(false); }
+  }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const amount = Number(form.amount);
@@ -59,9 +83,10 @@ export function PaymentsPage() {
     finally { setBusy(false); }
   }
   return <div className="container-page py-10 sm:py-14"><div className="flex flex-wrap items-end justify-between gap-5"><SectionHeading eyebrow="THANH TOÁN VÀ ĐỐI SOÁT" title={'Giao dịch đơn #' + (id || '')} description="Lịch sử tiền thuê, tiền cọc, phụ phí và hoàn cọc đã được ghi nhận trong hệ thống."/><Link to={staff?'/operations':'/bookings/my'} className="btn-outline">← Quay lại đơn thuê</Link></div>
-    <div className="mt-8 rounded-2xl border border-[#e7eee9] bg-[#f7fbf8] p-5 text-sm leading-7 text-[#526b61]"><strong>Lưu ý:</strong> Đây là màn hình ghi nhận thanh toán thủ công. Hệ thống chưa xử lý chuyển khoản hoặc hoàn tiền tự động qua cổng thanh toán. Vui lòng đối chiếu giao dịch thật trước khi lưu.</div>
+    <div className="mt-8 rounded-2xl border border-[#e7eee9] bg-[#f7fbf8] p-5 text-sm leading-7 text-[#526b61]"><strong>Lưu ý:</strong> Thanh toán trực tuyến qua SePay. Chỉ IPN đã xác thực từ máy chủ SePay mới ghi nhận giao dịch; trang quay về không được xem là bằng chứng thanh toán.</div>
     {notice && <p role="status" className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm text-[#159b70]">{notice}</p>}
     {error && <p role="alert" className="mt-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
+    {booking && customer && <section className="mt-8 flex flex-wrap gap-3"><button type="button" disabled={busy || (depositRemainingToCollect ?? 0) <= 0} onClick={()=>void startSePay('DEPOSIT')} className="btn-primary">{busy?'Đang chuyển tới SePay...':'Thanh toán tiền cọc qua QR →'}</button><button type="button" disabled={busy || (rentRemaining ?? 0) <= 0} onClick={()=>void startSePay('RENT')} className="btn-outline">Thanh toán tiền thuê qua QR →</button></section>}
     {booking && <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><div className="panel border-[#e7eee9] p-5 shadow-[0_14px_38px_rgba(30,90,65,.045)]"><p className="field-label">Tiền thuê theo đơn</p><p className="mt-2 text-xl font-extrabold">{money(booking.rentalAmount)}</p><p className="mt-1 text-xs text-slate-500">Còn ghi nhận: {money(rentRemaining ?? 0)}</p></div><div className="panel p-5"><p className="field-label">Tiền cọc theo đơn</p><p className="mt-2 text-xl font-extrabold">{money(booking.depositSnapshot)}</p><p className="mt-1 text-xs text-slate-500">Còn thu: {money(depositRemainingToCollect ?? 0)}</p></div><div className="panel p-5"><p className="field-label">Đã thu tiền cọc</p><p className="mt-2 text-xl font-extrabold text-emerald-700">{money(depositPaid)}</p><p className="mt-1 text-xs text-slate-500">Đã hoàn: {money(refunded)}</p></div><div className="panel p-5"><p className="field-label">Cọc còn có thể hoàn</p><p className="mt-2 text-xl font-extrabold text-sky-700">{money(depositAvailableToRefund)}</p><p className="mt-1 text-xs text-slate-500">Chỉ hoàn sau khi trả xe</p></div></section>}
     <div className={'mt-8 grid gap-6 ' + (staff?'lg:grid-cols-[1.1fr_.9fr]':'')}>
       <section className="panel border-[#e7eee9] p-6 shadow-[0_16px_42px_rgba(30,90,65,.05)]"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-extrabold">Lịch sử giao dịch</h2><button className="text-sm font-bold text-emerald-700" onClick={()=>void load()}>↻ Làm mới</button></div>{loading ? <div className="mt-6"><LoadingState /></div> : !items.length ? <div className="mt-6"><EmptyState title="Chưa có giao dịch" description="Các khoản đã ghi nhận sẽ hiển thị tại đây." /></div> : <div className="mt-5 divide-y divide-[#edf2ee]">{items.map(p => <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-5"><div><p className="font-bold">{purposes[p.purpose] || p.purpose}</p><p className="mt-1 text-xs text-slate-500">{methods[p.method] || p.method} · {timeText(p.createdAt)}</p>{p.note && <p className="mt-1 text-xs text-slate-500">{p.note}</p>}</div><strong className={'text-lg '+(p.purpose==='REFUND'?'text-rose-600':'text-emerald-700')}>{p.purpose==='REFUND'?'-':'+'}{money(p.amount)}</strong></div>)}</div>}</section>

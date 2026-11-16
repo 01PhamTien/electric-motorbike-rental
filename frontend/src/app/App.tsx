@@ -53,25 +53,38 @@ export function App() {
       <Route index element={<RoleLanding />} />
       <Route path="/stations" element={<CustomerOnly><StationsPage /></CustomerOnly>} />
       <Route path="/vehicles" element={<CustomerOnly><VehiclesPage /></CustomerOnly>} />
+      <Route path="/vehicles/:vehicleId" element={<CustomerOnly><VehiclesPage /></CustomerOnly>} />
+      <Route path="/vehicles/:vehicleId/booking" element={<CustomerOnly><VehiclesPage /></CustomerOnly>} />
       <Route path="/bookings/my" element={<CustomerOnly><CustomerBookingsRoute /></CustomerOnly>} />
+      <Route path="/bookings/my/:bookingId" element={<CustomerOnly><CustomerBookingsRoute /></CustomerOnly>} />
       <Route path="/battery-swap" element={<CustomerOnly><CustomerBatterySwapPage /></CustomerOnly>} />
       <Route path="/bookings/:id/payments" element={<CustomerOnly><PaymentsPage /></CustomerOnly>} />
       <Route path="/locations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><LocationsPage /></RoleRoute>} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
+      <Route path="/maintenance/new" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
+      <Route path="/maintenance/schedule" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
       <Route path="/operating-costs" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperatingCostsPage /></RoleRoute>} />
       <Route path="/batteries" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><BatteriesPage /></RoleRoute>} />
       <Route path="/operations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
+      <Route path="/operations/handover/:handoverBookingId/:handoverKind" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
       <Route path="/vehicle-transfers" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><VehicleTransfersPage /></RoleRoute>} />
       <Route path="/issues" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><IssuesPage /></RoleRoute>} />
       <Route path="/notifications" element={<RoleRoute allowed={['ADMIN', 'STAFF', 'CUSTOMER']}><NotificationsPage /></RoleRoute>} />
       <Route path="/profile" element={<RoleRoute allowed={['ADMIN', 'STAFF', 'CUSTOMER']}><ProfilePage /></RoleRoute>} />
       <Route path="/admin" element={<RoleRoute allowed={['ADMIN']}><AdminHomePage /></RoleRoute>} />
       <Route path="/admin/vehicles" element={<RoleRoute allowed={['ADMIN']}><AdminVehiclesPage /></RoleRoute>} />
+      <Route path="/admin/vehicles/new" element={<RoleRoute allowed={['ADMIN']}><AdminVehiclesPage /></RoleRoute>} />
+      <Route path="/admin/vehicles/:vehicleFormId/edit" element={<RoleRoute allowed={['ADMIN']}><AdminVehiclesPage /></RoleRoute>} />
       <Route path="/admin/stations" element={<RoleRoute allowed={['ADMIN']}><AdminStationsPage /></RoleRoute>} />
+      <Route path="/admin/stations/new" element={<RoleRoute allowed={['ADMIN']}><AdminStationsPage /></RoleRoute>} />
+      <Route path="/admin/stations/:stationFormId/edit" element={<RoleRoute allowed={['ADMIN']}><AdminStationsPage /></RoleRoute>} />
       <Route path="/admin/models" element={<RoleRoute allowed={['ADMIN']}><AdminModelsPage /></RoleRoute>} />
+      <Route path="/admin/models/new" element={<RoleRoute allowed={['ADMIN']}><AdminModelsPage /></RoleRoute>} />
+      <Route path="/admin/models/:modelFormId/edit" element={<RoleRoute allowed={['ADMIN']}><AdminModelsPage /></RoleRoute>} />
       <Route path="/admin/customers" element={<RoleRoute allowed={['ADMIN']}><AdminCustomersPage /></RoleRoute>} />
       <Route path="/admin/vouchers" element={<RoleRoute allowed={['ADMIN']}><AdminVouchersPage /></RoleRoute>} />
       <Route path="/admin/staff" element={<RoleRoute allowed={['ADMIN']}><StaffPage /></RoleRoute>} />
+      <Route path="/admin/staff/:resetStaffId/reset-password" element={<RoleRoute allowed={['ADMIN']}><StaffPage /></RoleRoute>} />
       <Route path="/admin/staff-schedules" element={<RoleRoute allowed={['ADMIN']}><StaffSchedulesPage /></RoleRoute>} />
       <Route path="/admin/staff-presence" element={<RoleRoute allowed={['ADMIN']}><StaffPresencePage /></RoleRoute>} />
       <Route path="/my-schedule" element={<RoleRoute allowed={['STAFF']}><MySchedulePage /></RoleRoute>} />

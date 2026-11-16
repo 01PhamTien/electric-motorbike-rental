@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { SectionHeading } from '../../components/Brand';
 import { api } from '../../services/api';
 
@@ -13,6 +14,8 @@ type Staff = {
 const emptyForm = { fullName: '', email: '', phone: '', password: '', stationId: '' };
 
 export function StaffPage() {
+  const navigate=useNavigate();
+  const {resetStaffId}=useParams();
   const [staff, setStaff] = useState<Staff[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -21,7 +24,8 @@ export function StaffPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [resetId, setResetId] = useState<number | null>(null);
+  const resetId=resetStaffId?Number(resetStaffId):null;
+  const setResetId=(id:number|null)=>navigate(id===null?'/admin/staff':'/admin/staff/'+id+'/reset-password');
   const [resetPassword, setResetPassword] = useState('');
 
   async function load() {
@@ -92,6 +96,7 @@ export function StaffPage() {
   }
 
   return <section className="container-page space-y-7 py-12 sm:py-16">
+    {!resetId && <>
     <header className="flex flex-wrap items-end justify-between gap-4"><SectionHeading eyebrow="QUẢN TRỊ NHÂN SỰ" title="Quản lý nhân viên" description="Tạo tài khoản, phân công điểm thuê, cập nhật hồ sơ và khóa hoặc mở khóa nhân viên." /><button onClick={() => void load()} disabled={loading} className="btn-outline">↻ Làm mới</button></header>
 
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{Array.isArray(error) ? error.join(', ') : error}</div>}
@@ -145,13 +150,12 @@ export function StaffPage() {
           </tbody></table></div>}
     </div>
     <p className="text-xs text-slate-500">Chỉ ADMIN được quản lý tài khoản nhân viên. Mật khẩu được băm trước khi lưu; API không trả về passwordHash.</p>
-    {resetId !== null && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" role="presentation">
-      <form onSubmit={resetStaffPassword} role="dialog" aria-modal="true" aria-labelledby="staff-reset-title" className="panel w-full max-w-md p-7">
+    </>}
+    {resetId !== null && <form onSubmit={resetStaffPassword} aria-labelledby="staff-reset-title" className="panel mx-auto w-full max-w-xl p-7">
         <h2 id="staff-reset-title" className="text-xl font-extrabold">Đặt lại mật khẩu nhân viên #{resetId}</h2>
         <p className="mt-3 text-sm text-slate-500">Mật khẩu mới tối thiểu 12 ký tự. Chỉ chia sẻ qua kênh an toàn và yêu cầu nhân viên tự đổi.</p>
         <label className="mt-5 block"><span className="field-label">Mật khẩu mới</span><input className="field" type="password" minLength={12} maxLength={72} autoComplete="new-password" required value={resetPassword} onChange={e => setResetPassword(e.target.value)} /></label>
         <div className="mt-6 flex justify-end gap-3"><button type="button" className="btn-outline" onClick={() => { setResetId(null); setResetPassword(''); }}>Hủy</button><button disabled={saving} className="btn-primary">Đặt lại</button></div>
-      </form>
-    </div>}
+      </form>}
   </section>;
 }

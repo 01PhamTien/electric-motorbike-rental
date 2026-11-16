@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
 import { api } from '../../services/api';
 
@@ -31,6 +31,8 @@ export function MyBookingsPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [filter, setFilter] = useState('ALL');
   const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { bookingId } = useParams();
   const [detail, setDetail] = useState<Booking | null>(null);
   const detailRequestId = useRef(0);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -57,14 +59,24 @@ export function MyBookingsPage() {
   }, [loggedIn]);
   useEffect(() => { void load(); }, [load]);
   const visible = filter === 'ALL' ? items : items.filter(b => b.status === filter);
+  useEffect(() => {
+    if (!bookingId) {
+      detailRequestId.current += 1; setDetail(null); setDetailLoading(false); return;
+    }
+    if (loading || !items.length) return;
+    const booking = items.find(item => item.id === Number(bookingId));
+    if (booking && detail?.id !== booking.id) void openDetails(booking);
+  }, [bookingId, loading, items]);
   function closeDetails() {
     detailRequestId.current += 1;
     setDetail(null);
     setDetailLoading(false);
+    navigate('/bookings/my');
   }
   async function openDetails(booking: Booking) {
     const requestId = ++detailRequestId.current;
-    setDetail(booking); setDetailLoading(true); setDetailError(''); setPayments([]); setHandovers([]); setIssues([]); setReview(null);
+    setDetail(booking); setDetailLoading(true); setDetailError('');
+    navigate('/bookings/my/'+booking.id); setPayments([]); setHandovers([]); setIssues([]); setReview(null);
     setIssueDescription('');setIssueLocation(null);setReviewComment('');setReviewRating(5);
     const [bookingResult, paymentResult, handoverResult, reviewResult, issueResult] = await Promise.allSettled([
       api.get('/bookings/' + booking.id), api.get('/bookings/' + booking.id + '/payments'),
@@ -126,6 +138,7 @@ export function MyBookingsPage() {
   const refundTotal = payments.filter(p=>p.purpose==='REFUND').reduce((sum,p)=>sum+Number(p.amount),0);
   return <div className="container-page py-10 sm:py-14">
     <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="HÀNH TRÌNH CỦA TÔI" title="Quản lý đơn thuê" description="Theo dõi lịch nhận và trả xe, trạng thái đặt chỗ, chi phí, giao nhận và lịch sử thanh toán trong từng chuyến đi."/><Link to="/vehicles" className="btn-dark">+ Đặt xe mới</Link></div>
+    {!bookingId && <>
     {successNotice && <div role="status" aria-live="polite" className="mt-6 flex items-start gap-3 rounded-2xl border border-[#d7eee0] bg-[#f0faf4] p-4 text-sm font-semibold text-[#247653]"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white">✓</span>{successNotice}<button onClick={()=>setSuccessNotice('')} className="ml-auto text-[#638276]" aria-label="Đóng thông báo">✕</button></div>}
     {params.get('created') === '1' && <div role="status" className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">✓ Yêu cầu đặt xe đã được gửi. Đơn đang chờ xác nhận; chưa có khoản tiền nào được tự động thu.</div>}
     {!loggedIn ? <div className="mt-8"><EmptyState title="Đăng nhập để xem đơn thuê" description="Bạn cần đăng nhập để theo dõi đơn và lịch sử đặt xe." action={<Link className="btn-primary" to="/login?redirect=%2Fbookings%2Fmy">Đăng nhập →</Link>} /></div> : <>
@@ -137,8 +150,9 @@ export function MyBookingsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf2ee] bg-[#fbfdfb] px-6 py-4"><button onClick={()=>void openDetails(b)} className="text-sm font-extrabold text-emerald-800 underline underline-offset-4">Xem chi tiết đơn →</button><div className="flex flex-wrap gap-2">{['PENDING', 'CONFIRMED'].includes(b.status) && (Date.now() < new Date(b.pickupAt).getTime() ? <button disabled={busyId === b.id} onClick={() => void cancel(b)} className="rounded-lg border border-rose-200 px-4 py-2 text-xs font-extrabold text-rose-700 hover:bg-rose-50">{busyId === b.id ? 'Đang hủy...' : 'Hủy đơn'}</button> : <span className="self-center text-xs text-slate-500">Liên hệ nhân viên để hủy</span>)}{b.status==='RENTING'&&<button onClick={()=>void openDetails(b)} className="rounded-lg bg-amber-100 px-4 py-2 text-xs font-extrabold text-amber-900">Báo sự cố / hết pin</button>}{b.status==='COMPLETED'&&<button onClick={()=>void openDetails(b)} className="rounded-lg bg-emerald-100 px-4 py-2 text-xs font-extrabold text-emerald-900">Đánh giá xe</button>}</div></div>
       </article>)}</div>}
     </>}
-    {detail && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071c21]/70 p-4 backdrop-blur-sm" onMouseDown={e=>{if(e.target===e.currentTarget)closeDetails();}}><section role="dialog" aria-modal="true" aria-labelledby="booking-detail-title" className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-[26px] border border-[#e5eee8] bg-white p-6 shadow-[0_28px_90px_rgba(24,55,43,.22)] sm:p-8">
-      <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">CHI TIẾT CHUYẾN THUÊ</p><h2 id="booking-detail-title" className="mt-2 text-2xl font-extrabold">Đơn thuê #{detail.id}</h2><span className={'mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold '+badge[detail.status]}>{labels[detail.status]}</span></div><button onClick={closeDetails} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Đóng">✕</button></div>
+    </>}
+    {detail && <section aria-labelledby="booking-detail-title" className="mx-auto w-full max-w-5xl rounded-[26px] border border-[#e5eee8] bg-white p-6 shadow-[0_18px_55px_rgba(24,55,43,.07)] sm:p-8">
+      <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">CHI TIẾT CHUYẾN THUÊ</p><h2 id="booking-detail-title" className="mt-2 text-2xl font-extrabold">Đơn thuê #{detail.id}</h2><span className={'mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold '+badge[detail.status]}>{labels[detail.status]}</span></div><button onClick={closeDetails} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Quay lại danh sách đơn">←</button></div>
       {detailLoading?<div className="mt-6"><LoadingState label="Đang tải thông tin đơn..."/></div>:<>
                 <section className="mt-6 rounded-2xl border border-[#e5eee8] bg-white p-5 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">TIẾN TRÌNH ĐƠN THUÊ</p><h3 className="mt-1 text-lg font-extrabold">Hành trình thuê xe</h3></div><span className={'rounded-full px-3 py-1.5 text-xs font-bold '+badge[detail.status]}>{labels[detail.status]}</span></div>{detail.status==='CANCELLED'||detail.status==='EXPIRED'?<p className="mt-4 rounded-xl bg-[#f7f9f7] p-4 text-sm text-slate-600">{detail.status==='CANCELLED'?'Đơn đã kết thúc theo yêu cầu hủy hoặc chính sách đặt thuê.':'Thời gian giữ chỗ đã kết thúc trước khi đơn được xác nhận.'}</p>:<div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">{[{label:'Đặt xe',done:true,sub:'Yêu cầu đã tạo'},{label:'Xác nhận',done:['CONFIRMED','RENTING','COMPLETED'].includes(detail.status),sub:'Trạm xác nhận'},{label:'Nhận xe',done:handovers.some(h=>h.kind==='PICKUP')||['RENTING','COMPLETED'].includes(detail.status),sub:'Bàn giao phương tiện'},{label:'Trả xe',done:handovers.some(h=>h.kind==='RETURN')||detail.status==='COMPLETED',sub:'Hoàn tất chuyến đi'}].map((step,index)=><div key={step.label} className="rounded-xl border border-[#e8efeb] bg-[#fbfdfb] p-3 sm:p-4"><div className="flex items-center gap-2"><span className={'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold '+(step.done?'bg-[#dff6e9] text-[#13865f]':'bg-[#edf1ee] text-[#91a099]')}>{step.done?'✓':index+1}</span><span className={'text-xs font-extrabold sm:text-sm '+(step.done?'text-[#315b4d]':'text-slate-400')}>{step.label}</span></div><p className="mt-3 text-[11px] leading-5 text-slate-500">{step.sub}</p><div className={'mt-3 h-1 rounded-full '+(step.done?'bg-[#8fe2b8]':'bg-[#e9efeb]')}/></div>)}</div>}</section>
         {detailError&&<p role="alert" className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{detailError}</p>}
@@ -153,7 +167,7 @@ export function MyBookingsPage() {
         <div className="mt-6"><h3 className="font-extrabold">Lịch sử báo cáo sự cố</h3>{!issues.length?<p className="mt-2 text-sm text-slate-500">Chưa có báo cáo sự cố.</p>:<div className="mt-3 space-y-3">{issues.map(issue=><div key={issue.id} className="rounded-xl border border-slate-100 p-4"><div className="flex flex-wrap justify-between gap-2"><strong className="text-sm">{issueLabels[issue.issueType]||issue.issueType} · {issue.severity}</strong><span className="text-xs font-bold text-sky-800">{issueStatus[issue.status]||issue.status}</span></div><p className="mt-2 text-sm text-slate-600">{issue.description}</p>{issue.resolutionNote&&<p className="mt-2 text-sm text-emerald-800">Xử lý: {issue.resolutionNote}</p>}<p className="mt-1 text-xs text-slate-400">{timeText(issue.createdAt)}</p></div>)}</div>}</div>
         <div className="mt-6"><h3 className="font-extrabold">Thanh toán và đối soát</h3>{!payments.length?<p className="mt-2 text-sm text-slate-500">Chưa có giao dịch được nhân viên ghi nhận.</p>:<><div className="mt-3 space-y-2">{payments.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-3 rounded-xl border border-slate-100 p-3 text-sm"><div><strong>{p.purpose}</strong><p className="text-xs text-slate-500">{p.method} · {timeText(p.createdAt)}{p.note?' · '+p.note:''}</p></div><strong className={p.purpose==='REFUND'?'text-rose-600':'text-emerald-700'}>{p.purpose==='REFUND'?'-':'+'}{money(p.amount)}</strong></div>)}</div><p className="mt-3 text-sm text-slate-600">Đã thu/ghi nhận: {money(paymentTotal)} · Đã hoàn: {money(refundTotal)}</p></>}</div>
       </>}
-      <div className="mt-7 flex flex-wrap justify-end gap-3"><Link to={'/bookings/'+detail.id+'/payments'} className="btn-outline">Mở trang giao dịch</Link><button onClick={closeDetails} className="btn-primary">Đóng</button></div>
-    </section></div>}
+      <div className="mt-7 flex flex-wrap justify-end gap-3"><Link to={'/bookings/'+detail.id+'/payments'} className="btn-outline">Mở trang giao dịch</Link><button onClick={closeDetails} className="btn-primary">Quay lại danh sách</button></div>
+    </section>}
   </div>;
 }

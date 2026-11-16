@@ -72,8 +72,6 @@ export class SePayService {
       operation: 'PURCHASE',
       order_description: 'VoltGo ' + (purpose === PaymentPurpose.DEPOSIT ? 'tien coc' : 'tien thue') + ' don #' + bookingId,
       order_invoice_number: attempt.invoiceNumber,
-      payment_method: 'BANK_TRANSFER',
-      customer_id: String(user.sub),
       success_url: returnBase + '/api/payments/sepay/return?bookingId=' + bookingId + '&invoice=' + encodeURIComponent(attempt.invoiceNumber) + '&result=success',
       error_url: returnBase + '/api/payments/sepay/return?bookingId=' + bookingId + '&invoice=' + encodeURIComponent(attempt.invoiceNumber) + '&result=error',
       cancel_url: returnBase + '/api/payments/sepay/return?bookingId=' + bookingId + '&invoice=' + encodeURIComponent(attempt.invoiceNumber) + '&result=cancel',
@@ -83,7 +81,7 @@ export class SePayService {
       environment: 'SANDBOX',
       action: CHECKOUT_URL,
       method: 'POST',
-      fields: { ...fields, signature: createSePaySignature(fields, secretKey) },
+      fields: { ...fields, lang: 'vi', signature: createSePaySignature(fields, secretKey) },
     };
   }
 

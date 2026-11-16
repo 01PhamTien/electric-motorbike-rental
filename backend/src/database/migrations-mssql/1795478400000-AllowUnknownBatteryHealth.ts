@@ -26,5 +26,13 @@ export class AllowUnknownBatteryHealth1795478400000 implements MigrationInterfac
     const unknown = await queryRunner.query('SELECT COUNT(*) AS [total] FROM [dbo].[batteries] WHERE [healthPercent] IS NULL');
     if (Number(unknown[0]?.total ?? 0) > 0) throw new Error('Record actual health measurements before reverting this migration.');
     await queryRunner.query('ALTER TABLE [dbo].[batteries] ALTER COLUMN [healthPercent] int NOT NULL');
+    await queryRunner.query(`
+      IF NOT EXISTS (
+        SELECT 1 FROM sys.default_constraints dc
+        INNER JOIN sys.columns c ON c.[object_id] = dc.[parent_object_id] AND c.[column_id] = dc.[parent_column_id]
+        WHERE dc.[parent_object_id] = OBJECT_ID(N'[dbo].[batteries]') AND c.[name] = N'healthPercent'
+      )
+      ALTER TABLE [dbo].[batteries] ADD CONSTRAINT [DF_batteries_health] DEFAULT (100) FOR [healthPercent]
+    `);
   }
 }

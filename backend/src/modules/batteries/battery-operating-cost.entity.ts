@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Battery } from './battery.entity';
 import { BatteryMaintenanceTask } from './battery-health.entity';
 import { Station } from '../stations/station.entity';
@@ -7,9 +7,15 @@ import { User } from '../users/user.entity';
 export enum BatteryCostType { CHARGING='CHARGING', MAINTENANCE='MAINTENANCE', REPLACEMENT='REPLACEMENT', OTHER='OTHER' }
 
 @Entity('battery_operating_costs')
+@Check('CK_battery_cost_type', "[costType] IN ('CHARGING','MAINTENANCE','REPLACEMENT','OTHER')")
+@Check('CK_battery_cost_amount','[amount] >= 0')
+@Check('CK_battery_cost_energy','[energyKwh] IS NULL OR [energyKwh] >= 0')
+@Check('CK_battery_cost_unit_price','[unitPrice] IS NULL OR [unitPrice] >= 0')
+@Check('CK_battery_cost_charging', "[costType]<>'CHARGING' OR ([energyKwh] IS NOT NULL AND [unitPrice] IS NOT NULL)")
 @Index('IDX_battery_cost_station_occurred',['stationId','occurredAt'])
 @Index('IDX_battery_cost_battery_occurred',['batteryId','occurredAt'])
 @Index('IDX_battery_cost_type_occurred',['costType','occurredAt'])
+@Index('UX_battery_cost_maintenance_task',['maintenanceTaskId'],{unique:true,where:'[maintenanceTaskId] IS NOT NULL'})
 export class BatteryOperatingCost {
   @PrimaryGeneratedColumn() id:number;
   @Column({type:'int'}) batteryId:number;

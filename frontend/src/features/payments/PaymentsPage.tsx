@@ -4,10 +4,10 @@ import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../..
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../../services/api';
 
-type Payment = { id: number; purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND'; method: 'CASH'|'TRANSFER'; amount: string; note: string|null; createdAt: string };
+type Payment = { id: number; purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND'; method: 'CASH'|'TRANSFER'|'VNPAY'; amount: string; note: string|null; createdAt: string };
 type BookingFinance = { rentalAmount: string; depositSnapshot: string; status: string };
 const purposes = { RENT:'Tiền thuê', DEPOSIT:'Tiền cọc', EXTRA:'Phụ phí', REFUND:'Hoàn cọc' };
-const methods = { CASH:'Tiền mặt', TRANSFER:'Chuyển khoản' };
+const methods = { CASH:'Tiền mặt', TRANSFER:'Chuyển khoản', VNPAY:'VNPay Sandbox' };
 function getError(error: unknown) {
   const message = (error as {response?:{data?:{message?:string|string[]}}})?.response?.data?.message;
   return Array.isArray(message) ? message.join(', ') : message || 'Không thể hoàn tất thao tác.';
@@ -59,7 +59,7 @@ export function PaymentsPage() {
     finally { setBusy(false); }
   }
   return <div className="container-page py-10 sm:py-14"><div className="flex flex-wrap items-end justify-between gap-5"><SectionHeading eyebrow="THANH TOÁN VÀ ĐỐI SOÁT" title={'Giao dịch đơn #' + (id || '')} description="Lịch sử tiền thuê, tiền cọc, phụ phí và hoàn cọc đã được ghi nhận trong hệ thống."/><Link to={staff?'/operations':'/bookings/my'} className="btn-outline">← Quay lại đơn thuê</Link></div>
-    <div className="mt-8 rounded-2xl border border-[#e7eee9] bg-[#f7fbf8] p-5 text-sm leading-7 text-[#526b61]"><strong>Lưu ý:</strong> Đây là màn hình ghi nhận thanh toán thủ công. Hệ thống chưa xử lý chuyển khoản hoặc hoàn tiền tự động qua cổng thanh toán. Vui lòng đối chiếu giao dịch thật trước khi lưu.</div>
+    <div className="mt-8 rounded-2xl border border-[#e7eee9] bg-[#f7fbf8] p-5 text-sm leading-7 text-[#526b61]"><strong>Lưu ý:</strong> Khu vực nhân viên dùng để ghi nhận giao dịch thủ công đã xác minh. Khách hàng có thể thanh toán trực tuyến qua VNPay Sandbox từ chi tiết đơn thuê; hệ thống chỉ ghi nhận khi IPN hợp lệ được xác thực.</div>
     {notice && <p role="status" className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm text-[#159b70]">{notice}</p>}
     {error && <p role="alert" className="mt-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
     {booking && <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><div className="panel border-[#e7eee9] p-5 shadow-[0_14px_38px_rgba(30,90,65,.045)]"><p className="field-label">Tiền thuê theo đơn</p><p className="mt-2 text-xl font-extrabold">{money(booking.rentalAmount)}</p><p className="mt-1 text-xs text-slate-500">Còn ghi nhận: {money(rentRemaining ?? 0)}</p></div><div className="panel p-5"><p className="field-label">Tiền cọc theo đơn</p><p className="mt-2 text-xl font-extrabold">{money(booking.depositSnapshot)}</p><p className="mt-1 text-xs text-slate-500">Còn thu: {money(depositRemainingToCollect ?? 0)}</p></div><div className="panel p-5"><p className="field-label">Đã thu tiền cọc</p><p className="mt-2 text-xl font-extrabold text-emerald-700">{money(depositPaid)}</p><p className="mt-1 text-xs text-slate-500">Đã hoàn: {money(refunded)}</p></div><div className="panel p-5"><p className="field-label">Cọc còn có thể hoàn</p><p className="mt-2 text-xl font-extrabold text-sky-700">{money(depositAvailableToRefund)}</p><p className="mt-1 text-xs text-slate-500">Chỉ hoàn sau khi trả xe</p></div></section>}

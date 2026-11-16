@@ -17,6 +17,8 @@ export class HandoverRecord {
   inspectionChecklist: string | null;
   @Column({ type: 'nvarchar', length: 1000, nullable: true })
   damageNotes: string | null;
+  @Column({ type: 'bit', default: false })
+  requiresMaintenance: boolean;
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true })
   photoUrls: string | null;
   @ManyToOne(() => User, { onDelete: process.env.DB_TYPE === 'mssql' ? 'NO ACTION' : 'RESTRICT' }) @JoinColumn({ name: 'staffId' }) staff: User;

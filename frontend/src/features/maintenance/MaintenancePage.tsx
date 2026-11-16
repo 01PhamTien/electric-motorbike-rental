@@ -46,7 +46,7 @@ export function MaintenancePage() {
     e.preventDefault();setBusy(true);setError('');setNotice('');
     try {
       await api.post('/maintenance-records', { vehicleId:Number(form.vehicleId),scheduledAt:new Date(form.scheduledAt).toISOString(),reason:form.reason,description:form.description,cost:Number(form.cost) });
-      setShowForm(false); setNotice('Đã tạo phiếu bảo trì. Xe sẽ được cập nhật trạng thái trong hệ thống.'); await load();
+      navigate('/maintenance'); setNotice('Đã tạo phiếu bảo trì. Xe sẽ được cập nhật trạng thái trong hệ thống.'); await load();
     } catch(err) { setError(errorText(err)); } finally { setBusy(false); }
   }
   async function saveSchedule(e: React.FormEvent) {

@@ -10,7 +10,8 @@ import { BatteryStatus } from './battery.entity';
 import { BatteriesService } from './batteries.service';
 import { BatteryTransfersService } from './battery-transfers.service';
 import { BatteryStocktakesService } from './battery-stocktakes.service';
-import { CreateBatteryTransferDto, CreateBatteryStocktakeDto, UpdateBatteryStocktakeItemDto, AddBatteryStocktakeExtraDto } from './batteries.dto';
+import { BatteryHealthService } from './battery-health.service';
+import { CreateBatteryTransferDto, CreateBatteryStocktakeDto, UpdateBatteryStocktakeItemDto, AddBatteryStocktakeExtraDto, RecordBatteryHealthDto, CreateBatteryMaintenanceTaskDto, CompleteBatteryMaintenanceTaskDto } from './batteries.dto';
 import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
 
 @ApiTags('Batteries and swaps')
@@ -19,7 +20,7 @@ import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReser
 @Roles(Role.ADMIN,Role.STAFF)
 @Controller('batteries')
 export class BatteriesController {
-  constructor(private readonly service:BatteriesService,private readonly transfers:BatteryTransfersService,private readonly stocktakes:BatteryStocktakesService){}
+  constructor(private readonly service:BatteriesService,private readonly transfers:BatteryTransfersService,private readonly stocktakes:BatteryStocktakesService,private readonly health:BatteryHealthService){}
   @Get('transfers')
   @Roles(Role.ADMIN,Role.STAFF)
   listTransfers(@CurrentUser() user:JwtUser){return this.transfers.list(user);}
@@ -53,6 +54,30 @@ export class BatteriesController {
   @Patch('stocktakes/:id/approve')
   @Roles(Role.ADMIN)
   approveStocktake(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number){return this.stocktakes.approve(user,id);}
+  @Get('health/summary')
+  @Roles(Role.ADMIN,Role.STAFF)
+  healthSummary(@CurrentUser() user:JwtUser,@Query('stationId') stationId?:string){return this.health.summary(user,stationId?Number(stationId):undefined);}
+  @Get(':id/health-history')
+  @Roles(Role.ADMIN,Role.STAFF)
+  healthHistory(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number){return this.health.history(user,id);}
+  @Post(':id/health-checks')
+  @Roles(Role.ADMIN,Role.STAFF)
+  recordHealth(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:RecordBatteryHealthDto){return this.health.record(user,id,dto);}
+  @Get('maintenance')
+  @Roles(Role.ADMIN,Role.STAFF)
+  listMaintenance(@CurrentUser() user:JwtUser,@Query('stationId') stationId?:string){return this.health.listTasks(user,stationId?Number(stationId):undefined);}
+  @Post('maintenance')
+  @Roles(Role.ADMIN,Role.STAFF)
+  createMaintenance(@CurrentUser() user:JwtUser,@Body() dto:CreateBatteryMaintenanceTaskDto){return this.health.createTask(user,dto);}
+  @Patch('maintenance/:id/start')
+  @Roles(Role.ADMIN,Role.STAFF)
+  startMaintenance(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number){return this.health.updateTask(user,id,'start');}
+  @Patch('maintenance/:id/complete')
+  @Roles(Role.ADMIN,Role.STAFF)
+  completeMaintenance(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:CompleteBatteryMaintenanceTaskDto){return this.health.updateTask(user,id,'complete',dto);}
+  @Patch('maintenance/:id/cancel')
+  @Roles(Role.ADMIN,Role.STAFF)
+  cancelMaintenance(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number){return this.health.updateTask(user,id,'cancel');}
   @Post('reservations')
   @Roles(Role.CUSTOMER)
   reserve(@CurrentUser() user:JwtUser,@Body() dto:CreateBatteryReservationDto){return this.service.reserve(user,dto);}

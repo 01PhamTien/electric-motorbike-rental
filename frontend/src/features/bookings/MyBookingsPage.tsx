@@ -165,6 +165,6 @@ export function MyBookingsPage() {
         <div className="mt-6"><h3 className="font-extrabold">Thanh toán và đối soát</h3>{!payments.length?<p className="mt-2 text-sm text-slate-500">Chưa có giao dịch được nhân viên ghi nhận.</p>:<><div className="mt-3 space-y-2">{payments.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-3 rounded-xl border border-slate-100 p-3 text-sm"><div><strong>{p.purpose}</strong><p className="text-xs text-slate-500">{p.method} · {timeText(p.createdAt)}{p.note?' · '+p.note:''}</p></div><strong className={p.purpose==='REFUND'?'text-rose-600':'text-emerald-700'}>{p.purpose==='REFUND'?'-':'+'}{money(p.amount)}</strong></div>)}</div><p className="mt-3 text-sm text-slate-600">Đã thu/ghi nhận: {money(paymentTotal)} · Đã hoàn: {money(refundTotal)}</p></>}</div>
       </>}
       <div className="mt-7 flex flex-wrap justify-end gap-3"><Link to={'/bookings/'+detail.id+'/payments'} className="btn-outline">Mở trang giao dịch</Link><button onClick={closeDetails} className="btn-primary">Quay lại danh sách</button></div>
-    </section></div>}
+    </section>}
   </div>;
 }

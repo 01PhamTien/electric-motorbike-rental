@@ -28,7 +28,13 @@ export function BatteriesPage(){
   const [batteries,setBatteries]=useState<Battery[]>([]);
   const [history,setHistory]=useState<Swap[]>([]);
   const [historySearch,setHistorySearch]=useState('');
-  const [historyVehicleId,setHistoryVehicleId]=useState('');\n  const [historyFrom,setHistoryFrom]=useState('');\n  const [historyTo,setHistoryTo]=useState('');\n  const [historyPage,setHistoryPage]=useState(1);\n  const [historyTotal,setHistoryTotal]=useState(0);\n  const [historyPages,setHistoryPages]=useState(0);\n  const [historyLoading,setHistoryLoading]=useState(false);
+  const [historyVehicleId,setHistoryVehicleId]=useState('');
+  const [historyFrom,setHistoryFrom]=useState('');
+  const [historyTo,setHistoryTo]=useState('');
+  const [historyPage,setHistoryPage]=useState(1);
+  const [historyTotal,setHistoryTotal]=useState(0);
+  const [historyPages,setHistoryPages]=useState(0);
+  const [historyLoading,setHistoryLoading]=useState(false);
   const [reservations,setReservations]=useState<Reservation[]>([]);
   const [transfers,setTransfers]=useState<BatteryTransfer[]>([]); 
   const [stocktakes,setStocktakes]=useState<Stocktake[]>([]);

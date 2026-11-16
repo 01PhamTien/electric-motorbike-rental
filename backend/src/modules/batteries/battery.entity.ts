@@ -8,10 +8,11 @@ export enum BatteryStatus {
   CHARGING = 'CHARGING',
   MAINTENANCE = 'MAINTENANCE',
   RETIRED = 'RETIRED',
+  TRANSFERRING = 'TRANSFERRING',
 }
 
 @Entity('batteries')
-@Check('CK_batteries_status', "[status] IN ('FULL','INSTALLED','CHARGING','MAINTENANCE','RETIRED')")
+@Check('CK_batteries_status', "[status] IN ('FULL','INSTALLED','CHARGING','MAINTENANCE','RETIRED','TRANSFERRING')")
 @Check('CK_batteries_health', '[healthPercent] BETWEEN 1 AND 100')
 @Check('CK_batteries_cycle', '[cycleCount] >= 0')
 @Index('IDX_batteries_station_status', ['stationId', 'status'])

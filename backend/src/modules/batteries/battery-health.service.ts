@@ -111,10 +111,9 @@ export class BatteryHealthService {
     if(user.role===Role.STAFF){if(user.stationId==null)throw new ForbiddenException('Tài khoản chưa được phân công trạm');return {...filters,stationId:user.stationId};}
     return filters;
   }
-  async createOperatingCost(user:JwtUser,dto:{batteryId:number;costType:BatteryCostType;amount?:number;energyKwh?:number;unitPrice?:number;occurredAt:string;note?:string}){
-    if(dto.costType===BatteryCostType.MAINTENANCE)throw new BadRequestException('Chi phí bảo dưỡng được ghi tự động khi hoàn tất phiếu');
+  async createOperatingCost(user:JwtUser,dto:{batteryId:number;costType:'CHARGING'|'REPLACEMENT'|'OTHER';amount?:number;energyKwh?:number;unitPrice?:number;occurredAt:string;note?:string}){
     let amount:number;
-    if(dto.costType===BatteryCostType.CHARGING){
+    if(dto.costType==='CHARGING'){
       if(dto.energyKwh===undefined||dto.unitPrice===undefined)throw new BadRequestException('Chi phí sạc cần nhập kWh và đơn giá điện');
       if(!Number.isFinite(dto.energyKwh)||dto.energyKwh<=0||!Number.isFinite(dto.unitPrice)||dto.unitPrice<0)throw new BadRequestException('kWh phải lớn hơn 0 và đơn giá không âm');
       amount=Math.round(dto.energyKwh*dto.unitPrice*100)/100;
@@ -129,7 +128,7 @@ export class BatteryHealthService {
       if(!battery)throw new NotFoundException('Không tìm thấy pin');
       this.assertStation(user,battery.stationId);
       const repo=manager.getRepository(BatteryOperatingCost);
-      return repo.save(repo.create({batteryId:battery.id,stationId:battery.stationId,costType:dto.costType,amount:amount.toFixed(2),energyKwh:dto.costType===BatteryCostType.CHARGING?dto.energyKwh!.toFixed(3):null,unitPrice:dto.costType===BatteryCostType.CHARGING?dto.unitPrice!.toFixed(2):null,maintenanceTaskId:null,recordedById:user.sub,occurredAt,note:dto.note?.trim()||null}));
+      return repo.save(repo.create({batteryId:battery.id,stationId:battery.stationId,costType:dto.costType as BatteryCostType,amount:amount.toFixed(2),energyKwh:dto.costType===BatteryCostType.CHARGING?dto.energyKwh!.toFixed(3):null,unitPrice:dto.costType===BatteryCostType.CHARGING?dto.unitPrice!.toFixed(2):null,maintenanceTaskId:null,recordedById:user.sub,occurredAt,note:dto.note?.trim()||null}));
     });
     await this.audit.record(user.sub,'BATTERY_OPERATING_COST_RECORDED','BATTERY_COST',entry.id,{batteryId:entry.batteryId,costType:entry.costType,amount:entry.amount});
     return entry;

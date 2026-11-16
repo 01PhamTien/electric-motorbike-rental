@@ -1,3 +1,4 @@
+import { IsArray, ArrayNotEmpty, ArrayMaxSize, ArrayUnique } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
@@ -24,5 +25,12 @@ export class CreateBatteryReservationDto {
 }
 export class RedeemBatteryReservationDto {
   @ApiProperty({example:3}) @IsInt() @Min(1) replacementBatteryId:number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}
+
+export class CreateBatteryTransferDto {
+  @ApiProperty({example:1}) @IsInt() @Min(1) sourceStationId:number;
+  @ApiProperty({example:2}) @IsInt() @Min(1) destinationStationId:number;
+  @ApiProperty({example:[11,12,13]}) @IsArray() @ArrayNotEmpty() @ArrayMaxSize(100) @ArrayUnique() @IsInt({each:true}) @Min(1,{each:true}) batteryIds:number[];
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
 }

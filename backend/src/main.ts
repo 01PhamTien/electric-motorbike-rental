@@ -3,13 +3,10 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ApiSecurityMiddleware } from './common/security/api-security.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
-  const securityMiddleware = new ApiSecurityMiddleware();
-  app.use(securityMiddleware.use.bind(securityMiddleware));
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true,

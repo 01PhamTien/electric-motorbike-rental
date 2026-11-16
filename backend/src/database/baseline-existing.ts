@@ -1,4 +1,5 @@
 import { migrationDataSource } from './data-source';
+import { inspectLegacyBaseline } from './legacy-baseline-guard';
 
 /**
  * Read-only diagnostic for a legacy SQL Server schema.
@@ -24,27 +25,35 @@ async function main() {
     const existing = await runner.query(
       "SELECT COUNT(*) AS [total] FROM [sys].[tables] WHERE [is_ms_shipped] = 0 AND [name] <> N'migrations'",
     );
-    if (Number(existing[0]?.total ?? 0) === 0) {
+    const applicationTableCount = Number(existing[0]?.total ?? 0);
+    if (applicationTableCount === 0) {
+      inspectLegacyBaseline({ applicationTableCount, migrationHistoryRows: 0, entityDriftCount: 0 });
       console.log('Database has no application tables. Use the normal SQL Server migration path.');
       return;
     }
 
+    let migrationHistoryRows = 0;
     const historyExists = await runner.hasTable('migrations');
     if (historyExists) {
       const history = await runner.query(
         "SELECT COUNT(*) AS [total] FROM [dbo].[migrations]",
       );
-      console.log('Existing migration history rows:', Number(history[0]?.total ?? 0));
-    } else {
-      console.log('No TypeORM migration history table exists.');
+      migrationHistoryRows = Number(history[0]?.total ?? 0);
     }
+
+    // Refuse known migration history before attempting any adoption-related action.
+    inspectLegacyBaseline({ applicationTableCount, migrationHistoryRows, entityDriftCount: 0 });
 
     const changes = await migrationDataSource.driver.createSchemaBuilder().log();
     if (changes.upQueries.length) {
       console.error('ENTITY_SCHEMA_DRIFT:');
       for (const item of changes.upQueries.slice(0, 20)) console.error(item.query);
-      throw new Error('Schema differs from TypeORM entity metadata. No changes were made.');
     }
+    inspectLegacyBaseline({
+      applicationTableCount,
+      migrationHistoryRows,
+      entityDriftCount: changes.upQueries.length,
+    });
 
     console.log('Entity metadata comparison passed, but this is NOT sufficient to baseline a populated database.');
     console.log('No tables or rows were changed. Migration adoption remains disabled pending the full verifier in issue #64.');

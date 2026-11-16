@@ -132,7 +132,7 @@ export class VnPayService {
   async handleIpn(query: VnPayParams): Promise<{ RspCode: string; Message: string }> {
     const secret = this.config.get<string>('VNPAY_HASH_SECRET')?.trim();
     const tmnCode = this.config.get<string>('VNPAY_TMN_CODE')?.trim();
-    if (!secret || !tmnCode || !query.vnp_TxnRef || !/^\\d+$/.test(query.vnp_Amount || '') || !verifyVnPaySignature(query, secret)) {
+    if (!secret || !tmnCode || !query.vnp_TxnRef || !/^\d+$/.test(query.vnp_Amount || '') || !verifyVnPaySignature(query, secret)) {
       return { RspCode: '97', Message: 'Invalid signature' };
     }
     if (query.vnp_TmnCode !== tmnCode) return { RspCode: '97', Message: 'Invalid merchant' };

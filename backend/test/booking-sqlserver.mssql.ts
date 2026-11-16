@@ -196,15 +196,15 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
     const autoMaintenance = await dataSource.getRepository(MaintenanceRecord).findOneByOrFail({ id: flaggedReturn.maintenanceRecordId! });
     assert.equal(autoMaintenance.status, MaintenanceStatus.SCHEDULED);
     assert.equal(autoMaintenance.vehicleId, vehicle.id);
-    // Keep the shared CI database deterministic for the later demo-seed count checks.
-    await dataSource.getRepository(MaintenanceRecord).delete(autoMaintenance.id);
-    quarantinedVehicle.status = VehicleStatus.ACTIVE;
-    await dataSource.getRepository(Vehicle).save(quarantinedVehicle);
     await assert.rejects(() => bookingService.create(user(customers[1].id), {
       vehicleId: vehicle.id,
       pickupAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
       returnAt: new Date(Date.now() + 8 * 86_400_000).toISOString(),
     }), /Xe hiện không thể đặt/);
+    // Keep the shared CI database deterministic for the later demo-seed count checks.
+    await dataSource.getRepository(MaintenanceRecord).delete(autoMaintenance.id);
+    quarantinedVehicle.status = VehicleStatus.ACTIVE;
+    await dataSource.getRepository(Vehicle).save(quarantinedVehicle);
 
     // Operational queue must respect station boundaries and reject customers.
     const admin: JwtUser = { sub: 1001, email: 'admin@example.test', role: Role.ADMIN, stationId: null };

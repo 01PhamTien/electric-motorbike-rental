@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
-export function Brand({ light = false }: { light?: boolean }) {
-  return <Link to="/" className="inline-flex items-center gap-3" aria-label="VoltGo Đà Nẵng - Trang chủ">
+export function Brand({ light = false, to = '/' }: { light?: boolean; to?: string }) {
+  return <Link to={to} className="inline-flex items-center gap-3" aria-label="VoltGo Đà Nẵng - Trang chủ">
     <span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36" width="30" height="30" fill="none"><path d="M20.6 3.5 7.8 19h10l-2.1 13.5L28.5 16H19l1.6-12.5Z" fill="currentColor"/></svg></span>
     <span className={light ? 'text-white' : 'text-slate-950'}><strong className="block text-xl font-extrabold tracking-[-.06em] leading-none">voltgo<span className="text-emerald-500">.</span></strong><span className="mt-1 block text-[9px] font-bold uppercase tracking-[.22em] opacity-60">ĐÀ NẴNG · E-MOBILITY</span></span>
   </Link>;

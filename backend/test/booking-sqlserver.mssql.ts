@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { sqlServerConnectionOptions } from '../src/database/sqlserver-options';
 import { BookingStatus } from '../src/common/enums/booking-status.enum';
+import { VehicleStatus } from '../src/common/enums/vehicle-status.enum';
 import { Role } from '../src/common/enums/role.enum';
 import { UserStatus } from '../src/common/enums/user-status.enum';
 import { UsersService } from '../src/modules/users/users.service';

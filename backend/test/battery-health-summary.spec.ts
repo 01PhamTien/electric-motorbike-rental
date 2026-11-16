@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import assert = require('node:assert/strict');
 import test = require('node:test');
 import { BatteryHealthService } from '../src/modules/batteries/battery-health.service';
+import { BatteriesService } from '../src/modules/batteries/batteries.service';
 import { Role } from '../src/common/enums/role.enum';
 function serviceFor(rows: any[]) {
   const calls: any[] = [];
@@ -31,4 +32,20 @@ test('unassigned staff receives an empty health summary', async () => {
   const { service, calls } = serviceFor([]);
   const result = await service.summary({ sub: 5, role: Role.STAFF, stationId: null } as any);
   assert.equal(result.total, 0); assert.equal(result.unknown, 0); assert.equal(calls.length, 0);
+});
+test('creating a battery without a health measurement keeps health unknown', async () => {
+  const batteryRepository: any = {
+    findOne: async () => null,
+    create: (value: any) => value,
+    save: async (value: any) => ({ id: 9, ...value }),
+  };
+  const stationRepository: any = { findOne: async () => ({ id: 2, isActive: true }) };
+  const service = new BatteriesService(
+    {} as any, batteryRepository, {} as any, {} as any, stationRepository, {} as any,
+  );
+  const battery = await service.create(
+    { sub: 1, role: Role.ADMIN, stationId: null } as any,
+    { serialNumber: 'VG-BAT-NEW', stationId: 2 } as any,
+  );
+  assert.equal(battery.healthPercent, null);
 });

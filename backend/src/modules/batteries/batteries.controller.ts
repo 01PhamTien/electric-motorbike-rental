@@ -24,8 +24,6 @@ class BatterySwapHistoryQueryDto {
   @IsOptional() @IsDateString() to?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 20;
-  @Patch(':id/status') updateStatus(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:UpdateBatteryStatusDto){return this.service.updateStatus(user,id,dto);}
-  @Get('charging/history') chargingHistory(@CurrentUser() user:JwtUser,@Query() query:BatteryChargeHistoryQueryDto){return this.service.chargingHistory(user,query);}
 }
 
 class BatteryInventoryQueryDto {
@@ -140,4 +138,6 @@ export class BatteriesController {
   @Post('swap') swap(@CurrentUser() user:JwtUser,@Body() dto:SwapBatteryDto){return this.service.swap(user,dto);}
   @Get('swaps/history') history(@CurrentUser() user:JwtUser,@Query() query:BatterySwapHistoryQueryDto){return this.service.history(user,query);}
   @Patch(':id/complete-charging') completeCharging(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:CompleteBatteryChargingDto){return this.service.completeCharging(user,id,dto);}
+  @Patch(':id/status') updateStatus(@CurrentUser() user:JwtUser,@Param('id',ParseIntPipe) id:number,@Body() dto:UpdateBatteryStatusDto){return this.service.updateStatus(user,id,dto);}
+  @Get('charging/history') chargingHistory(@CurrentUser() user:JwtUser,@Query() query:BatteryChargeHistoryQueryDto){return this.service.chargingHistory(user,query);}
 }

@@ -47,6 +47,7 @@ export function MyBookingsPage() {
   const [issueDescription,setIssueDescription]=useState('');
   const [issueLocation,setIssueLocation]=useState<{latitude:number;longitude:number}|null>(null);
   const [issueBusy,setIssueBusy]=useState(false);
+  const [vnpayBusy,setVnpayBusy]=useState(false);
   const loggedIn = Boolean(localStorage.getItem('accessToken'));
   const load = useCallback(async () => {
     if (!loggedIn) { setLoading(false); return; }
@@ -56,6 +57,22 @@ export function MyBookingsPage() {
     finally { setLoading(false); }
   }, [loggedIn]);
   useEffect(() => { void load(); }, [load]);
+  const paymentReturn = params.get('payment');
+  const returnedTxnRef = params.get('txnRef');
+  useEffect(() => {
+    if (paymentReturn !== 'processing' || !returnedTxnRef) return;
+    let active = true;
+    api.get('/payments/vnpay/status/' + encodeURIComponent(returnedTxnRef)).then(({data}) => {
+      if (!active) return;
+      if (data.status === 'PAID') setSuccessNotice('VNPay đã xác nhận thanh toán thành công. Giao dịch đã được cập nhật vào lịch sử đơn.');
+      else if (data.status === 'FAILED') setError('Giao dịch VNPay không thành công. Bạn có thể thử thanh toán lại.');
+      else setSuccessNotice('Đã quay lại từ VNPay. Hệ thống đang chờ IPN xác thực từ cổng thanh toán; trạng thái trên trình duyệt chưa phải xác nhận thanh toán.');
+      void load();
+    }).catch(() => {
+      if (active) setSuccessNotice('Đã quay lại từ VNPay. Vui lòng làm mới sau ít phút để hệ thống cập nhật kết quả IPN.');
+    });
+    return () => { active = false; };
+  }, [paymentReturn, returnedTxnRef, load]);
   const visible = filter === 'ALL' ? items : items.filter(b => b.status === filter);
   function closeDetails() {
     detailRequestId.current += 1;
@@ -79,6 +96,18 @@ export function MyBookingsPage() {
     if (reviewResult.status === 'fulfilled') setReview(reviewResult.value.data);
     if (issueResult.status === 'fulfilled') setIssues(Array.isArray(issueResult.value.data) ? issueResult.value.data : issueResult.value.data?.items ?? []);
     setDetailLoading(false);
+  }
+  async function startVnPayPayment(purpose: 'DEPOSIT'|'RENT') {
+    if (!detail || vnpayBusy) return;
+    setVnpayBusy(true);setDetailError('');
+    try {
+      const idempotencyKey = 'voltgo-' + detail.id + '-' + purpose.toLowerCase() + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+      const {data} = await api.post('/payments/vnpay/bookings/' + detail.id + '/checkout', { purpose, idempotencyKey });
+      if (!data?.paymentUrl || typeof data.paymentUrl !== 'string' || !data.paymentUrl.startsWith('https://sandbox.vnpayment.vn/')) {
+        throw new Error('Địa chỉ thanh toán VNPay Sandbox không hợp lệ.');
+      }
+      window.location.assign(data.paymentUrl);
+    } catch(error) { setDetailError(getError(error)); setVnpayBusy(false); }
   }
   async function cancel(booking: Booking) {
     const now = Date.now();
@@ -128,6 +157,7 @@ export function MyBookingsPage() {
     <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="HÀNH TRÌNH CỦA TÔI" title="Quản lý đơn thuê" description="Theo dõi lịch nhận và trả xe, trạng thái đặt chỗ, chi phí, giao nhận và lịch sử thanh toán trong từng chuyến đi."/><Link to="/vehicles" className="btn-dark">+ Đặt xe mới</Link></div>
     {successNotice && <div role="status" aria-live="polite" className="mt-6 flex items-start gap-3 rounded-2xl border border-[#d7eee0] bg-[#f0faf4] p-4 text-sm font-semibold text-[#247653]"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white">✓</span>{successNotice}<button onClick={()=>setSuccessNotice('')} className="ml-auto text-[#638276]" aria-label="Đóng thông báo">✕</button></div>}
     {params.get('created') === '1' && <div role="status" className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">✓ Yêu cầu đặt xe đã được gửi. Đơn đang chờ xác nhận; chưa có khoản tiền nào được tự động thu.</div>}
+    {paymentReturn === 'processing' && <div role="status" className="mt-8 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm font-semibold text-sky-900">Đã quay lại từ VNPay. Chỉ kết quả IPN đã được backend xác minh mới được xem là thanh toán thành công.</div>}
     {!loggedIn ? <div className="mt-8"><EmptyState title="Đăng nhập để xem đơn thuê" description="Bạn cần đăng nhập để theo dõi đơn và lịch sử đặt xe." action={<Link className="btn-primary" to="/login?redirect=%2Fbookings%2Fmy">Đăng nhập →</Link>} /></div> : <>
       <div className="mt-8 flex flex-wrap gap-2">{[{value:'ALL',label:'Tất cả'},...Object.entries(labels).map(([value,label]) => ({value,label}))].map(item => <button key={item.value} onClick={() => setFilter(item.value)} className={'rounded-full px-4 py-2 text-xs font-bold transition ' + (filter === item.value ? 'bg-[#36c995] text-[#123c30]' : 'border border-[#e8efeb] bg-white text-slate-600 hover:bg-[#f0faf4]')}>{item.label}</button>)}</div>
       {error && <div role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error} <button onClick={() => void load()} className="ml-2 font-bold underline">Thử lại</button></div>}
@@ -151,7 +181,11 @@ export function MyBookingsPage() {
         {detail.status==='RENTING'&&<div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-5"><h3 className="font-extrabold text-rose-950">Cần hỗ trợ trong chuyến đi?</h3><p className="mt-2 text-sm leading-6 text-rose-900">Nếu xe hỏng, gần hết pin hoặc xảy ra va chạm, hãy dừng xe ở vị trí an toàn, bật cảnh báo nếu có và gửi báo cáo kèm GPS. Trường hợp có người bị thương hoặc nguy hiểm tức thời, hãy gọi dịch vụ khẩn cấp trước, không chờ phản hồi trên website.</p>{detail.vehicle?.station?.phone&&<a href={'tel:'+detail.vehicle.station.phone.replace(/[^+\\d]/g,'')} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-rose-700 px-4 py-3 text-sm font-extrabold text-white">☎ Gọi trực tiếp trạm: {detail.vehicle.station.phone}</a>}<form onSubmit={submitIssue} className="mt-4 space-y-3"><div className="grid gap-3 sm:grid-cols-2"><label><span className="field-label">Vấn đề</span><select className="field" value={issueType} onChange={e=>setIssueType(e.target.value)}><option value="LOW_BATTERY">Xe sắp hết pin</option><option value="BREAKDOWN">Xe bị hỏng / không chạy</option><option value="ACCIDENT">Tai nạn / va chạm</option><option value="OTHER">Vấn đề khác</option></select></label><label><span className="field-label">Mức độ</span><select className="field" value={issueSeverity} onChange={e=>setIssueSeverity(e.target.value)}><option value="LOW">Thấp</option><option value="MEDIUM">Trung bình</option><option value="HIGH">Cao</option><option value="CRITICAL">Khẩn cấp</option></select></label></div><label><span className="field-label">Mô tả và vị trí hiện tại</span><textarea required minLength={10} maxLength={2000} className="field min-h-24" value={issueDescription} onChange={e=>setIssueDescription(e.target.value)} placeholder="Ví dụ: xe báo lỗi E03, còn 8% pin, đang ở gần..."/></label><div className="flex flex-wrap items-center justify-between gap-3"><button type="button" onClick={captureIssueLocation} className="text-xs font-bold text-sky-800 underline">{issueLocation?'✓ Đã đính kèm vị trí':'Đính kèm vị trí GPS (tùy chọn)'}</button><button disabled={issueBusy||issueDescription.trim().length<10} className="rounded-xl bg-rose-700 px-4 py-3 text-sm font-bold text-white">{issueBusy?'Đang gửi...':'Gửi yêu cầu hỗ trợ'}</button></div></form></div>}
         {detail.status==='COMPLETED'&&<div className="mt-6 rounded-2xl border border-[#e8eee7] bg-gradient-to-br from-[#f8fcf8] to-white p-5 sm:p-6"><div className="flex items-start gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff5dc] text-xl">★</span><div><p className="eyebrow">CHIA SẺ TRẢI NGHIỆM</p><h3 className="mt-1 text-lg font-extrabold">Đánh giá xe sau chuyến đi</h3><p className="mt-1 text-sm text-slate-500">Đánh giá của bạn giúp khách thuê sau lựa chọn xe phù hợp hơn.</p></div></div>{review?<div className="mt-5 rounded-xl border border-[#e8efeb] bg-white p-4"><p className="text-2xl tracking-[.18em] text-amber-500">{"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}</p><p className="mt-2 text-sm leading-6 text-slate-700">{review.comment||'Bạn đã gửi đánh giá cho chuyến thuê này.'}</p><p className="mt-3 text-xs text-slate-400">Đã đánh giá · {timeText(review.createdAt)}</p></div>:<form onSubmit={submitReview} className="mt-5 space-y-4"><fieldset><legend className="field-label">Bạn đánh giá chuyến đi này thế nào?</legend><div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Mức đánh giá">{[1,2,3,4,5].map(n=><button key={n} type="button" role="radio" aria-checked={reviewRating===n} onClick={()=>setReviewRating(n)} className={'flex h-12 w-12 items-center justify-center rounded-xl border text-2xl transition '+(reviewRating>=n?'border-[#f3d58a] bg-[#fff7e4] text-amber-500':'border-[#e7eee9] bg-white text-slate-300 hover:bg-[#fbfdfb]')}>★</button>)}</div><p className="mt-2 text-xs font-semibold text-[#8b7950]">{['','Chưa hài lòng','Chưa tốt','Bình thường','Rất tốt','Tuyệt vời!'][reviewRating]}</p></fieldset><label className="block"><span className="field-label">Nhận xét (không bắt buộc)</span><textarea maxLength={1200} className="field min-h-24" value={reviewComment} onChange={e=>setReviewComment(e.target.value)} placeholder="Chia sẻ về tình trạng xe, pin, trải nghiệm nhận và trả xe..."/></label><button disabled={reviewBusy} className="btn-primary">{reviewBusy?'Đang gửi đánh giá...':'Gửi đánh giá →'}</button></form>}</div>}
         <div className="mt-6"><h3 className="font-extrabold">Lịch sử báo cáo sự cố</h3>{!issues.length?<p className="mt-2 text-sm text-slate-500">Chưa có báo cáo sự cố.</p>:<div className="mt-3 space-y-3">{issues.map(issue=><div key={issue.id} className="rounded-xl border border-slate-100 p-4"><div className="flex flex-wrap justify-between gap-2"><strong className="text-sm">{issueLabels[issue.issueType]||issue.issueType} · {issue.severity}</strong><span className="text-xs font-bold text-sky-800">{issueStatus[issue.status]||issue.status}</span></div><p className="mt-2 text-sm text-slate-600">{issue.description}</p>{issue.resolutionNote&&<p className="mt-2 text-sm text-emerald-800">Xử lý: {issue.resolutionNote}</p>}<p className="mt-1 text-xs text-slate-400">{timeText(issue.createdAt)}</p></div>)}</div>}</div>
-        <div className="mt-6"><h3 className="font-extrabold">Thanh toán và đối soát</h3>{!payments.length?<p className="mt-2 text-sm text-slate-500">Chưa có giao dịch được nhân viên ghi nhận.</p>:<><div className="mt-3 space-y-2">{payments.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-3 rounded-xl border border-slate-100 p-3 text-sm"><div><strong>{p.purpose}</strong><p className="text-xs text-slate-500">{p.method} · {timeText(p.createdAt)}{p.note?' · '+p.note:''}</p></div><strong className={p.purpose==='REFUND'?'text-rose-600':'text-emerald-700'}>{p.purpose==='REFUND'?'-':'+'}{money(p.amount)}</strong></div>)}</div><p className="mt-3 text-sm text-slate-600">Đã thu/ghi nhận: {money(paymentTotal)} · Đã hoàn: {money(refundTotal)}</p></>}</div>
+        <div className="mt-6"><h3 className="font-extrabold">Thanh toán và đối soát</h3>{!payments.length?<p className="mt-2 text-sm text-slate-500">Chưa có giao dịch đã được cổng thanh toán hoặc nhân viên xác nhận.</p>:<><div className="mt-3 space-y-2">{payments.map(p=><div key={p.id} className="flex flex-wrap justify-between gap-3 rounded-xl border border-slate-100 p-3 text-sm"><div><strong>{p.purpose}</strong><p className="text-xs text-slate-500">{p.method} · {timeText(p.createdAt)}{p.note?' · '+p.note:''}</p></div><strong className={p.purpose==='REFUND'?'text-rose-600':'text-emerald-700'}>{p.purpose==='REFUND'?'-':'+'}{money(p.amount)}</strong></div>)}</div><p className="mt-3 text-sm text-slate-600">Đã thu/ghi nhận: {money(paymentTotal)} · Đã hoàn: {money(refundTotal)}</p></>}
+          {['PENDING','CONFIRMED'].includes(detail.status) && Math.max(0,Number(detail.depositSnapshot)-payments.filter(p=>p.purpose==='DEPOSIT').reduce((sum,p)=>sum+Number(p.amount),0))>0 && <div className="mt-4 rounded-xl border border-[#d9eee2] bg-[#f7fbf8] p-4"><p className="text-sm font-bold">Thanh toán tiền cọc qua VNPay</p><p className="mt-1 text-xs text-slate-500">Số tiền còn phải cọc: {money(Math.max(0,Number(detail.depositSnapshot)-payments.filter(p=>p.purpose==='DEPOSIT').reduce((sum,p)=>sum+Number(p.amount),0)))}</p><button type="button" disabled={vnpayBusy} onClick={()=>void startVnPayPayment('DEPOSIT')} className="mt-3 rounded-xl bg-[#087c59] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-60">{vnpayBusy?'Đang tạo giao dịch...':'Thanh toán cọc bằng VNPay →'}</button></div>}
+          {['CONFIRMED','RENTING','COMPLETED'].includes(detail.status) && Math.max(0,Number(detail.rentalAmount)-payments.filter(p=>p.purpose==='RENT').reduce((sum,p)=>sum+Number(p.amount),0))>0 && <div className="mt-4 rounded-xl border border-[#d9eee2] bg-[#f7fbf8] p-4"><p className="text-sm font-bold">Thanh toán tiền thuê qua VNPay</p><p className="mt-1 text-xs text-slate-500">Số tiền thuê còn lại: {money(Math.max(0,Number(detail.rentalAmount)-payments.filter(p=>p.purpose==='RENT').reduce((sum,p)=>sum+Number(p.amount),0)))}</p><button type="button" disabled={vnpayBusy} onClick={()=>void startVnPayPayment('RENT')} className="mt-3 rounded-xl bg-[#087c59] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-60">{vnpayBusy?'Đang tạo giao dịch...':'Thanh toán tiền thuê bằng VNPay →'}</button></div>}
+          <p className="mt-3 text-xs text-slate-500">Môi trường Sandbox: giao dịch chỉ được ghi nhận khi backend xác minh IPN hợp lệ từ VNPay.</p>
+        </div>
       </>}
       <div className="mt-7 flex flex-wrap justify-end gap-3"><Link to={'/bookings/'+detail.id+'/payments'} className="btn-outline">Mở trang giao dịch</Link><button onClick={closeDetails} className="btn-primary">Đóng</button></div>
     </section></div>}

@@ -70,8 +70,14 @@ export function App() {
       <Route path="/profile" element={<RoleRoute allowed={['ADMIN', 'STAFF', 'CUSTOMER']}><ProfilePage /></RoleRoute>} />
       <Route path="/admin" element={<RoleRoute allowed={['ADMIN']}><AdminHomePage /></RoleRoute>} />
       <Route path="/admin/vehicles" element={<RoleRoute allowed={['ADMIN']}><AdminVehiclesPage /></RoleRoute>} />
+      <Route path="/admin/vehicles/new" element={<RoleRoute allowed={['ADMIN']}><AdminVehiclesPage /></RoleRoute>} />
+      <Route path="/admin/vehicles/:vehicleFormId/edit" element={<RoleRoute allowed={['ADMIN']}><AdminVehiclesPage /></RoleRoute>} />
       <Route path="/admin/stations" element={<RoleRoute allowed={['ADMIN']}><AdminStationsPage /></RoleRoute>} />
+      <Route path="/admin/stations/new" element={<RoleRoute allowed={['ADMIN']}><AdminStationsPage /></RoleRoute>} />
+      <Route path="/admin/stations/:stationFormId/edit" element={<RoleRoute allowed={['ADMIN']}><AdminStationsPage /></RoleRoute>} />
       <Route path="/admin/models" element={<RoleRoute allowed={['ADMIN']}><AdminModelsPage /></RoleRoute>} />
+      <Route path="/admin/models/new" element={<RoleRoute allowed={['ADMIN']}><AdminModelsPage /></RoleRoute>} />
+      <Route path="/admin/models/:modelFormId/edit" element={<RoleRoute allowed={['ADMIN']}><AdminModelsPage /></RoleRoute>} />
       <Route path="/admin/customers" element={<RoleRoute allowed={['ADMIN']}><AdminCustomersPage /></RoleRoute>} />
       <Route path="/admin/vouchers" element={<RoleRoute allowed={['ADMIN']}><AdminVouchersPage /></RoleRoute>} />
       <Route path="/admin/staff" element={<RoleRoute allowed={['ADMIN']}><StaffPage /></RoleRoute>} />

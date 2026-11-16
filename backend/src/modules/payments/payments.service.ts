@@ -5,7 +5,7 @@ import { Role } from '../../common/enums/role.enum';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { Booking } from '../bookings/booking.entity';
 import { CreatePaymentDto } from './dto';
-import { PaymentPurpose, PaymentTransaction } from './payment.entity';
+import { PaymentMethod, PaymentPurpose, PaymentTransaction } from './payment.entity';
 import { calculateRefundableDepositCents } from './refund-policy';
 import { VnPayAttemptStatus, VnPayPaymentAttempt } from './vnpay-payment-attempt.entity';
 @Injectable()

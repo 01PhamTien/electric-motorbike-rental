@@ -65,3 +65,13 @@ export class CompleteBatteryMaintenanceTaskDto {
   @ApiProperty({example:'Đã vệ sinh đầu nối, kiểm tra điện áp và thử tải đạt yêu cầu.'}) @IsString() @MaxLength(2000) result:string;
   @ApiPropertyOptional({example:150000}) @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) cost?:number;
 }
+
+export class CreateBatteryOperatingCostDto {
+  @ApiProperty({example:12}) @IsInt() @Min(1) batteryId:number;
+  @ApiProperty({enum:['CHARGING','REPLACEMENT','OTHER']}) @IsIn(['CHARGING','REPLACEMENT','OTHER']) costType:'CHARGING'|'REPLACEMENT'|'OTHER';
+  @ApiPropertyOptional({example:250000}) @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) amount?:number;
+  @ApiPropertyOptional({example:2.4}) @IsOptional() @IsNumber({maxDecimalPlaces:3}) @Min(0.001) energyKwh?:number;
+  @ApiPropertyOptional({example:2500}) @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) unitPrice?:number;
+  @ApiProperty({example:'2026-11-15T09:00:00.000Z'}) @IsDateString() occurredAt:string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
+}

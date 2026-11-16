@@ -23,6 +23,7 @@ import { Station } from '../src/modules/stations/station.entity';
 import { User } from '../src/modules/users/user.entity';
 import { VehicleModel } from '../src/modules/vehicle-models/vehicle-model.entity';
 import { Vehicle } from '../src/modules/vehicles/vehicle.entity';
+import { MaintenanceRecord, MaintenanceStatus } from '../src/modules/maintenance/maintenance.entity';
 import { VehiclesService } from '../src/modules/vehicles/vehicles.service';
 
 const dbName = process.env.DB_DATABASE || '';
@@ -166,6 +167,39 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
     assert.equal(await dataSource.getRepository(PaymentTransaction).countBy({ bookingId: second!.id }), 2);
     assert.equal((await dataSource.getRepository(Booking).findOneByOrFail({id:second!.id})).status,
       BookingStatus.COMPLETED);
+
+    // A return inspection that flags a safety issue must atomically quarantine
+    // the vehicle and create exactly one scheduled maintenance record.
+    const followUp = await bookingService.create(user(customers[0].id), {
+      vehicleId: vehicle.id,
+      pickupAt: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+      returnAt: new Date(Date.now() + 6 * 86_400_000).toISOString(),
+    });
+    await bookingService.confirm(staffForHandover, followUp!.id);
+    await handovers.process(staffForHandover, followUp!.id, HandoverKind.PICKUP, {
+      batteryPercent: 88, odometerKm: 156, conditionNote: 'Xe nhận giao bình thường',
+    });
+    await assert.rejects(() => handovers.process(staffForHandover, followUp!.id, HandoverKind.RETURN, {
+      batteryPercent: 70, odometerKm: 190, conditionNote: 'Phanh sau phát tiếng kêu',
+      requiresMaintenance: true,
+    }), /Cần mô tả hư hỏng/);
+    const flaggedReturn = await handovers.process(staffForHandover, followUp!.id, HandoverKind.RETURN, {
+      batteryPercent: 70, odometerKm: 190, conditionNote: 'Phanh sau phát tiếng kêu',
+      damageNotes: 'Phanh sau phát tiếng kêu, cần kỹ thuật kiểm tra',
+      requiresMaintenance: true,
+    });
+    assert.ok(flaggedReturn.maintenanceRecordId);
+    assert.equal(flaggedReturn.record.requiresMaintenance, true);
+    const quarantinedVehicle = await dataSource.getRepository(Vehicle).findOneByOrFail({ id: vehicle.id });
+    assert.equal(quarantinedVehicle.status, VehicleStatus.MAINTENANCE);
+    const autoMaintenance = await dataSource.getRepository(MaintenanceRecord).findOneByOrFail({ id: flaggedReturn.maintenanceRecordId! });
+    assert.equal(autoMaintenance.status, MaintenanceStatus.SCHEDULED);
+    assert.equal(autoMaintenance.vehicleId, vehicle.id);
+    await assert.rejects(() => bookingService.create(user(customers[1].id), {
+      vehicleId: vehicle.id,
+      pickupAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      returnAt: new Date(Date.now() + 8 * 86_400_000).toISOString(),
+    }), /Xe hiện không thể đặt/);
 
     // Operational queue must respect station boundaries and reject customers.
     const admin: JwtUser = { sub: 1001, email: 'admin@example.test', role: Role.ADMIN, stationId: null };

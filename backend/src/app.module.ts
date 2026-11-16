@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ApiSecurityMiddleware } from './common/security/api-security.middleware';
 import { ConfigModule } from '@nestjs/config';
 import { CustomerCareModule } from './modules/customer-care/customer-care.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -45,4 +46,8 @@ import { StaffSchedulesModule } from './modules/staff-schedules/staff-schedules.
     StaffSchedulesModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(ApiSecurityMiddleware).forRoutes('*');
+  }
+}

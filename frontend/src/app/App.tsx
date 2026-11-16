@@ -61,6 +61,8 @@ export function App() {
       <Route path="/bookings/:id/payments" element={<CustomerOnly><PaymentsPage /></CustomerOnly>} />
       <Route path="/locations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><LocationsPage /></RoleRoute>} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
+      <Route path="/maintenance/new" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
+      <Route path="/maintenance/schedule" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
       <Route path="/operating-costs" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperatingCostsPage /></RoleRoute>} />
       <Route path="/batteries" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><BatteriesPage /></RoleRoute>} />
       <Route path="/operations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />

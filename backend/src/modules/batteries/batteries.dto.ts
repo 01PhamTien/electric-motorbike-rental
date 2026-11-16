@@ -75,3 +75,25 @@ export class CreateBatteryOperatingCostDto {
   @ApiProperty({example:'2026-11-15T09:00:00.000Z'}) @IsDateString() occurredAt:string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?:string;
 }
+
+
+export class CompleteBatteryChargingDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+export class UpdateBatteryStatusDto {
+  @ApiProperty({ example: 'MAINTENANCE', enum: ['FULL','CHARGING','INSTALLED','MAINTENANCE','RETIRED'] })
+  @IsString() @IsIn(['FULL','CHARGING','INSTALLED','MAINTENANCE','RETIRED']) status: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+export class BatteryChargeHistoryQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) stationId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) batteryId?: number;
+  @IsOptional() @IsDateString() from?: string;
+  @IsOptional() @IsDateString() to?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 20;
+}
+export class UpdateBatteryHealthDto {
+  @ApiProperty({ example: 92 }) @IsInt() @Min(1) @Max(100) healthPercent: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) note?: string;
+}

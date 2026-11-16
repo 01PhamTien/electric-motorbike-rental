@@ -7,6 +7,7 @@ import { Booking } from '../bookings/booking.entity';
 import { CreatePaymentDto } from './dto';
 import { PaymentPurpose, PaymentTransaction } from './payment.entity';
 import { calculateRefundableDepositCents } from './refund-policy';
+import { VnPayAttemptStatus, VnPayPaymentAttempt } from './vnpay-payment-attempt.entity';
 @Injectable()
 export class PaymentsService {
   constructor(private readonly ds: DataSource) {}
@@ -31,6 +32,18 @@ export class PaymentsService {
       }
       if ([BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status) && dto.purpose !== PaymentPurpose.REFUND)
         throw new BadRequestException('Không thể ghi nhận khoản thu mới cho đơn đã hủy/hết hạn');
+      if (dto.purpose !== PaymentPurpose.REFUND) {
+        const activeAttempt = await em.getRepository(VnPayPaymentAttempt).findOne({
+          where: { bookingId, purpose: dto.purpose, status: VnPayAttemptStatus.PENDING },
+        });
+        if (activeAttempt && activeAttempt.expiresAt > new Date()) {
+          throw new BadRequestException('Đơn đang có giao dịch VNPay chờ kết quả. Vui lòng chờ IPN hoặc giao dịch hết hạn trước khi ghi nhận thủ công.');
+        }
+        if (activeAttempt) {
+          activeAttempt.status = VnPayAttemptStatus.EXPIRED;
+          await em.getRepository(VnPayPaymentAttempt).save(activeAttempt);
+        }
+      }
       const all = await repo.findBy({ bookingId });
       const cents = (value: string | number) => Math.round(Number(value) * 100);
       const recorded = (purpose: PaymentPurpose) => all

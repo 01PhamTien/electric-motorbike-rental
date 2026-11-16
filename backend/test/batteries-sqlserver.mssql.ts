@@ -38,7 +38,7 @@ test('SQL Server: battery inventory and swap history schema are migrated',async(
     const activeSessionIndex=chargeIndexes.find((row:{name:string})=>row.name==='UX_battery_charge_sessions_active');
     assert.ok(activeSessionIndex,'Missing unique filtered index for active charge sessions');
     assert.equal(Boolean(activeSessionIndex.is_unique),true);
-    assert.match(String(activeSessionIndex.filter_definition),/completedAt IS NULL/i);
+    assert.match(String(activeSessionIndex.filter_definition),/completedAt.*IS NULL/i);
     const invalidSessions=await dataSource.query("SELECT COUNT(*) AS total FROM battery_charge_sessions WHERE completedAt IS NOT NULL AND completedAt < startedAt");
     assert.equal(Number(invalidSessions[0].total),0,'Charge session completion precedes its start');
     const indexes=await dataSource.query(`SELECT name, is_unique, filter_definition FROM sys.indexes WHERE object_id=OBJECT_ID('batteries')`);

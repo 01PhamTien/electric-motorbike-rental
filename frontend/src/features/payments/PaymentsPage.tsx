@@ -7,7 +7,7 @@ import { api } from '../../services/api';
 type Payment = { id: number; purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND'; method: 'CASH'|'TRANSFER'|'SEPAY'; amount: string; note: string|null; createdAt: string };
 type BookingFinance = { rentalAmount: string; depositSnapshot: string; status: string };
 const purposes = { RENT:'Tiền thuê', DEPOSIT:'Tiền cọc', EXTRA:'Phụ phí', REFUND:'Hoàn cọc' };
-const methods = { CASH:'Tiền mặt', TRANSFER:'Chuyển khoản', SEPAY:'SePay Sandbox' };
+const methods = { CASH:'Tiền mặt', TRANSFER:'Chuyển khoản', SEPAY:'SePay QR' };
 function getError(error: unknown) {
   const message = (error as {response?:{data?:{message?:string|string[]}}})?.response?.data?.message;
   return Array.isArray(message) ? message.join(', ') : message || 'Không thể hoàn tất thao tác.';
@@ -61,7 +61,7 @@ export function PaymentsPage() {
     try {
       const response = await api.post('/payments/sepay/bookings/' + id + '/checkout', { purpose });
       const checkout = response.data;
-      if (checkout?.environment !== 'SANDBOX' || checkout?.method !== 'POST' || !checkout?.action || !checkout?.fields) throw new Error('Dữ liệu checkout SePay không hợp lệ.');
+      if (!['SANDBOX','PRODUCTION'].includes(checkout?.environment) || checkout?.method !== 'POST' || !checkout?.action || !checkout?.fields) throw new Error('Dữ liệu checkout SePay không hợp lệ.');
       const formElement = document.createElement('form');
       formElement.method = 'POST'; formElement.action = checkout.action;
       Object.entries(checkout.fields as Record<string,string>).forEach(([name,value]) => {
@@ -83,7 +83,7 @@ export function PaymentsPage() {
     finally { setBusy(false); }
   }
   return <div className="container-page py-10 sm:py-14"><div className="flex flex-wrap items-end justify-between gap-5"><SectionHeading eyebrow="THANH TOÁN VÀ ĐỐI SOÁT" title={'Giao dịch đơn #' + (id || '')} description="Lịch sử tiền thuê, tiền cọc, phụ phí và hoàn cọc đã được ghi nhận trong hệ thống."/><Link to={staff?'/operations':'/bookings/my'} className="btn-outline">← Quay lại đơn thuê</Link></div>
-    <div className="mt-8 rounded-2xl border border-[#e7eee9] bg-[#f7fbf8] p-5 text-sm leading-7 text-[#526b61]"><strong>Lưu ý:</strong> Thanh toán trực tuyến đang được tích hợp ở môi trường SePay Sandbox. Chỉ IPN đã xác thực từ máy chủ SePay mới ghi nhận giao dịch; trang quay về không được xem là bằng chứng thanh toán.</div>
+    <div className="mt-8 rounded-2xl border border-[#e7eee9] bg-[#f7fbf8] p-5 text-sm leading-7 text-[#526b61]"><strong>Lưu ý:</strong> Thanh toán trực tuyến qua SePay. Chỉ IPN đã xác thực từ máy chủ SePay mới ghi nhận giao dịch; trang quay về không được xem là bằng chứng thanh toán.</div>
     {notice && <p role="status" className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm text-[#159b70]">{notice}</p>}
     {error && <p role="alert" className="mt-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
     {booking && customer && <section className="mt-8 flex flex-wrap gap-3"><button type="button" disabled={busy || (depositRemainingToCollect ?? 0) <= 0} onClick={()=>void startSePay('DEPOSIT')} className="btn-primary">{busy?'Đang chuyển tới SePay...':'Thanh toán tiền cọc qua QR →'}</button><button type="button" disabled={busy || (rentRemaining ?? 0) <= 0} onClick={()=>void startSePay('RENT')} className="btn-outline">Thanh toán tiền thuê qua QR →</button></section>}

@@ -58,6 +58,7 @@ export class VnPayService {
 
   async createCheckout(user: JwtUser, bookingId: number, dto: CreateVnPayCheckoutDto, ipAddress: string) {
     if (user.role !== Role.CUSTOMER) throw new ForbiddenException('Chỉ khách hàng mới có thể tự khởi tạo thanh toán trực tuyến.');
+    if (![PaymentPurpose.DEPOSIT, PaymentPurpose.RENT].includes(dto.purpose)) throw new BadRequestException('VNPay chỉ hỗ trợ thanh toán tiền cọc và tiền thuê.');
     const clientKey = typeof dto.idempotencyKey === 'string' ? dto.idempotencyKey.trim() : '';
     if (clientKey.length < 8 || clientKey.length > 100) throw new BadRequestException('Mã yêu cầu thanh toán phải có từ 8 đến 100 ký tự.');
     const key = createHash('sha256').update(user.sub + ':' + clientKey).digest('hex');
@@ -167,17 +168,26 @@ export class VnPayService {
         // A verified success callback is authoritative even if the local attempt
         // expired while the customer was completing checkout. Funds actually
         // received must be recorded for reconciliation, never silently ignored.
+        const booking = await manager.getRepository(Booking).findOne({
+          where: { id: attempt.bookingId }, lock: { mode: 'pessimistic_write' },
+        });
+        if (!booking) return { RspCode: '01', Message: 'Booking not found' };
         const paymentRepo = manager.getRepository(PaymentTransaction);
         const idempotencyKey = 'vnpay:' + attempt.txnRef;
         const existingPayment = await paymentRepo.findOne({ where: { idempotencyKey } });
         if (!existingPayment) {
+          const settled = await paymentRepo.find({ where: { bookingId: attempt.bookingId, purpose: attempt.purpose } });
+          const alreadyPaid = settled.reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0);
+          const cap = Math.round(Number(attempt.purpose === PaymentPurpose.DEPOSIT ? booking.depositSnapshot : booking.rentalAmount) * 100);
+          const wouldExceed = alreadyPaid + Math.round(Number(attempt.amount) * 100) > cap;
+          const note = 'VNPay transaction ' + (attempt.transactionNo || attempt.txnRef) + (wouldExceed ? ' · OVERPAYMENT_REQUIRES_MANUAL_RECONCILIATION' : '');
           await paymentRepo.save(paymentRepo.create({
             bookingId: attempt.bookingId,
             purpose: attempt.purpose,
             method: PaymentMethod.TRANSFER,
             amount: attempt.amount,
             idempotencyKey,
-            note: 'VNPay transaction ' + (attempt.transactionNo || attempt.txnRef),
+            note,
             recordedById: attempt.createdById,
           }));
         }

@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { sqlServerConnectionOptions } from '../src/database/sqlserver-options';
 import { BookingStatus } from '../src/common/enums/booking-status.enum';
+import { VehicleStatus } from '../src/common/enums/vehicle-status.enum';
 import { Role } from '../src/common/enums/role.enum';
 import { UserStatus } from '../src/common/enums/user-status.enum';
 import { UsersService } from '../src/modules/users/users.service';
@@ -23,6 +24,7 @@ import { Station } from '../src/modules/stations/station.entity';
 import { User } from '../src/modules/users/user.entity';
 import { VehicleModel } from '../src/modules/vehicle-models/vehicle-model.entity';
 import { Vehicle } from '../src/modules/vehicles/vehicle.entity';
+import { MaintenanceRecord, MaintenanceStatus } from '../src/modules/maintenance/maintenance.entity';
 import { VehiclesService } from '../src/modules/vehicles/vehicles.service';
 
 const dbName = process.env.DB_DATABASE || '';
@@ -167,6 +169,43 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
     assert.equal((await dataSource.getRepository(Booking).findOneByOrFail({id:second!.id})).status,
       BookingStatus.COMPLETED);
 
+    // A return inspection that flags a safety issue must atomically quarantine
+    // the vehicle and create exactly one scheduled maintenance record.
+    const followUp = await bookingService.create(user(customers[0].id), {
+      vehicleId: vehicle.id,
+      pickupAt: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+      returnAt: new Date(Date.now() + 6 * 86_400_000).toISOString(),
+    });
+    await bookingService.confirm(staffForHandover, followUp!.id);
+    await handovers.process(staffForHandover, followUp!.id, HandoverKind.PICKUP, {
+      batteryPercent: 88, odometerKm: 156, conditionNote: 'Xe nhận giao bình thường',
+    });
+    await assert.rejects(() => handovers.process(staffForHandover, followUp!.id, HandoverKind.RETURN, {
+      batteryPercent: 70, odometerKm: 190, conditionNote: 'Phanh sau phát tiếng kêu',
+      requiresMaintenance: true,
+    }), /Cần mô tả hư hỏng/);
+    const flaggedReturn = await handovers.process(staffForHandover, followUp!.id, HandoverKind.RETURN, {
+      batteryPercent: 70, odometerKm: 190, conditionNote: 'Phanh sau phát tiếng kêu',
+      damageNotes: 'Phanh sau phát tiếng kêu, cần kỹ thuật kiểm tra',
+      requiresMaintenance: true,
+    });
+    assert.ok(flaggedReturn.maintenanceRecordId);
+    assert.equal(flaggedReturn.record.requiresMaintenance, true);
+    const quarantinedVehicle = await dataSource.getRepository(Vehicle).findOneByOrFail({ id: vehicle.id });
+    assert.equal(quarantinedVehicle.status, VehicleStatus.MAINTENANCE);
+    const autoMaintenance = await dataSource.getRepository(MaintenanceRecord).findOneByOrFail({ id: flaggedReturn.maintenanceRecordId! });
+    assert.equal(autoMaintenance.status, MaintenanceStatus.SCHEDULED);
+    assert.equal(autoMaintenance.vehicleId, vehicle.id);
+    await assert.rejects(() => bookingService.create(user(customers[1].id), {
+      vehicleId: vehicle.id,
+      pickupAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      returnAt: new Date(Date.now() + 8 * 86_400_000).toISOString(),
+    }), /Xe hiện không thể đặt/);
+    // Keep the shared CI database deterministic for the later demo-seed count checks.
+    await dataSource.getRepository(MaintenanceRecord).delete(autoMaintenance.id);
+    quarantinedVehicle.status = VehicleStatus.ACTIVE;
+    await dataSource.getRepository(Vehicle).save(quarantinedVehicle);
+
     // Operational queue must respect station boundaries and reject customers.
     const admin: JwtUser = { sub: 1001, email: 'admin@example.test', role: Role.ADMIN, stationId: null };
     const staff: JwtUser = { sub: 1002, email: 'staff@example.test', role: Role.STAFF, stationId: station.id };
@@ -174,8 +213,8 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
     const adminBookings = await bookingService.listForOperations(admin);
     const stationBookings = await bookingService.listForOperations(staff);
     const foreignBookings = await bookingService.listForOperations(otherStationStaff);
-    assert.equal(adminBookings.length, 2);
-    assert.equal(stationBookings.length, 2);
+    assert.equal(adminBookings.length, 3);
+    assert.equal(stationBookings.length, 3);
     assert.equal(foreignBookings.length, 0);
     await assert.rejects(() => bookingService.listForOperations(user(customers[0].id)));
 

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUrl, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUrl, Max, MaxLength, Min } from 'class-validator';
 export class HandoverDto {
   @ApiProperty({ example: 85 }) @IsInt() @Min(0) @Max(100) batteryPercent: number;
   @ApiProperty({ example: 1350.5 }) @IsNumber() @Min(0) odometerKm: number;
@@ -9,6 +9,9 @@ export class HandoverDto {
   inspectionChecklist?: string[];
   @ApiProperty({ required: false, example: 'Trầy nhẹ ở yếm trái' })
   @IsOptional() @IsString() @MaxLength(1000) damageNotes?: string;
+  @ApiProperty({ required: false, example: true, description: 'Chỉ dùng khi nhận trả xe; yêu cầu tạo phiếu bảo dưỡng và khóa xe khỏi cho thuê.' })
+  @IsOptional() @IsBoolean()
+  requiresMaintenance?: boolean;
   @ApiProperty({ required: false, type: [String], example: ['https://example.com/vehicle-photo.jpg'] })
   @IsOptional() @IsArray() @ArrayMaxSize(8) @IsUrl({}, { each: true }) @MaxLength(2048, { each: true })
   photoUrls?: string[];

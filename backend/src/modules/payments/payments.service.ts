@@ -6,6 +6,7 @@ import { BookingStatus } from '../../common/enums/booking-status.enum';
 import { Booking } from '../bookings/booking.entity';
 import { CreatePaymentDto } from './dto';
 import { PaymentPurpose, PaymentTransaction } from './payment.entity';
+import { calculateRefundableDepositCents } from './refund-policy';
 @Injectable()
 export class PaymentsService {
   constructor(private readonly ds: DataSource) {}
@@ -26,7 +27,8 @@ export class PaymentsService {
           throw new BadRequestException('Mã chống lặp đã được sử dụng cho giao dịch khác');
         return previous;
       }
-      if ([BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status)) throw new BadRequestException('Đơn đã bị hủy/hết hạn');
+      if ([BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status) && dto.purpose !== PaymentPurpose.REFUND)
+        throw new BadRequestException('Không thể ghi nhận khoản thu mới cho đơn đã hủy/hết hạn');
       const all = await repo.findBy({ bookingId });
       const cents = (value: string | number) => Math.round(Number(value) * 100);
       const recorded = (purpose: PaymentPurpose) => all
@@ -39,10 +41,14 @@ export class PaymentsService {
       if (dto.purpose === PaymentPurpose.DEPOSIT && recorded(PaymentPurpose.DEPOSIT) + requestedCents > cents(booking.depositSnapshot))
         throw new BadRequestException('Tổng tiền cọc đã ghi nhận không được vượt quá tiền cọc của đơn');
       if (dto.purpose === PaymentPurpose.REFUND) {
-        const refundableCents = recorded(PaymentPurpose.DEPOSIT) - recorded(PaymentPurpose.REFUND);
+        const refundableCents = calculateRefundableDepositCents({
+          bookingStatus: booking.status,
+          recordedDepositCents: recorded(PaymentPurpose.DEPOSIT),
+          recordedRefundCents: recorded(PaymentPurpose.REFUND),
+          cancellationFeeCents: cents(booking.cancellationFeeAmount ?? 0),
+        });
         if (requestedCents > refundableCents)
-          throw new BadRequestException('Số hoàn vượt quá số tiền cọc còn lại');
-        if (booking.status !== BookingStatus.COMPLETED) throw new BadRequestException('Chỉ hoàn cọc sau khi trả xe');
+          throw new BadRequestException('Số hoàn vượt quá tiền cọc sau khi trừ các khoản đã hoàn và phí hủy đơn');
       }
       return repo.save(repo.create({ bookingId, purpose: dto.purpose, method: dto.method,
         amount: dto.amount.toFixed(2), idempotencyKey: dto.idempotencyKey, note: dto.note ?? null, recordedById: user.sub }));

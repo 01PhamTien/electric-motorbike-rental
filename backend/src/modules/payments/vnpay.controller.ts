@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Ip, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Ip, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
@@ -28,7 +28,7 @@ export class VnPayController {
   ) {
     const bookingId = Number(id);
     if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
-      throw new Error('Invalid booking id');
+      throw new BadRequestException('Mã đơn thuê không hợp lệ.');
     }
     return this.service.createCheckout(user, bookingId, dto, ip || '127.0.0.1');
   }
@@ -46,7 +46,7 @@ export class VnPayController {
   }
 
   @Get('return')
-  returnFromGateway(@Query('vnp_TxnRef') txnRef: string, @Res() response: Response, @Req() _request: Request) {
+  returnFromGateway(@Query('vnp_TxnRef') txnRef: string, @Res() response: Response) {
     return response.redirect(303, this.service.redirectAfterReturn(txnRef));
   }
 }

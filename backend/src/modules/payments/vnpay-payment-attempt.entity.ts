@@ -18,7 +18,7 @@ export class VnPayPaymentAttempt {
   id: number;
 
   @ManyToOne(() => Booking, { onDelete: 'NO ACTION' })
-  @JoinColumn({ name: 'bookingId' })
+  @JoinColumn({ name: 'bookingId', foreignKeyConstraintName: 'FK_vnpay_attempts_booking' })
   booking: Booking;
 
   @Column({ type: 'int' })
@@ -27,7 +27,7 @@ export class VnPayPaymentAttempt {
   @Column({ type: 'int' })
   createdById: number;
 
-  @Column({ type: 'simple-enum', enum: PaymentPurpose })
+  @Column({ type: 'varchar', length: 20 })
   purpose: PaymentPurpose;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })

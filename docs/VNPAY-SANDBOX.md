@@ -13,6 +13,8 @@ VoltGo integrates VNPay using the official redirect payment flow (API version 2.
 
 ## Environment
 
+If you do not yet have Sandbox credentials, register a test merchant at [VNPay Sandbox developer registration](https://sandbox.vnpayment.vn/devreg/). VNPay provides a Terminal ID (`vnp_TmnCode`) and a secret key (`vnp_HashSecret`) for the registered integration.
+
 Copy `.env.example` to `.env` and configure:
 
 - `VNPAY_ENABLED=true`

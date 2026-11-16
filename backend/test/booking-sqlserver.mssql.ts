@@ -209,8 +209,8 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
     const adminBookings = await bookingService.listForOperations(admin);
     const stationBookings = await bookingService.listForOperations(staff);
     const foreignBookings = await bookingService.listForOperations(otherStationStaff);
-    assert.equal(adminBookings.length, 2);
-    assert.equal(stationBookings.length, 2);
+    assert.equal(adminBookings.length, 3);
+    assert.equal(stationBookings.length, 3);
     assert.equal(foreignBookings.length, 0);
     await assert.rejects(() => bookingService.listForOperations(user(customers[0].id)));
 

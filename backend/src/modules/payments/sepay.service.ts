@@ -37,15 +37,23 @@ export class SePayService {
       const payments = await paymentRepo.findBy({ bookingId });
       const attempts = await manager.getRepository(SePayPaymentAttempt).find({
         where: { bookingId, purpose, status: SePayAttemptStatus.PENDING },
+        order: { createdAt: 'DESC' },
       });
       const cents = (value: string | number) => Math.round(Number(value) * 100);
       const paid = payments.filter(p => p.purpose === purpose)
         .reduce((sum, p) => sum + cents(p.amount), 0);
-      const pending = attempts.reduce((sum, p) => sum + cents(p.amount), 0);
+
+      // A retry after a lost HTTP response must reuse the existing invoice.
+      // Creating another pending invoice for the same balance could allow duplicate payment.
+      if (attempts.length === 1) return attempts[0];
+      if (attempts.length > 1) {
+        throw new BadRequestException('Đơn thuê đang có nhiều giao dịch SePay chờ xử lý. Vui lòng liên hệ quản trị viên để đối soát trước khi thử lại.');
+      }
+
       const target = purpose === PaymentPurpose.DEPOSIT ? cents(booking.depositSnapshot) : cents(booking.rentalAmount);
-      const remaining = target - paid - pending;
+      const remaining = target - paid;
       if (!Number.isSafeInteger(remaining) || remaining <= 0) {
-        throw new BadRequestException('Khoản thanh toán đã đủ hoặc đang có giao dịch chờ xử lý');
+        throw new BadRequestException('Khoản thanh toán đã được ghi nhận đầy đủ');
       }
       const invoiceNumber = 'VG' + Date.now().toString(36).toUpperCase() + randomBytes(5).toString('hex').toUpperCase();
       return manager.getRepository(SePayPaymentAttempt).save(manager.getRepository(SePayPaymentAttempt).create({

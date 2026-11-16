@@ -30,7 +30,7 @@ export class Battery {
   @Column({ type: 'int', nullable: true }) vehicleId: number | null;
   @Column({ type: 'varchar', length: 20, default: BatteryStatus.FULL }) status: BatteryStatus;
   @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true }) capacityKwh: string | null;
-  @Column({ type: 'int', default: 100 }) healthPercent: number;
+  @Column({ type: 'int', nullable: true }) healthPercent: number | null;
   @Column({ type: 'int', default: 0 }) cycleCount: number;
   @Column({ type: 'datetime2', nullable: true }) lastChargedAt: Date | null;
   @Column({ type: 'nvarchar', length: 500, nullable: true }) note: string | null;

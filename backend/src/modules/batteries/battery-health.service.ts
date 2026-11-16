@@ -19,12 +19,12 @@ export class BatteryHealthService {
   async summary(user:JwtUser,stationId?:number){
     const qb=this.dataSource.getRepository(Battery).createQueryBuilder('b').leftJoinAndSelect('b.station','station');
     if(stationId){this.assertStation(user,stationId);qb.andWhere('b.stationId=:stationId',{stationId});}
-    else if(user.role===Role.STAFF){if(user.stationId==null)return {thresholds:this.thresholds(),total:0,healthy:0,watch:0,critical:0,retired:0,batteries:[]};qb.andWhere('b.stationId=:stationId',{stationId:user.stationId});}
+    else if(user.role===Role.STAFF){if(user.stationId==null)return {thresholds:this.thresholds(),total:0,healthy:0,watch:0,critical:0,retired:0,unknown:0,batteries:[]};qb.andWhere('b.stationId=:stationId',{stationId:user.stationId});}
     const batteries=await qb.orderBy('b.healthPercent','ASC').addOrderBy('b.cycleCount','DESC').getMany();
     const thresholds=this.thresholds();
-    const classify=(b:Battery)=>b.status==='RETIRED'?'RETIRED':b.healthPercent<=thresholds.criticalPercent?'CRITICAL':b.healthPercent<=thresholds.warningPercent||b.cycleCount>=thresholds.cycleWarning?'WATCH':'HEALTHY';
-    const counts={total:batteries.length,healthy:0,watch:0,critical:0,retired:0};
-    for(const b of batteries){const c=classify(b);if(c==='HEALTHY')counts.healthy++;else if(c==='WATCH')counts.watch++;else if(c==='CRITICAL')counts.critical++;else counts.retired++;}
+    const classify=(b:Battery)=>b.status==='RETIRED'?'RETIRED':b.healthPercent===null?'UNKNOWN':b.healthPercent<=thresholds.criticalPercent?'CRITICAL':b.healthPercent<=thresholds.warningPercent||b.cycleCount>=thresholds.cycleWarning?'WATCH':'HEALTHY';
+    const counts={total:batteries.length,healthy:0,watch:0,critical:0,retired:0,unknown:0};
+    for(const b of batteries){const c=classify(b);if(c==='HEALTHY')counts.healthy++;else if(c==='WATCH')counts.watch++;else if(c==='CRITICAL')counts.critical++;else if(c==='UNKNOWN')counts.unknown++;else counts.retired++;}
     return {thresholds,...counts,batteries:batteries.map(b=>({...b,healthLevel:classify(b)}))};
   }
   async history(user:JwtUser,batteryId:number){

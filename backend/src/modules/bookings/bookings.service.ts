@@ -286,7 +286,7 @@ export class BookingsService {
       if (!isExpired && next === BookingStatus.CANCELLED) {
         booking.cancellationFeeAmount = calculateCancellationFee({
           type: cancellationType ?? 'STAFF_CANCELLED',
-          bookingStatus: booking.status,
+          bookingStatus: fromStatus,
           rentalAmount: booking.rentalAmount,
           depositAmount: booking.depositSnapshot,
           pickupAt: booking.pickupAt,

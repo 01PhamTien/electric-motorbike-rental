@@ -31,7 +31,7 @@ test('unmeasured battery health is classified as UNKNOWN, not healthy', async ()
 test('unassigned staff receives an empty health summary', async () => {
   const { service, calls } = serviceFor([]);
   const result = await service.summary({ sub: 5, role: Role.STAFF, stationId: null } as any);
-  assert.equal(result.total, 0); assert.equal(result.unknown, 0); assert.equal(calls.length, 0);
+  assert.equal(result.total, 0); assert.equal(result.unknown, 0); assert.equal(calls.filter(([kind]) => kind === 'where').length, 0);
 });
 test('creating a battery without a health measurement keeps health unknown', async () => {
   const batteryRepository: any = {

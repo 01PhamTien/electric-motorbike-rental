@@ -18,11 +18,10 @@ export class AddBookingCharges1795651200000 implements MigrationInterface {
           [reason] varchar(500) NOT NULL,
           [createdById] int NOT NULL,
           [createdAt] datetime2 NOT NULL CONSTRAINT [DF_booking_charges_createdAt] DEFAULT getdate(),
-          CONSTRAINT [FK_87d3e6ca3989948eab01ac3f70f]FOREIGN KEY ([bookingId]) REFERENCES [dbo].[bookings]([id]) ON DELETE NO ACTION,
-          CONSTRAINT [FK_9de199086e62e8c9913a3d26967]FOREIGN KEY ([createdById]) REFERENCES [dbo].[users]([id]) ON DELETE NO ACTION,
-          CONSTRAINT 
+          CONSTRAINT [FK_87d3e6ca3989948eab01ac3f70f] FOREIGN KEY ([bookingId]) REFERENCES [dbo].[bookings]([id]) ON DELETE NO ACTION,
+          CONSTRAINT [FK_9de199086e62e8c9913a3d26967] FOREIGN KEY ([createdById]) REFERENCES [dbo].[users]([id]) ON DELETE NO ACTION,
         );
-        CREATE INDEX [IDX_07e831780a69939db20c724c44]ON [dbo].[booking_charges] ([bookingId], [applyToDeposit]);
+        CREATE INDEX [IDX_07e831780a69939db20c724c44] ON [dbo].[booking_charges] ([bookingId], [applyToDeposit]);
       END
     `);
   }

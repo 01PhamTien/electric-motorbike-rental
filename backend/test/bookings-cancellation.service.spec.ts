@@ -45,7 +45,7 @@ function setup(status: BookingStatus) {
     },
   };
   const dataSource = {
-    transaction: async (callback: (manager: typeof manager) => Promise<unknown>) => callback(manager),
+    transaction: async (callback: (manager: any) => Promise<unknown>) => callback(manager),
   } as unknown as DataSource;
   const service = new BookingsService(dataSource, {} as ConfigService, bookingRepo as any);
   const customer: JwtUser = {

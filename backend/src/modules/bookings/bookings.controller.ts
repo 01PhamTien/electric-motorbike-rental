@@ -35,6 +35,9 @@ export class BookingsController {
   @Roles(Role.ADMIN, Role.STAFF)
   operations(@CurrentUser() user: JwtUser) { return this.service.listForOperations(user); }
 
+  @Get(':id/history')
+  statusHistory(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) { return this.service.statusHistory(user, id); }
+
   @Post(':id/charges')
   @Roles(Role.ADMIN, Role.STAFF)
   addCharge(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: CreateBookingChargeDto) { return this.service.addCharge(user, id, dto); }

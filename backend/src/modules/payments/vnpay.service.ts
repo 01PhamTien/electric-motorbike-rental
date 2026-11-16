@@ -21,13 +21,14 @@ export class VnPayService {
     const hashSecret = this.config.get<string>('VNPAY_HASH_SECRET')?.trim();
     const paymentUrl = this.config.get<string>('VNPAY_PAYMENT_URL') || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
     const returnUrl = this.config.get<string>('VNPAY_RETURN_URL')?.trim();
-    if (!enabled || !tmnCode || !hashSecret || !returnUrl) {
+    const ipnUrl = this.config.get<string>('VNPAY_IPN_URL')?.trim();
+    if (!enabled || !tmnCode || !hashSecret || !returnUrl || !ipnUrl) {
       throw new ServiceUnavailableException('Thanh toán VNPay Sandbox chưa được cấu hình đầy đủ.');
     }
-    if (!paymentUrl.startsWith('https://') || !returnUrl.startsWith('https://')) {
+    if (!paymentUrl.startsWith('https://') || !returnUrl.startsWith('https://') || !ipnUrl.startsWith('https://')) {
       throw new ServiceUnavailableException('URL VNPay và Return URL phải sử dụng HTTPS.');
     }
-    return { tmnCode, hashSecret, paymentUrl, returnUrl };
+    return { tmnCode, hashSecret, paymentUrl, returnUrl, ipnUrl };
   }
 
   private makePaymentUrl(attempt: VnPayPaymentAttempt, ipAddress: string): string {
@@ -57,8 +58,10 @@ export class VnPayService {
 
   async createCheckout(user: JwtUser, bookingId: number, dto: CreateVnPayCheckoutDto, ipAddress: string) {
     if (user.role !== Role.CUSTOMER) throw new ForbiddenException('Chỉ khách hàng mới có thể tự khởi tạo thanh toán trực tuyến.');
-    const key = createHash('sha256').update(user.sub + ':' + dto.idempotencyKey.trim()).digest('hex');
-    const settings = this.settings();
+    const clientKey = typeof dto.idempotencyKey === 'string' ? dto.idempotencyKey.trim() : '';
+    if (clientKey.length < 8 || clientKey.length > 100) throw new BadRequestException('Mã yêu cầu thanh toán phải có từ 8 đến 100 ký tự.');
+    const key = createHash('sha256').update(user.sub + ':' + clientKey).digest('hex');
+    this.settings();
     return this.dataSource.transaction(async manager => {
       const bookingRepo = manager.getRepository(Booking);
       const booking = await bookingRepo.findOne({ where: { id: bookingId }, lock: { mode: 'pessimistic_write' } });
@@ -84,8 +87,11 @@ export class VnPayService {
         if (existingByKey.status === VnPayAttemptStatus.PENDING && existingByKey.expiresAt > new Date()) {
           return { paymentUrl: this.makePaymentUrl(existingByKey, ipAddress), txnRef: existingByKey.txnRef, amount: existingByKey.amount, expiresAt: existingByKey.expiresAt };
         }
-        if (existingByKey.status === VnPayAttemptStatus.PENDING) existingByKey.status = VnPayAttemptStatus.EXPIRED;
-        await attemptRepo.save(existingByKey);
+        if (existingByKey.status === VnPayAttemptStatus.PENDING) {
+          existingByKey.status = VnPayAttemptStatus.EXPIRED;
+          await attemptRepo.save(existingByKey);
+        }
+        throw new BadRequestException('Yêu cầu thanh toán này đã kết thúc. Vui lòng tạo yêu cầu mới.');
       }
 
       const paymentRepo = manager.getRepository(PaymentTransaction);
@@ -93,6 +99,7 @@ export class VnPayService {
       const paid = settled.reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0);
       const due = Math.round(Number(dto.purpose === PaymentPurpose.DEPOSIT ? booking.depositSnapshot : booking.rentalAmount) * 100) - paid;
       if (!Number.isSafeInteger(due) || due <= 0) throw new BadRequestException('Khoản tiền này đã được thanh toán đủ.');
+      if (due % 100 !== 0 || due > 999_999_999_999) throw new BadRequestException('Số tiền không hợp lệ đối với thanh toán VNPay bằng VND.');
       const pending = await attemptRepo.findOne({
         where: { bookingId, purpose: dto.purpose, status: VnPayAttemptStatus.PENDING },
         order: { createdAt: 'DESC' },
@@ -118,8 +125,6 @@ export class VnPayService {
         status: VnPayAttemptStatus.PENDING, responseCode: null,
         transactionNo: null, bankCode: null, payDate: null, expiresAt, paidAt: null,
       }));
-      // Force configuration validation before returning a checkout URL.
-      void settings;
       return { paymentUrl: this.makePaymentUrl(attempt, ipAddress), txnRef, amount: attempt.amount, expiresAt };
     });
   }

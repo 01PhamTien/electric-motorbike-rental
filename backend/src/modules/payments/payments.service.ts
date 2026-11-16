@@ -77,14 +77,15 @@ export class PaymentsService {
     const rentCollected = paid(PaymentPurpose.RENT), depositCollected = paid(PaymentPurpose.DEPOSIT), extraCollected = paid(PaymentPurpose.EXTRA), refunded = paid(PaymentPurpose.REFUND);
     const deductions = rounded(charges.filter(c => c.applyToDeposit).reduce((sum,c) => sum + Number(c.amount),0));
     const separatelyBillable = rounded(charges.filter(c => !c.applyToDeposit).reduce((sum,c) => sum + Number(c.amount),0));
-    const refundable = rounded(Math.max(0, depositCollected - deductions - refunded));
+    const cancellationFee = rounded(Number(booking.cancellationFeeAmount ?? 0));
+    const refundable = rounded(Math.max(0, depositCollected - deductions - cancellationFee - refunded));
     return {
       bookingId, status: booking.status, currency: 'VND',
       rental: { amountDue: rounded(Number(booking.rentalAmount)), collected: rentCollected, outstanding: rounded(Math.max(0, Number(booking.rentalAmount)-rentCollected)) },
-      deposit: { amountExpected: rounded(Number(booking.depositSnapshot)), collected: depositCollected, deductions, refunded, refundable, deductionExceedsCollected: deductions > depositCollected },
+      deposit: { amountExpected: rounded(Number(booking.depositSnapshot)), collected: depositCollected, deductions, cancellationFee, refunded, refundable, deductionExceedsCollected: deductions + cancellationFee > depositCollected },
       extras: { separatelyBillable, collected: extraCollected, outstanding: rounded(Math.max(0,separatelyBillable-extraCollected)), deductedFromDeposit: deductions },
       cashFlow: { totalCollected: rounded(rentCollected+depositCollected+extraCollected), totalRefunded: refunded, net: rounded(rentCollected+depositCollected+extraCollected-refunded) },
-      canRefundDeposit: booking.status === BookingStatus.COMPLETED && refundable > 0,
+      canRefundDeposit: [BookingStatus.COMPLETED, BookingStatus.CANCELLED].includes(booking.status) && refundable > 0,
     };
   }
 

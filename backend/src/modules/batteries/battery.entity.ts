@@ -14,7 +14,7 @@ export enum BatteryStatus {
 @Entity('batteries')
 @Check('CK_batteries_status', "[status] IN ('FULL','INSTALLED','CHARGING','MAINTENANCE','RETIRED','TRANSFERRING')")
 @Check('CK_batteries_vehicle_status', "([status] = 'INSTALLED' AND [vehicleId] IS NOT NULL) OR ([status] <> 'INSTALLED' AND [vehicleId] IS NULL)")
-@Check('CK_batteries_health', '[healthPercent] BETWEEN 1 AND 100')
+@Check('CK_batteries_health', '[healthPercent] IS NULL OR [healthPercent] BETWEEN 1 AND 100')
 @Check('CK_batteries_cycle', '[cycleCount] >= 0')
 @Index('IDX_batteries_station_status', ['stationId', 'status'])
 @Index('UX_batteries_one_installed_per_vehicle', ['vehicleId'], { unique: true, where: "[status] = 'INSTALLED' AND [vehicleId] IS NOT NULL" })
@@ -30,7 +30,7 @@ export class Battery {
   @Column({ type: 'int', nullable: true }) vehicleId: number | null;
   @Column({ type: 'varchar', length: 20, default: BatteryStatus.FULL }) status: BatteryStatus;
   @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true }) capacityKwh: string | null;
-  @Column({ type: 'int', default: 100 }) healthPercent: number;
+  @Column({ type: 'int', nullable: true }) healthPercent: number | null;
   @Column({ type: 'int', default: 0 }) cycleCount: number;
   @Column({ type: 'datetime2', nullable: true }) lastChargedAt: Date | null;
   @Column({ type: 'nvarchar', length: 500, nullable: true }) note: string | null;

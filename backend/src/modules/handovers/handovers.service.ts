@@ -12,6 +12,7 @@ import { HandoverDto } from './dto';
 import { HandoverKind, HandoverRecord } from './handover.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+import { assertPickupWindow } from './handover-policy';
 
 @Injectable()
 export class HandoversService {
@@ -48,7 +49,7 @@ export class HandoversService {
       const expected = kind === HandoverKind.PICKUP ? BookingStatus.CONFIRMED : BookingStatus.RENTING;
       const next = kind === HandoverKind.PICKUP ? BookingStatus.RENTING : BookingStatus.COMPLETED;
       if (booking.status !== expected) throw new BadRequestException(`Chỉ được ${kind === HandoverKind.PICKUP ? 'giao' : 'trả'} xe khi đơn là ${expected}`);
-      if (kind === HandoverKind.PICKUP && booking.returnAt <= new Date()) throw new BadRequestException('Đơn đã quá thời hạn trả dự kiến');
+      if (kind === HandoverKind.PICKUP) assertPickupWindow(booking.pickupAt, booking.returnAt);
       if (kind === HandoverKind.RETURN) {
         const pickup = await manager.getRepository(HandoverRecord).findOneBy({ bookingId, kind: HandoverKind.PICKUP });
         if (!pickup) throw new BadRequestException('Thiếu biên bản giao xe');

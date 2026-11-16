@@ -133,6 +133,8 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
       batteryPercent: 90, odometerKm: 120, conditionNote: 'Kiểm tra phân quyền',
     }));
     await bookingService.confirm(staffForHandover, second!.id);
+    // Simulate the scheduled pickup time having arrived without sleeping in CI.
+    await dataSource.getRepository(Booking).update(second!.id, { pickupAt: new Date(Date.now() - 1_000) });
     const pickupRecord = await handovers.process(staffForHandover, second!.id, HandoverKind.PICKUP, {
       batteryPercent: 90, odometerKm: 120, conditionNote: 'Xe tốt khi giao',
     });
@@ -177,6 +179,8 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
       returnAt: new Date(Date.now() + 6 * 86_400_000).toISOString(),
     });
     await bookingService.confirm(staffForHandover, followUp!.id);
+    // Simulate arrival at the pickup time for this second lifecycle scenario.
+    await dataSource.getRepository(Booking).update(followUp!.id, { pickupAt: new Date(Date.now() - 1_000) });
     await handovers.process(staffForHandover, followUp!.id, HandoverKind.PICKUP, {
       batteryPercent: 88, odometerKm: 156, conditionNote: 'Xe nhận giao bình thường',
     });

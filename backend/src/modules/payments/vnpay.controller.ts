@@ -9,7 +9,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CreateVnPayCheckoutDto } from './vnpay.dto';
 import { VnPayService } from './vnpay.service';
-import { VnPayParams } from './vnpay.util';
 
 @ApiTags('VNPay')
 @Controller('payments/vnpay')
@@ -41,7 +40,7 @@ export class VnPayController {
   }
 
   @Get('ipn')
-  ipn(@Query() query: VnPayParams) {
+  ipn(@Query() query: Record<string, unknown>) {
     return this.service.handleIpn(query);
   }
 

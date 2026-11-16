@@ -81,6 +81,7 @@ export function App() {
       <Route path="/admin/customers" element={<RoleRoute allowed={['ADMIN']}><AdminCustomersPage /></RoleRoute>} />
       <Route path="/admin/vouchers" element={<RoleRoute allowed={['ADMIN']}><AdminVouchersPage /></RoleRoute>} />
       <Route path="/admin/staff" element={<RoleRoute allowed={['ADMIN']}><StaffPage /></RoleRoute>} />
+      <Route path="/admin/staff/:resetStaffId/reset-password" element={<RoleRoute allowed={['ADMIN']}><StaffPage /></RoleRoute>} />
       <Route path="/admin/staff-schedules" element={<RoleRoute allowed={['ADMIN']}><StaffSchedulesPage /></RoleRoute>} />
       <Route path="/admin/staff-presence" element={<RoleRoute allowed={['ADMIN']}><StaffPresencePage /></RoleRoute>} />
       <Route path="/my-schedule" element={<RoleRoute allowed={['STAFF']}><MySchedulePage /></RoleRoute>} />

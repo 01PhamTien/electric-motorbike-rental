@@ -6,6 +6,9 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { PaymentTransaction } from './payment.entity';
 import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
-@Module({ imports: [TypeOrmModule.forFeature([Booking, PaymentTransaction]), AuthModule],
-  providers: [PaymentsService, RolesGuard], controllers: [PaymentsController] })
+import { VnPayPaymentAttempt } from './vnpay-payment-attempt.entity';
+import { VnPayService } from './vnpay.service';
+import { VnPayController } from './vnpay.controller';
+@Module({ imports: [TypeOrmModule.forFeature([Booking, PaymentTransaction, VnPayPaymentAttempt]), AuthModule],
+  providers: [PaymentsService, VnPayService, RolesGuard], controllers: [PaymentsController, VnPayController] })
 export class PaymentsModule {}

@@ -34,7 +34,7 @@ export class AddSePayPaymentAttempts1795564800000 implements MigrationInterface 
           [paidAt] datetime2 NULL,
           [createdAt] datetime2 NOT NULL CONSTRAINT [DF_sepay_attempt_created] DEFAULT getdate(),
           [updatedAt] datetime2 NOT NULL CONSTRAINT [DF_sepay_attempt_updated] DEFAULT getdate(),
-          CONSTRAINT [FK_sepay_attempt_booking] FOREIGN KEY ([bookingId]) REFERENCES [dbo].[bookings]([id]) ON DELETE NO ACTION,
+          CONSTRAINT [FK_6d2cdafb292405e6e9f9f9ce2f4] FOREIGN KEY ([bookingId]) REFERENCES [dbo].[bookings]([id]) ON DELETE NO ACTION,
           CONSTRAINT [CK_sepay_attempt_purpose] CHECK ([purpose] IN ('RENT', 'DEPOSIT')),
           CONSTRAINT [CK_sepay_attempt_status] CHECK ([status] IN ('PENDING', 'PAID', 'VOID')),
           CONSTRAINT [CK_sepay_attempt_amount] CHECK ([amount] > 0)

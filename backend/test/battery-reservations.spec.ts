@@ -134,7 +134,7 @@ test('concurrent customers cannot reserve more holds than the last available bat
       const txStationRepo:any={findOne:async()=>{release=await acquireStation();return station;}};
       const manager:any={getRepository:(entity:any)=>entity===Battery?batteryRepo:entity===BatterySwap?swapRepo:
         entity===BatteryReservation?reservationRepo:entity===Station?txStationRepo:
-        entity===Booking?bookingRepo:entity===User?userRepo:entity===Vehicle?{}:{}};
+        entity===Booking?bookingRepo:entity===User?userRepo:entity===Vehicle?{findOne:async()=>({id:12,stationId:2,isActive:true})}:{}};
       try{return await fn(manager);}finally{release?.();}
     },
   };

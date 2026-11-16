@@ -30,6 +30,7 @@ import { StaffPresencePage } from '../features/admin/StaffPresencePage';
 import { MySchedulePage } from '../features/staff/MySchedulePage';
 import { OperatingCostsPage } from '../features/operating-costs/OperatingCostsPage';
 import { BatteriesPage } from '../features/batteries/BatteriesPage';
+import { CustomerBatterySwapPage } from '../features/batteries/CustomerBatterySwapPage';
 import { useAuth } from '../features/auth/AuthContext';
 
 function RoleLanding() {
@@ -53,6 +54,7 @@ export function App() {
       <Route path="/stations" element={<CustomerOnly><StationsPage /></CustomerOnly>} />
       <Route path="/vehicles" element={<CustomerOnly><VehiclesPage /></CustomerOnly>} />
       <Route path="/bookings/my" element={<CustomerOnly><CustomerBookingsRoute /></CustomerOnly>} />
+      <Route path="/battery-swap" element={<CustomerOnly><CustomerBatterySwapPage /></CustomerOnly>} />
       <Route path="/bookings/:id/payments" element={<CustomerOnly><PaymentsPage /></CustomerOnly>} />
       <Route path="/locations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><LocationsPage /></RoleRoute>} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />

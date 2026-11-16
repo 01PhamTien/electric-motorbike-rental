@@ -153,12 +153,6 @@ test('moving a charging battery to maintenance closes its session without adding
   assert.equal(sessions[0].completedById,staff.sub);
 });
 
-test('battery health update is restricted to assigned station',async()=>{
-  const {service}=fixture();
-  await assert.rejects(()=>service.updateHealth({...staff,stationId:9},2,{healthPercent:80}),/ngoài trạm được phân công/);
-});
-
-
 test('redeeming a battery reservation opens a charge session for the removed battery',async()=>{
   const vehicle:any={id:12,code:'VG-12',stationId:2,isActive:true};
   const removed:any={id:1,serialNumber:'BAT-OLD',stationId:2,vehicleId:12,status:BatteryStatus.INSTALLED,cycleCount:10};

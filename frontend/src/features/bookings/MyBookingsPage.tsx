@@ -60,7 +60,10 @@ export function MyBookingsPage() {
   useEffect(() => { void load(); }, [load]);
   const visible = filter === 'ALL' ? items : items.filter(b => b.status === filter);
   useEffect(() => {
-    if (!bookingId || loading || !items.length) return;
+    if (!bookingId) {
+      detailRequestId.current += 1; setDetail(null); setDetailLoading(false); return;
+    }
+    if (loading || !items.length) return;
     const booking = items.find(item => item.id === Number(bookingId));
     if (booking && detail?.id !== booking.id) void openDetails(booking);
   }, [bookingId, loading, items]);

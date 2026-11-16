@@ -65,9 +65,9 @@ export class SePayService {
       order_invoice_number: attempt.invoiceNumber,
       payment_method: 'BANK_TRANSFER',
       customer_id: String(user.sub),
-      success_url: returnBase + '/payments/result?invoice=' + encodeURIComponent(attempt.invoiceNumber) + '&status=success',
-      error_url: returnBase + '/payments/result?invoice=' + encodeURIComponent(attempt.invoiceNumber) + '&status=error',
-      cancel_url: returnBase + '/payments/result?invoice=' + encodeURIComponent(attempt.invoiceNumber) + '&status=cancel',
+      success_url: returnBase + '/bookings/' + bookingId + '/payments?sepay=' + encodeURIComponent(attempt.invoiceNumber) + '&result=success',
+      error_url: returnBase + '/bookings/' + bookingId + '/payments?sepay=' + encodeURIComponent(attempt.invoiceNumber) + '&result=error',
+      cancel_url: returnBase + '/bookings/' + bookingId + '/payments?sepay=' + encodeURIComponent(attempt.invoiceNumber) + '&result=cancel',
     };
     return {
       provider: 'SEPAY',

@@ -28,7 +28,7 @@ export class VnPayService {
     return {
       tmnCode,
       hashSecret,
-      paymentUrl: this.config.get<string>('VNPAY_PAYMENT_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
+      paymentUrl,
       returnUrl: this.config.get<string>('VNPAY_RETURN_URL'),
       expireMinutes: Math.min(30, Math.max(5, Number(this.config.get<string>('VNPAY_EXPIRE_MINUTES', '15')) || 15)),
     };

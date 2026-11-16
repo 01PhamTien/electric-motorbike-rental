@@ -15,12 +15,14 @@ export class PaymentsService {
     if (user.role === Role.STAFF && user.stationId !== booking.vehicle.stationId) throw new ForbiddenException();
   }
   async create(user: JwtUser, bookingId: number, dto: CreatePaymentDto) {
+    const idempotencyKey = typeof dto.idempotencyKey === 'string' ? dto.idempotencyKey.trim() : '';
+    if (!idempotencyKey) throw new BadRequestException('Mã chống lặp giao dịch không được để trống');
     return this.ds.transaction(async em => {
       const booking = await em.getRepository(Booking).findOne({ where: { id: bookingId }, lock: { mode: 'pessimistic_write' } });
       if (!booking) throw new NotFoundException('Không tìm thấy đơn');
       this.access(user, booking, true);
       const repo = em.getRepository(PaymentTransaction);
-      const previous = await repo.findOneBy({ idempotencyKey: dto.idempotencyKey });
+      const previous = await repo.findOneBy({ idempotencyKey });
       if (previous) {
         if (previous.bookingId !== bookingId || previous.purpose !== dto.purpose || previous.method !== dto.method || Number(previous.amount) !== dto.amount)
           throw new BadRequestException('Mã chống lặp đã được sử dụng cho giao dịch khác');
@@ -45,7 +47,7 @@ export class PaymentsService {
         if (booking.status !== BookingStatus.COMPLETED) throw new BadRequestException('Chỉ hoàn cọc sau khi trả xe');
       }
       return repo.save(repo.create({ bookingId, purpose: dto.purpose, method: dto.method,
-        amount: dto.amount.toFixed(2), idempotencyKey: dto.idempotencyKey, note: dto.note ?? null, recordedById: user.sub }));
+        amount: dto.amount.toFixed(2), idempotencyKey, note: dto.note ?? null, recordedById: user.sub }));
     });
   }
   async list(user: JwtUser, bookingId: number) {

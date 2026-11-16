@@ -65,6 +65,7 @@ export function MyBookingsPage() {
     api.get('/payments/vnpay/status/' + encodeURIComponent(returnedTxnRef)).then(({data}) => {
       if (!active) return;
       if (data.status === 'PAID') setSuccessNotice('VNPay đã xác nhận thanh toán thành công. Giao dịch đã được cập nhật vào lịch sử đơn.');
+      else if (data.status === 'PAID_REVIEW') setError('VNPay đã xác nhận nhận tiền nhưng giao dịch cần nhân viên đối soát thủ công. Vui lòng không thanh toán lại.');
       else if (data.status === 'FAILED') setError('Giao dịch VNPay không thành công. Bạn có thể thử thanh toán lại.');
       else if (data.status === 'EXPIRED') setError('Phiên thanh toán đã hết hạn. Nếu ngân hàng đã trừ tiền, vui lòng chờ IPN đối soát trước khi thanh toán lại.');
       else setSuccessNotice('Đã quay lại từ VNPay. Hệ thống đang chờ IPN xác thực từ cổng thanh toán; trạng thái trên trình duyệt chưa phải xác nhận thanh toán.');

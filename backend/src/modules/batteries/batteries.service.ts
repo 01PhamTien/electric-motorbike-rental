@@ -379,14 +379,42 @@ export class BatteriesService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async history(user: JwtUser, stationId?: number) {
-    if (stationId != null) this.assertStation(user, stationId);
-    if (user.role === Role.STAFF && user.stationId == null) return [];
-    const effectiveStationId = stationId ?? (user.role === Role.STAFF ? user.stationId : undefined);
-    const qb=this.swaps.createQueryBuilder('swap').leftJoinAndSelect('swap.vehicle','vehicle')
-      .leftJoinAndSelect('swap.station','station').leftJoinAndSelect('swap.removedBattery','removedBattery')
-      .leftJoinAndSelect('swap.installedBattery','installedBattery').orderBy('swap.createdAt','DESC').take(300);
-    if(effectiveStationId != null) qb.andWhere('swap.stationId = :stationId',{stationId:effectiveStationId});
-    return qb.getMany();
+  async history(user: JwtUser, filters: {
+    stationId?: number; vehicleId?: number; serial?: string; from?: string; to?: string; page?: number; limit?: number;
+  }) {
+    const page = Math.max(1, Math.floor(filters.page || 1));
+    const limit = Math.min(100, Math.max(1, Math.floor(filters.limit || 20)));
+    if (filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) {
+      throw new BadRequestException('Ngày bắt đầu không được sau ngày kết thúc');
+    }
+    if (filters.stationId != null) this.assertStation(user, filters.stationId);
+    if (user.role === Role.STAFF && user.stationId == null) {
+      return { items: [], total: 0, page, limit, totalPages: 0 };
+    }
+    const effectiveStationId = filters.stationId ?? (user.role === Role.STAFF ? user.stationId : undefined);
+    const qb = this.swaps.createQueryBuilder('swap')
+      .leftJoinAndSelect('swap.vehicle', 'vehicle')
+      .leftJoinAndSelect('swap.station', 'station')
+      .leftJoinAndSelect('swap.removedBattery', 'removedBattery')
+      .leftJoinAndSelect('swap.installedBattery', 'installedBattery')
+      .leftJoin('swap.performedBy', 'performedBy')
+      .addSelect(['performedBy.id', 'performedBy.fullName'])
+      .orderBy('swap.createdAt', 'DESC')
+      .addOrderBy('swap.id', 'DESC');
+
+    if (effectiveStationId != null) qb.andWhere('swap.stationId = :stationId', { stationId: effectiveStationId });
+    if (filters.vehicleId != null) qb.andWhere('swap.vehicleId = :vehicleId', { vehicleId: filters.vehicleId });
+    if (filters.from) qb.andWhere('swap.createdAt >= :fromDate', { fromDate: new Date(filters.from) });
+    if (filters.to) {
+      const toDate = new Date(filters.to);
+      toDate.setUTCHours(23, 59, 59, 999);
+      qb.andWhere('swap.createdAt <= :toDate', { toDate });
+    }
+    if (filters.serial?.trim()) {
+      const serial = filters.serial.trim().slice(0, 80);
+      qb.andWhere('(removedBattery.serialNumber LIKE :serial OR installedBattery.serialNumber LIKE :serial)', { serial: `%${serial}%` });
+    }
+    const [items, total] = await qb.skip((page - 1) * limit).take(limit).getManyAndCount();
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 }

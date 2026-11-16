@@ -1,0 +1,18 @@
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+/** Allow a battery's health to remain unknown until an actual measurement is recorded. */
+export class AllowUnknownBatteryHealth1795478400000 implements MigrationInterface {
+  name = 'AllowUnknownBatteryHealth1795478400000';
+  async up(queryRunner: QueryRunner): Promise<void> {
+    if (!(await queryRunner.hasTable('batteries'))) throw new Error('Table [batteries] does not exist.');
+    const column = await queryRunner.query(`SELECT [is_nullable] FROM sys.columns WHERE [object_id] = OBJECT_ID(N'[dbo].[batteries]') AND [name] = N'healthPercent'`);
+    if (!column.length) throw new Error('Column [healthPercent] does not exist.');
+    if (column[0].is_nullable === false || column[0].is_nullable === 0) await queryRunner.query('ALTER TABLE [dbo].[batteries] ALTER COLUMN [healthPercent] int NULL');
+  }
+  async down(queryRunner: QueryRunner): Promise<void> {
+    if (!(await queryRunner.hasTable('batteries'))) return;
+    const unknown = await queryRunner.query('SELECT COUNT(*) AS [total] FROM [dbo].[batteries] WHERE [healthPercent] IS NULL');
+    if (Number(unknown[0]?.total ?? 0) > 0) throw new Error('Record actual health measurements before reverting this migration.');
+    await queryRunner.query('ALTER TABLE [dbo].[batteries] ALTER COLUMN [healthPercent] int NOT NULL');
+  }
+}

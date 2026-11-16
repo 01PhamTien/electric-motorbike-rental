@@ -99,7 +99,7 @@ test('flags a verified payment that would exceed the booking amount due', async 
   const ctx = createHarness();
   ctx.writes.push({ amount: '150000.00' });
   const original = ctx.service['dataSource'].transaction;
-  ctx.service['dataSource'].transaction = async (callback: (manager: any) => Promise<unknown>) => {
+  (ctx.service['dataSource'] as any).transaction = async (callback: (manager: any) => Promise<unknown>) => {
     const manager: any = {
       getRepository(entity: unknown) {
         if (entity === VnPayPaymentAttempt) return {
@@ -122,7 +122,7 @@ test('flags a verified payment that would exceed the booking amount due', async 
   assert.equal(result.RspCode, '00');
   assert.equal(ctx.attempt.status, VnPayAttemptStatus.PAID_REVIEW);
   assert.match(ctx.writes[1].note, /OVERPAYMENT_REQUIRES_MANUAL_RECONCILIATION/);
-  ctx.service['dataSource'].transaction = original;
+  (ctx.service['dataSource'] as any).transaction = original;
 });
 
 test('acknowledges duplicate successful IPN without creating another ledger entry', async () => {

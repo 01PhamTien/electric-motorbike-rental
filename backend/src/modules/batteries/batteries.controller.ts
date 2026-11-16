@@ -14,7 +14,7 @@ import { BatteryTransfersService } from './battery-transfers.service';
 import { BatteryStocktakesService } from './battery-stocktakes.service';
 import { BatteryHealthService } from './battery-health.service';
 import { CreateBatteryTransferDto, CreateBatteryStocktakeDto, UpdateBatteryStocktakeItemDto, AddBatteryStocktakeExtraDto, RecordBatteryHealthDto, CreateBatteryMaintenanceTaskDto, CompleteBatteryMaintenanceTaskDto, CreateBatteryOperatingCostDto } from './batteries.dto';
-import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto } from './batteries.dto';
+import { CreateBatteryDto, InstallBatteryDto, SwapBatteryDto, CreateBatteryReservationDto, RedeemBatteryReservationDto, CompleteBatteryChargingDto, UpdateBatteryStatusDto, BatteryChargeHistoryQueryDto, UpdateBatteryHealthDto } from './batteries.dto';
 
 class BatterySwapHistoryQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) stationId?: number;

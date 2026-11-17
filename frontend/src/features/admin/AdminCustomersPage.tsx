@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SectionHeading } from '../../components/Brand';
+import { AppIcon } from '../../components/AppIcon';
 import { api } from '../../services/api';
 
 type Customer = { id:number; fullName:string; email:string; phone:string|null; status:'ACTIVE'|'LOCKED'; createdAt:string };
@@ -30,12 +31,12 @@ export function AdminCustomersPage() {
     try{await api.patch('/users/customers/'+u.id+'/status',{status:next});setNotice('Đã cập nhật trạng thái khách hàng.');await load();}
     catch(e){setError(errorMessage(e));}finally{setBusy(null);}
   }
-  return <section className="container-page space-y-7 py-12 sm:py-16">
+  return <section className="container-page space-y-7 py-8 sm:py-12">
     <SectionHeading eyebrow="QUẢN TRỊ TÀI KHOẢN" title="Danh sách khách hàng" description="Xem hồ sơ, tìm kiếm và tạm khóa hoặc mở lại tài khoản khách hàng. Thông tin đăng nhập và mật khẩu không được hiển thị."/>
-    <Link className="text-sm font-bold text-emerald-700" to="/admin">← Trung tâm quản trị</Link>
+    <Link className="text-sm font-bold text-emerald-700" to="/admin"><AppIcon name="arrow-left" size={15}/> Trung tâm quản trị</Link>
     {notice&&<p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">{notice}</p>}{error&&<p role="alert" className="rounded-xl bg-rose-50 p-4 text-rose-800">{error}</p>}
-    <div className="panel grid gap-4 p-5 md:grid-cols-2"><label><span className="field-label">Tìm khách hàng</span><input className="field" placeholder="Họ tên, email, số điện thoại..." value={query} onChange={e=>setQuery(e.target.value)}/></label><label><span className="field-label">Trạng thái</span><select className="field" value={status} onChange={e=>setStatus(e.target.value)}><option value="">Tất cả</option><option value="ACTIVE">Đang hoạt động</option><option value="LOCKED">Đã khóa</option></select></label></div>
-    <div className="panel overflow-hidden"><div className="flex justify-between border-b p-5"><strong>{filtered.length} / {items.length} khách hàng</strong><button className="text-sm font-bold text-emerald-700" onClick={()=>void load()}>↻ Làm mới</button></div>
-    {loading?<p className="p-5">Đang tải...</p>:!filtered.length?<p className="p-5 text-slate-500">Chưa có khách hàng phù hợp.</p>:<div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-4">Khách hàng</th><th className="p-4">Email</th><th className="p-4">Số điện thoại</th><th className="p-4">Trạng thái</th><th className="p-4">Thao tác</th></tr></thead><tbody className="divide-y">{filtered.map(u=><tr key={u.id}><td className="p-4"><strong>{u.fullName}</strong><p className="text-xs text-slate-500">#{u.id}</p></td><td className="p-4">{u.email}</td><td className="p-4">{u.phone||'Chưa cập nhật'}</td><td className="p-4">{u.status==='ACTIVE'?'Đang hoạt động':'Đã khóa'}</td><td className="p-4"><button disabled={busy===u.id} onClick={()=>void toggle(u)} className="font-bold text-emerald-700">{busy===u.id?'Đang xử lý...':u.status==='ACTIVE'?'Khóa tài khoản':'Mở khóa'}</button></td></tr>)}</tbody></table></div>}</div>
+    <div className="panel grid gap-4 p-5 sm:p-6 md:grid-cols-2"><label><span className="field-label">Tìm khách hàng</span><input className="field" placeholder="Họ tên, email, số điện thoại..." value={query} onChange={e=>setQuery(e.target.value)}/></label><label><span className="field-label">Trạng thái</span><select className="field" value={status} onChange={e=>setStatus(e.target.value)}><option value="">Tất cả</option><option value="ACTIVE">Đang hoạt động</option><option value="LOCKED">Đã khóa</option></select></label></div>
+    <div className="panel overflow-hidden"><div className="flex justify-between border-b border-[#edf1ed] p-5"><strong>{filtered.length} / {items.length} khách hàng</strong><button className="text-sm font-bold text-emerald-700" onClick={()=>void load()}><AppIcon name="refresh" size={15}/> Làm mới</button></div>
+    {loading?<p className="p-5">Đang tải...</p>:!filtered.length?<p className="p-5 text-slate-500">Chưa có khách hàng phù hợp.</p>:<div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead className="bg-[#f8faf8] text-slate-500"><tr><th className="p-4">Khách hàng</th><th className="p-4">Email</th><th className="p-4">Số điện thoại</th><th className="p-4">Trạng thái</th><th className="p-4">Thao tác</th></tr></thead><tbody className="divide-y">{filtered.map(u=><tr key={u.id}><td className="p-4"><strong>{u.fullName}</strong><p className="text-xs text-slate-500">#{u.id}</p></td><td className="p-4">{u.email}</td><td className="p-4">{u.phone||'Chưa cập nhật'}</td><td className="p-4">{u.status==='ACTIVE'?'Đang hoạt động':'Đã khóa'}</td><td className="p-4"><button disabled={busy===u.id} onClick={()=>void toggle(u)} className="font-bold text-emerald-700">{busy===u.id?'Đang xử lý...':u.status==='ACTIVE'?'Khóa tài khoản':'Mở khóa'}</button></td></tr>)}</tbody></table></div>}</div>
   </section>;
 }

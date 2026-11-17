@@ -25,6 +25,9 @@ export class UpdateBookingDto {
 
   @IsOptional() @IsDateString()
   returnAt?: string;
+
+  @IsOptional() @IsString() @MaxLength(255)
+  reason?: string;
 }
 
 export class CancelBookingDto {

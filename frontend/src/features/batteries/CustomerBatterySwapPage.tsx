@@ -75,21 +75,21 @@ export function CustomerBatterySwapPage(){
     finally{setBusy(false);}
   }
 
-  return <div className="container-page py-10 sm:py-14">
+  return <div className="container-page py-8 sm:py-12">
     <div className="flex flex-wrap items-end justify-between gap-5">
       <SectionHeading eyebrow="DỊCH VỤ TRONG HÀNH TRÌNH" title="Đổi pin nhanh" description="Giữ trước một viên pin đầy tại trạm xe đang thuê để tiết kiệm thời gian chờ khi cần tiếp tục di chuyển."/>
       <Link to="/bookings/my" className="btn-outline">← Đơn thuê của tôi</Link>
     </div>
-    <div className="mt-7 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 text-sm leading-6 text-emerald-900">
+    <div className="mt-6 rounded-2xl border border-[#dfebe2] bg-[#f7faf7] p-5 text-sm leading-6 text-[#416c53]">
       <strong>Thời gian giữ pin có giới hạn.</strong> Sau khi đặt trước, bạn cần đến trạm và nhờ nhân viên xác nhận đổi pin trước khi lượt giữ hết hạn. Việc đặt trước không phát sinh thanh toán.
     </div>
-    {error&&<p role="alert" className="mt-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
-    {notice&&<p role="status" className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</p>}
+    {error&&<p role="alert" className="mt-5 rounded-xl border border-[#f0e4e1] bg-[#fcf8f7] p-4 text-sm text-[#87534b]">{error}</p>}
+    {notice&&<p role="status" className="mt-5 rounded-xl border border-[#dfebe2] bg-[#f7faf7] p-4 text-sm text-[#416c53]">{notice}</p>}
     {loading?<div className="mt-8"><LoadingState label="Đang kiểm tra đơn thuê và lượng pin tại trạm..."/></div>:<>
-      {activeReservation&&<section className="panel mt-7 border-emerald-200 p-6">
+      {activeReservation&&<section className="panel mt-7 border-[#dfebe2] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><p className="eyebrow">LƯỢT GIỮ PIN ĐANG HIỆU LỰC</p><h2 className="mt-2 text-xl font-extrabold">Mã giữ pin #{activeReservation.id}</h2><p className="mt-2 text-sm text-slate-600">{activeReservation.station?.name??'Trạm đổi pin'} · {activeReservation.vehicle?.code??'Xe đang thuê'}</p></div>
-          <div className="rounded-2xl bg-emerald-50 px-5 py-3 text-center"><p className="text-xs font-bold text-emerald-700">THỜI GIAN CÒN LẠI</p><p className="mt-1 font-mono text-3xl font-black text-emerald-800">{countdown}</p></div>
+          <div className="rounded-2xl border border-[#dfebe2] bg-[#f7faf7] px-5 py-3 text-center"><p className="text-xs font-bold text-emerald-700">THỜI GIAN CÒN LẠI</p><p className="mt-1 font-mono text-3xl font-black text-emerald-800">{countdown}</p></div>
         </div>
         <p className="mt-4 text-sm text-slate-500">Hết hạn lúc {timeText(activeReservation.expiresAt)}. Vui lòng đến quầy nhân viên tại trạm để hoàn tất đổi pin.</p>
         <button disabled={busy} onClick={()=>void cancel(activeReservation.id)} className="btn-outline mt-5 border-rose-200 text-rose-700">Hủy lượt giữ pin</button>

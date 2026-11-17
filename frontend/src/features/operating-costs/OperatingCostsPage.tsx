@@ -73,12 +73,12 @@ export function OperatingCostsPage() {
     } catch(err) {setError(errorText(err));}
     finally {setBusy(false);}
   }
-  return <div className="container-page py-12 sm:py-16">
+  return <div className="container-page py-8 sm:py-12">
     <div className="flex flex-wrap items-end justify-between gap-5"><SectionHeading eyebrow="TÀI CHÍNH VẬN HÀNH" title="Chi phí vận hành" description="Ghi nhận điện sạc, vệ sinh, bảo hiểm, đăng ký, bãi đỗ và các khoản chi phí khác theo xe hoặc theo trạm."/><div className="flex gap-3"><Link to="/admin" className="btn-outline">← Quản trị</Link><Link to="/admin/dashboard" className="btn-outline">Báo cáo</Link></div></div>
-    {notice&&<p role="status" className="mt-7 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</p>}
-    {error&&<p role="alert" className="mt-7 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
-    <div className="mt-8 grid gap-7 lg:grid-cols-[.85fr_1.15fr]">
-      <form onSubmit={submit} className="panel h-fit space-y-4 p-6">
+    {notice&&<p role="status" className="mt-6 rounded-xl border border-[#dfebe2] bg-[#f7faf7] p-4 text-sm text-[#416c53]">{notice}</p>}
+    {error&&<p role="alert" className="mt-6 rounded-xl border border-[#f0e4e1] bg-[#fcf8f7] p-4 text-sm text-[#87534b]">{error}</p>}
+    <div className="mt-7 grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
+      <form onSubmit={submit} className="panel h-fit space-y-4 p-5 sm:p-6">
         <div><p className="eyebrow">GHI NHẬN KHOẢN CHI</p><h2 className="mt-2 text-xl font-extrabold">Thêm chi phí mới</h2></div>
         <label className="block"><span className="field-label">Trạm ghi nhận</span><select className="field mt-2" required disabled={user?.role==='STAFF'} value={form.stationId} onChange={e=>setForm({...form,stationId:e.target.value,vehicleId:''})}><option value="">Chọn trạm</option>{stations.filter(s=>s.isActive!==false&&(user?.role!=='STAFF'||s.id===user?.stationId)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
         <label className="block"><span className="field-label">Loại chi phí</span><select className="field mt-2" value={form.category} onChange={e=>updateCharging({category:e.target.value as Category,vehicleId:'',energyKwh:'',unitPrice:''})}>{categories.map(c=><option key={c.value} value={c.value}>{c.label}</option>)}</select></label>

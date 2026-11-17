@@ -126,19 +126,19 @@ export function DashboardPage() {
   ] : [];
   const statuses = data ? Object.entries(data.bookings.byStatus) : [];
   const max = Math.max(1,...(data?.monthly.map(m=>m.netCashIn) ?? [0]));
-  return <div className="container-page py-12 sm:py-16">
+  return <div className="container-page py-8 sm:py-12">
     <div className="flex flex-wrap items-end justify-between gap-6">
       <SectionHeading eyebrow="QUẢN TRỊ VOLTGO" title="Báo cáo kinh doanh" description="Doanh thu, tiền cọc, lượt thuê và hiệu quả đội xe dựa trên dữ liệu giao dịch đã ghi nhận."/>
-      <div className="flex flex-wrap gap-3"><Link to="/admin" className="btn-outline">← Trung tâm quản trị</Link><button onClick={()=>void load()} className="btn-outline">↻ Làm mới</button><button disabled={!data} onClick={exportCsv} className="btn-dark">↓ Xuất Excel (CSV)</button></div>
+      <div className="flex flex-wrap gap-3"><Link to="/admin" className="btn-outline">Trung tâm quản trị</Link><button onClick={()=>void load()} className="btn-outline">Làm mới</button><button disabled={!data} onClick={exportCsv} className="btn-dark">↓ Xuất Excel (CSV)</button></div>
     </div>
-    <section className="panel mt-8 flex flex-wrap items-end gap-4 p-5">
+    <section className="panel mt-7 flex flex-wrap items-end gap-4 p-5 sm:p-6">
       <label className="min-w-[180px] flex-1"><span className="field-label">Từ ngày</span><input type="date" className="field mt-2" value={from} max={to || undefined} onChange={e=>setFrom(e.target.value)}/></label>
       <label className="min-w-[180px] flex-1"><span className="field-label">Đến ngày</span><input type="date" className="field mt-2" value={to} min={from || undefined} onChange={e=>setTo(e.target.value)}/></label>
       <button onClick={()=>void load()} disabled={loading || Boolean(from&&to&&from>to)} className="btn-primary">Áp dụng bộ lọc</button>
     </section>
     {error && <div role="alert" className="mt-7 rounded-xl border border-rose-100 bg-rose-50 p-5 text-sm text-rose-700">{error}</div>}
     {loading ? <div className="mt-8"><LoadingState label="Đang tổng hợp báo cáo..." /></div> : data && <>
-      <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(m=><article key={m.label} className="panel p-6"><p className="text-sm font-semibold text-slate-500">{m.label}</p><p className={'mt-5 text-3xl font-extrabold tracking-tight '+m.tone}>{typeof m.value==='number'?money(m.value):m.value}</p><p className="mt-2 text-xs text-slate-400">{m.detail}</p></article>)}</div>
+      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(m=><article key={m.label} className="panel p-5 sm:p-6"><p className="text-sm font-semibold text-slate-500">{m.label}</p><p className={'mt-5 text-3xl font-extrabold tracking-tight '+m.tone}>{typeof m.value==='number'?money(m.value):m.value}</p><p className="mt-2 text-xs text-slate-400">{m.detail}</p></article>)}</div>
       <div className="mt-7 grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
         <section className="panel p-7"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-extrabold">Dòng tiền theo tháng</h2><p className="mt-2 text-sm text-slate-500">Tiền thuê và phụ phí đã thu, trừ hoàn tiền đã ghi nhận.</p></div><span className="tag">VND</span></div>
           {!data.monthly.length ? <p className="mt-8 text-sm text-slate-400">Chưa có giao dịch trong khoảng thời gian này.</p> : <div className="mt-8 space-y-5">{data.monthly.map(m=><div key={m.month}><div className="mb-2 flex items-center justify-between gap-3 text-sm"><strong>{m.month}</strong><span className="font-semibold text-emerald-700">{money(m.netCashIn)}</span></div><div className="h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{width:Math.max(0,m.netCashIn)/max*100+'%'}}/></div><p className="mt-1 text-xs text-slate-400">{m.bookings} đơn được tạo · Thu thuê {money(m.rentCollected)} · Phụ phí {money(m.extrasCollected)} · Hoàn {money(m.refunds)}</p></div>)}</div>}

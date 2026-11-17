@@ -25,10 +25,10 @@ export class SePayController {
   createCheckout(
     @CurrentUser() user: JwtUser,
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { purpose: PaymentPurpose.RENT | PaymentPurpose.DEPOSIT },
+    @Body() body: { purpose: PaymentPurpose.RENT | PaymentPurpose.DEPOSIT | 'BOOKING' },
   ) {
-    if (![PaymentPurpose.RENT, PaymentPurpose.DEPOSIT].includes(body?.purpose)) {
-      throw new BadRequestException('purpose must be RENT or DEPOSIT');
+    if (![PaymentPurpose.RENT, PaymentPurpose.DEPOSIT, 'BOOKING'].includes(body?.purpose)) {
+      throw new BadRequestException('purpose must be RENT, DEPOSIT or BOOKING');
     }
     return this.service.createCheckout(user, id, body.purpose);
   }

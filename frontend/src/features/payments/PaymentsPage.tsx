@@ -31,9 +31,9 @@ export function PaymentsPage() {
   const { user } = useAuth();
   const staff = user?.role === 'ADMIN' || user?.role === 'STAFF';
   const customer = user?.role === 'CUSTOMER';
-  const load = useCallback(async() => {
+  const load = useCallback(async(silent=false) => {
     if (!id) return;
-    setLoading(true);
+    if(!silent)setLoading(true);
     const [paymentResult, bookingResult, chargeResult, summaryResult] = await Promise.allSettled([
       api.get('/bookings/' + id + '/payments'), api.get('/bookings/' + id),
       api.get('/bookings/' + id + '/charges'), api.get('/bookings/' + id + '/payments/summary'),
@@ -46,9 +46,9 @@ export function PaymentsPage() {
     if (bookingResult.status === 'fulfilled') setBooking(bookingResult.value.data);
     if (chargeResult.status === 'fulfilled') setCharges(chargeResult.value.data ?? []);
     if (summaryResult.status === 'fulfilled') setSettlement(summaryResult.value.data);
-    setLoading(false);
+    if(!silent)setLoading(false);
   },[id]);
-  useEffect(() => { void load(); },[load]);
+  useEffect(() => { void load(); const timer=window.setInterval(()=>void load(true),15000); return()=>window.clearInterval(timer); },[load]);
   useEffect(() => {
     const result = searchParams.get('result');
     if (result === 'success') setNotice('SePay đã chuyển bạn trở lại. Hệ thống đang chờ IPN xác nhận; trạng thái thanh toán chỉ cập nhật sau khi backend xác thực thông báo từ SePay.');

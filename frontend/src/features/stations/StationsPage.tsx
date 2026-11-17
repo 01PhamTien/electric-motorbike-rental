@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, LoadingState, SectionHeading } from '../../components/Brand';
+import { AppIcon } from '../../components/AppIcon';
 import { StationMap, coordinatesValid, stationDirections } from '../../components/StationMap';
 import type { StationMapPoint, UserMapLocation } from '../../components/StationMap';
 import { api } from '../../services/api';

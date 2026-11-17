@@ -133,6 +133,9 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
       batteryPercent: 90, odometerKm: 120, conditionNote: 'Kiểm tra phân quyền',
     }));
     await bookingService.confirm(staffForHandover, second!.id);
+    await assert.rejects(() => handovers.process(staffForHandover, second!.id, HandoverKind.PICKUP, {
+      batteryPercent: 90, odometerKm: 120, conditionNote: 'Chưa thanh toán',
+    }), /Chưa thể bàn giao xe/);
     const deposit = { purpose: PaymentPurpose.DEPOSIT, method: PaymentMethod.CASH,
       amount: 1000000, idempotencyKey: 'test-deposit-' + second!.id };
     await payments.create(staffForHandover, second!.id, {

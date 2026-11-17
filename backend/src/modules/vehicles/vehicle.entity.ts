@@ -4,6 +4,7 @@ import { Station } from '../stations/station.entity';
 import { VehicleModel } from '../vehicle-models/vehicle-model.entity';
 import { Booking } from '../bookings/booking.entity';
 import { VehicleLocation } from '../locations/vehicle-location.entity';
+import { VehicleImage } from './vehicle-image.entity';
 
 @Entity('vehicles')
 export class Vehicle {
@@ -49,6 +50,9 @@ export class Vehicle {
 
   @OneToMany(() => VehicleLocation, (location) => location.vehicle)
   locations: VehicleLocation[];
+
+  @OneToMany(() => VehicleImage, (image) => image.vehicle)
+  images: VehicleImage[];
 
   @CreateDateColumn()
   createdAt: Date;

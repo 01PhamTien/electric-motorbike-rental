@@ -158,6 +158,10 @@ export class BookingsService {
       const base = Math.round(rentalDays * Number(booking.dailyRateSnapshot) * 100);
       const discount = Math.min(Math.max(0, Math.round(Number(booking.discountAmount || 0) * 100)), base);
       const previous = { pickupAt: booking.pickupAt, returnAt: booking.returnAt, rentalAmount: booking.rentalAmount };
+      const rentPayments = await manager.getRepository(PaymentTransaction).find({ where: { bookingId: id, purpose: PaymentPurpose.RENT } });
+      if (rentPayments.length && base - discount !== Math.round(Number(booking.rentalAmount) * 100)) {
+        throw new BadRequestException('Đơn đã phát sinh thanh toán tiền thuê. Không thể thay đổi lịch làm thay đổi tổng tiền; cần xử lý điều chỉnh tài chính riêng.');
+      }
       booking.pickupAt = pickupAt; booking.returnAt = returnAt;
       booking.baseRentalAmount = (base / 100).toFixed(2);
       booking.discountAmount = (discount / 100).toFixed(2);
@@ -166,6 +170,7 @@ export class BookingsService {
       await this.audit?.record(current.sub, 'BOOKING_SCHEDULE_UPDATED', 'BOOKING', id, {
         previous: { pickupAt: previous.pickupAt, returnAt: previous.returnAt, rentalAmount: previous.rentalAmount },
         current: { pickupAt, returnAt, rentalAmount: saved.rentalAmount },
+        reason: dto.reason?.trim() || 'Khách yêu cầu điều chỉnh lịch thuê',
       });
       return saved;
     });

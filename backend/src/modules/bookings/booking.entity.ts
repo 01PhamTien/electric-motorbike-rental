@@ -58,6 +58,9 @@ export class Booking {
   @Column({ type: 'datetime', nullable: true })
   holdExpiresAt: Date | null;
 
+  @Column({ type: 'varchar', length: 20, default: 'CASH' })
+  preferredPaymentMethod: string;
+
   @Column({ type: 'simple-enum', enum: BookingStatus, default: BookingStatus.PENDING })
   status: BookingStatus;
 

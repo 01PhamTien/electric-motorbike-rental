@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vehicle } from './vehicle.entity';
@@ -12,9 +12,9 @@ import { VehicleImage } from './vehicle-image.entity';
 export class VehiclesService {
   constructor(
     @InjectRepository(Vehicle) private readonly repo: Repository<Vehicle>,
-    @InjectRepository(VehicleImage) private readonly images: Repository<VehicleImage>,
     @InjectRepository(VehicleModel) private readonly models: Repository<VehicleModel>,
     @InjectRepository(Station) private readonly stations: Repository<Station>,
+    @Optional() @InjectRepository(VehicleImage) private readonly images?: Repository<VehicleImage>,
   ) {}
 
   findAllForAdmin() {
@@ -59,10 +59,12 @@ export class VehiclesService {
     if (!['http:', 'https:'].includes(parsed.protocol) || imageUrl.length > 2048) {
       throw new BadRequestException('Ảnh phải dùng URL HTTP(S) hợp lệ, tối đa 2048 ký tự');
     }
+    if (!this.images) throw new Error('Vehicle image repository is not configured');
     return this.images.save(this.images.create({ vehicleId, imageUrl }));
   }
 
   async removeImage(vehicleId: number, imageId: number) {
+    if (!this.images) throw new Error('Vehicle image repository is not configured');
     const image = await this.images.findOneBy({ id: imageId, vehicleId });
     if (!image) throw new NotFoundException('Không tìm thấy ảnh thuộc xe này');
     await this.images.remove(image);

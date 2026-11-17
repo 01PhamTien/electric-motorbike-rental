@@ -135,9 +135,18 @@ export class BookingsService {
 
   async update(current: JwtUser, id: number, dto: UpdateBookingDto) {
     if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    const candidate = await this.bookingRepo.findOne({ where: { id }, select: { id: true, vehicleId: true } });
+    if (!candidate) throw new NotFoundException('Không tìm thấy đơn thuê');
     return this.dataSource.transaction(async manager => {
+      // Keep the same vehicle -> booking lock order as create and handover to prevent schedule races.
+      const vehicle = await manager.getRepository(Vehicle).findOne({
+        where: { id: candidate.vehicleId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!vehicle) throw new NotFoundException('Không tìm thấy xe của đơn');
       const booking = await manager.getRepository(Booking).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
       if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+      if (booking.vehicleId !== vehicle.id) throw new BadRequestException('Xe của đơn đã thay đổi, vui lòng thử lại');
       this.assertAccess(current, booking);
       if (![BookingStatus.PENDING, BookingStatus.CONFIRMED].includes(booking.status)) {
         throw new BadRequestException('Chỉ được điều chỉnh lịch đơn đang chờ hoặc đã xác nhận, trước khi bàn giao xe');

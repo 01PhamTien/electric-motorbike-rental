@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { SectionHeading } from '../../components/Brand';
+import { AppIcon } from '../../components/AppIcon';
 import { api } from '../../services/api';
 
 type Station = { id: number; name: string; address: string; latitude: string; longitude: string; phone: string | null; isActive: boolean };
@@ -49,18 +50,18 @@ export function AdminStationsPage() {
     finally {setSaving(false);}
   }
   const filtered=items.filter(s=>(s.name+' '+s.address).toLowerCase().includes(query.toLowerCase()));
-  return <section className="container-page space-y-7 py-12 sm:py-16">
+  return <section className="container-page space-y-7 py-8 sm:py-12">
     {!open && <>
     <div className="flex flex-wrap items-end justify-between gap-4"><SectionHeading eyebrow="QUẢN TRỊ MẠNG LƯỚI" title="Quản lý điểm thuê" description="Cập nhật trạm nhận/trả xe, thông tin liên hệ, tọa độ tham khảo và trạng thái hoạt động."/><button className="btn-primary" onClick={()=>edit()}>+ Thêm điểm thuê</button></div>
-    <Link className="text-sm font-bold text-emerald-700" to="/admin">← Trung tâm quản trị</Link>
+    <Link className="text-sm font-bold text-emerald-700" to="/admin"><AppIcon name="arrow-left" size={15}/> Trung tâm quản trị</Link>
     {notice && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">{notice}</p>}
     {error && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-rose-800">{error}</p>}
     <div className="panel p-5"><label><span className="field-label">Tìm điểm thuê</span><input className="field" placeholder="Tên trạm, địa chỉ..." value={query} onChange={e=>setQuery(e.target.value)}/></label></div>
-    <div className="panel overflow-hidden"><div className="flex justify-between border-b p-5"><strong>{filtered.length} điểm thuê</strong><button className="text-sm font-bold text-emerald-700" onClick={()=>void load()}>↻ Làm mới</button></div>
-      {loading?<p className="p-5">Đang tải...</p>:<div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left text-sm"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-4">Trạm</th><th className="p-4">Địa chỉ</th><th className="p-4">Liên hệ</th><th className="p-4">Trạng thái</th><th className="p-4">Thao tác</th></tr></thead><tbody className="divide-y">{filtered.map(s=><tr key={s.id}><td className="p-4 font-bold">{s.name}</td><td className="p-4">{s.address}</td><td className="p-4">{s.phone||'—'}</td><td className="p-4">{s.isActive?'Đang hoạt động':'Đã ngưng'}</td><td className="p-4"><button className="font-bold text-emerald-700" onClick={()=>edit(s)}>Chỉnh sửa</button></td></tr>)}</tbody></table></div>}
+    <div className="panel overflow-hidden"><div className="flex justify-between border-b border-[#edf1ed] p-5"><strong>{filtered.length} điểm thuê</strong><button className="text-sm font-bold text-emerald-700" onClick={()=>void load()}><AppIcon name="refresh" size={15}/> Làm mới</button></div>
+      {loading?<p className="p-5">Đang tải...</p>:<div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left text-sm"><thead className="bg-[#f8faf8] text-slate-500"><tr><th className="p-4">Trạm</th><th className="p-4">Địa chỉ</th><th className="p-4">Liên hệ</th><th className="p-4">Trạng thái</th><th className="p-4">Thao tác</th></tr></thead><tbody className="divide-y">{filtered.map(s=><tr key={s.id}><td className="p-4 font-bold">{s.name}</td><td className="p-4">{s.address}</td><td className="p-4">{s.phone||'—'}</td><td className="p-4">{s.isActive?'Đang hoạt động':'Đã ngưng'}</td><td className="p-4"><button className="font-bold text-emerald-700" onClick={()=>edit(s)}>Chỉnh sửa</button></td></tr>)}</tbody></table></div>}
     </div>
     </>}
-    {open&&<form onSubmit={submit} aria-labelledby="station-form-title" className="mx-auto w-full max-w-3xl panel p-7">
+    {open&&<form onSubmit={submit} aria-labelledby="station-form-title" className="mx-auto w-full max-w-3xl panel p-5 sm:p-7">
       <div className="flex justify-between"><h2 id="station-form-title" className="text-xl font-extrabold">{editing===null?'Thêm điểm thuê':'Cập nhật điểm thuê'}</h2><button type="button" aria-label="Đóng" onClick={()=>navigate('/admin/stations')}>✕</button></div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2"><label className="sm:col-span-2"><span className="field-label">Tên trạm</span><input required maxLength={120} className="field" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label className="sm:col-span-2"><span className="field-label">Địa chỉ</span><input required maxLength={255} className="field" value={form.address} onChange={e=>setForm({...form,address:e.target.value})}/></label><label><span className="field-label">Vĩ độ</span><input required type="number" step="any" min="-90" max="90" className="field" value={form.latitude} onChange={e=>setForm({...form,latitude:e.target.value})}/></label><label><span className="field-label">Kinh độ</span><input required type="number" step="any" min="-180" max="180" className="field" value={form.longitude} onChange={e=>setForm({...form,longitude:e.target.value})}/></label><label><span className="field-label">Số điện thoại</span><input maxLength={30} className="field" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label>{editing!==null&&<label className="flex items-center gap-3 pt-7"><input type="checkbox" checked={form.isActive} onChange={e=>setForm({...form,isActive:e.target.checked})}/>Trạm đang hoạt động</label>}</div>
       {error&&<p role="alert" className="mt-4 text-red-700">{error}</p>}<div className="mt-7 flex justify-end gap-3"><button type="button" className="btn-outline" onClick={()=>navigate('/admin/stations')}>Quay lại danh sách</button><button disabled={saving} className="btn-primary">{saving?'Đang lưu...':'Lưu điểm thuê'}</button></div>

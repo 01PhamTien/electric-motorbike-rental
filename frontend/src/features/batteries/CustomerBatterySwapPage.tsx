@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, LoadingState, SectionHeading, timeText } from '../../components/Brand';
 import { api } from '../../services/api';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 
 type Booking = {
   id:number; status:string; pickupAt:string; returnAt:string;
@@ -26,12 +27,13 @@ export function CustomerBatterySwapPage(){
   const [selectedBooking,setSelectedBooking]=useState('');
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
+  const [cancelReservation,setCancelReservation]=useState<Reservation|null>(null);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [clock,setClock]=useState(Date.now());
 
   const load=useCallback(async(silent=false)=>{
-    if(!silent)setLoading(true);setError('');
+    if(!silent){setLoading(true);setError('');}
     try{
       const [bookingResponse,availabilityResponse,reservationResponse]=await Promise.all([
         api.get('/bookings/my'),api.get('/battery-swap/availability'),api.get('/batteries/reservations/my'),
@@ -70,12 +72,14 @@ export function CustomerBatterySwapPage(){
     try{
       await api.patch('/batteries/reservations/'+id+'/cancel');
       setNotice('Đã hủy lượt giữ pin. Số pin được trả lại kho khả dụng.');
+      setCancelReservation(null);
       await load();
     }catch(e){setError(errorText(e));}
     finally{setBusy(false);}
   }
 
   return <div className="container-page py-8 sm:py-12">
+    <ConfirmDialog open={Boolean(cancelReservation)} title="Hủy lượt giữ pin" description={cancelReservation?`Bạn muốn hủy lượt giữ pin #${cancelReservation.id} tại ${cancelReservation.station?.name??'trạm đổi pin'}?\n\nSau khi hủy, lượt giữ sẽ không còn hiệu lực. Bạn cần đặt lại nếu muốn đổi pin.`:''} confirmLabel="Hủy lượt giữ pin" tone="danger" busy={busy} onCancel={()=>setCancelReservation(null)} onConfirm={()=>{if(cancelReservation)void cancel(cancelReservation.id);}}/>
     <div className="flex flex-wrap items-end justify-between gap-5">
       <SectionHeading eyebrow="DỊCH VỤ TRONG HÀNH TRÌNH" title="Đổi pin nhanh" description="Giữ trước một viên pin đầy tại trạm xe đang thuê để tiết kiệm thời gian chờ khi cần tiếp tục di chuyển."/>
       <Link to="/bookings/my" className="btn-outline">← Đơn thuê của tôi</Link>
@@ -92,7 +96,7 @@ export function CustomerBatterySwapPage(){
           <div className="rounded-2xl border border-[#dfebe2] bg-[#f7faf7] px-5 py-3 text-center"><p className="text-xs font-bold text-emerald-700">THỜI GIAN CÒN LẠI</p><p className="mt-1 font-mono text-3xl font-black text-emerald-800">{countdown}</p></div>
         </div>
         <p className="mt-4 text-sm text-slate-500">Hết hạn lúc {timeText(activeReservation.expiresAt)}. Vui lòng đến quầy nhân viên tại trạm để hoàn tất đổi pin.</p>
-        <button disabled={busy} onClick={()=>void cancel(activeReservation.id)} className="btn-outline mt-5 border-rose-200 text-rose-700">Hủy lượt giữ pin</button>
+        <button disabled={busy} onClick={()=>setCancelReservation(activeReservation)} className="btn-outline mt-5 border-rose-200 text-rose-700">Hủy lượt giữ pin</button>
       </section>}
 
       <section className="panel mt-7 p-6 sm:p-8">

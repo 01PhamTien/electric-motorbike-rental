@@ -6,23 +6,13 @@ export class AddBookingPreferredPaymentMethod1795824000000 implements MigrationI
   async up(queryRunner: QueryRunner): Promise<void> {
     if (!(await queryRunner.hasTable('bookings'))) throw new Error('Cannot add preferred payment method: bookings table does not exist.');
 
-    // Keep DDL statements in separate batches. SQL Server compiles a batch before
-    // executing it, so a new column cannot safely be referenced later in that batch.
+    // Keep DDL in its own batch. SQL Server compiles a batch before executing it.
     await queryRunner.query(`
       IF COL_LENGTH(N'dbo.bookings', N'preferredPaymentMethod') IS NULL
       BEGIN
         ALTER TABLE [dbo].[bookings]
           ADD [preferredPaymentMethod] varchar(20) NOT NULL
           CONSTRAINT [DF_bookings_preferredPaymentMethod] DEFAULT ('CASH');
-      END;
-    `);
-
-    await queryRunner.query(`
-      IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_bookings_preferredPaymentMethod')
-      BEGIN
-        ALTER TABLE [dbo].[bookings] WITH CHECK
-          ADD CONSTRAINT [CK_bookings_preferredPaymentMethod]
-          CHECK ([preferredPaymentMethod] IN ('CASH', 'TRANSFER', 'SEPAY'));
       END;
     `);
   }
@@ -33,10 +23,6 @@ export class AddBookingPreferredPaymentMethod1795824000000 implements MigrationI
       if (Number(nonCash[0]?.total ?? 0) > 0) {
         throw new Error('Cannot remove preferred payment method while bookings contain non-cash preferences.');
       }
-      await queryRunner.query(`
-        IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_bookings_preferredPaymentMethod')
-          ALTER TABLE [dbo].[bookings] DROP CONSTRAINT [CK_bookings_preferredPaymentMethod];
-      `);
       await queryRunner.query(`
         DECLARE @constraintName sysname;
         SELECT @constraintName = dc.name

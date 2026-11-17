@@ -90,8 +90,8 @@ export function BatteriesPage(){
   const historyVehicles=stationId?scopedVehicles:vehicles;
   const fullBatteries=batteries.filter(b=>b.status==='FULL'&&!b.vehicleId);
   const unassignedVehicles=scopedVehicles.filter(v=>!batteries.some(b=>b.vehicleId===v.id&&b.status==='INSTALLED'));
-  async function load(){
-    setLoading(true);setError('');
+  async function load(silent=false){
+    if(!silent)setLoading(true);setError('');
     try{
       const params=stationId?{stationId:Number(stationId)}:{};
       const costParams={...(stationId?{stationId:Number(stationId)}:{}),...(costFrom?{from:costFrom+'T00:00:00.000Z'}:{}),...(costTo?{to:costTo+'T23:59:59.999Z'}:{}),...(costFilterType?{costType:costFilterType}:{}),...(costBatteryId?{batteryId:Number(costBatteryId)}:{})};
@@ -99,7 +99,7 @@ export function BatteriesPage(){
       const [sr,vr,br,rr,tr,str,hs,mt,cs,cl]=await Promise.all([api.get('/stations'),api.get('/vehicles'),api.get('/batteries',{params}),api.get('/batteries/reservations',{params}),api.get('/batteries/transfers'),api.get('/batteries/stocktakes',{params}),api.get('/batteries/health/summary',{params}),api.get('/batteries/maintenance',{params}),api.get('/batteries/operating-costs/summary',{params:summaryParams}),api.get('/batteries/operating-costs',{params:costParams})]);
       setStations(Array.isArray(sr.data)?sr.data:[]);setVehicles(Array.isArray(vr.data)?vr.data:[]);
       setBatteries(Array.isArray(br.data)?br.data:[]);setReservations(Array.isArray(rr.data)?rr.data:[]);setTransfers(Array.isArray(tr.data)?tr.data:[]);setStocktakes(Array.isArray(str.data)?str.data:[]);setHealthSummary(hs.data);setMaintenanceTasks(Array.isArray(mt.data)?mt.data:[]);setCostSummary(cs.data);setOperatingCosts(Array.isArray(cl.data)?cl.data:[]);
-    }catch(e){setError(errText(e));}finally{setLoading(false);}
+    }catch(e){setError(errText(e));}finally{if(!silent)setLoading(false);}
   }
   useEffect(()=>{if(user?.stationId)setStationId(String(user.stationId));},[user?.stationId]);
   useEffect(()=>{
@@ -137,7 +137,7 @@ export function BatteriesPage(){
     return()=>{active=false;};
   },[stationId,historyPage,historyVehicleId,historySearch,historyFrom,historyTo]);
 
-  useEffect(()=>{void load();},[stationId,costFrom,costTo,costFilterType,costBatteryId]);
+  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(true),20000);return()=>window.clearInterval(timer);},[stationId,costFrom,costTo,costFilterType,costBatteryId]);
   async function act(fn:()=>Promise<unknown>,success:string){
     setBusy(true);setError('');setNotice('');
     try{await fn();setNotice(success);await load();}catch(e){setError(errText(e));}finally{setBusy(false);}

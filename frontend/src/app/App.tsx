@@ -30,6 +30,7 @@ import { StaffPresencePage } from '../features/admin/StaffPresencePage';
 import { MySchedulePage } from '../features/staff/MySchedulePage';
 import { OperatingCostsPage } from '../features/operating-costs/OperatingCostsPage';
 import { BatteriesPage } from '../features/batteries/BatteriesPage';
+import { StaffBatterySwapRequestsPage } from '../features/batteries/StaffBatterySwapRequestsPage';
 import { CustomerBatterySwapPage } from '../features/batteries/CustomerBatterySwapPage';
 import { useAuth } from '../features/auth/AuthContext';
 
@@ -66,6 +67,7 @@ export function App() {
       <Route path="/maintenance/schedule" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
       <Route path="/operating-costs" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperatingCostsPage /></RoleRoute>} />
       <Route path="/batteries" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><BatteriesPage /></RoleRoute>} />
+      <Route path="/battery-swap/requests" element={<RoleRoute allowed={['ADMIN','STAFF']}><StaffBatterySwapRequestsPage /></RoleRoute>} />
       <Route path="/operations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
       <Route path="/operations/handover/:handoverBookingId/:handoverKind" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
       <Route path="/vehicle-transfers" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><VehicleTransfersPage /></RoleRoute>} />

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
 import { useAuth } from '../auth/AuthContext';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { api } from '../../services/api';
 
 type Payment = { id: number; purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND'; method: 'CASH'|'TRANSFER'|'SEPAY'; amount: string; note: string|null; createdAt: string };
@@ -27,13 +28,14 @@ export function PaymentsPage() {
   const [error,setError] = useState('');
   const [notice,setNotice] = useState('');
   const [busy,setBusy] = useState(false);
+  const [confirmOpen,setConfirmOpen] = useState(false);
   const [form,setForm] = useState<{purpose:Payment['purpose']; method:Payment['method']; amount:string;note:string;key:string}>({purpose:'RENT',method:'CASH',amount:'',note:'',key:newKey()});
   const { user } = useAuth();
   const staff = user?.role === 'ADMIN' || user?.role === 'STAFF';
   const customer = user?.role === 'CUSTOMER';
-  const load = useCallback(async() => {
+  const load = useCallback(async(silent=false) => {
     if (!id) return;
-    setLoading(true);
+    if(!silent)setLoading(true);
     const [paymentResult, bookingResult, chargeResult, summaryResult] = await Promise.allSettled([
       api.get('/bookings/' + id + '/payments'), api.get('/bookings/' + id),
       api.get('/bookings/' + id + '/charges'), api.get('/bookings/' + id + '/payments/summary'),
@@ -46,9 +48,9 @@ export function PaymentsPage() {
     if (bookingResult.status === 'fulfilled') setBooking(bookingResult.value.data);
     if (chargeResult.status === 'fulfilled') setCharges(chargeResult.value.data ?? []);
     if (summaryResult.status === 'fulfilled') setSettlement(summaryResult.value.data);
-    setLoading(false);
+    if(!silent)setLoading(false);
   },[id]);
-  useEffect(() => { void load(); },[load]);
+  useEffect(() => { void load(); const timer=window.setInterval(()=>void load(true),15000); return()=>window.clearInterval(timer); },[load]);
   useEffect(() => {
     const result = searchParams.get('result');
     if (result === 'success') setNotice('SePay đã chuyển bạn trở lại. Hệ thống đang chờ IPN xác nhận; trạng thái thanh toán chỉ cập nhật sau khi backend xác thực thông báo từ SePay.');
@@ -92,15 +94,23 @@ export function PaymentsPage() {
     e.preventDefault();
     const amount = Number(form.amount);
     if (!id || !Number.isFinite(amount) || amount <= 0) { setError('Nhập số tiền lớn hơn 0.'); return; }
-    if (!window.confirm('Xác nhận đã thực sự nhận/chi ' + money(amount) + ' cho đơn #' + id + '? Thao tác này ghi nhận giao dịch, không tự chuyển tiền.')) return;
+    setConfirmOpen(true);
+  }
+  async function confirmSubmit() {
+    const amount=Number(form.amount);
+    if(!id||!Number.isFinite(amount)||amount<=0)return;
     setBusy(true);setError('');setNotice('');
     try {
       await api.post('/bookings/' + id + '/payments', { purpose:form.purpose,method:form.method,amount,idempotencyKey:form.key,note:form.note || undefined });
-      setNotice('Đã ghi nhận giao dịch thành công.');setForm({...form,amount:'',note:'',key:newKey()});await load();
+      setNotice('Đã ghi nhận giao dịch thành công.');setForm({...form,amount:'',note:'',key:newKey()});setConfirmOpen(false);await load();
     } catch(e) { setError(getError(e)); }
     finally { setBusy(false); }
   }
-  return <div className="container-page py-8 sm:py-12"><div className="flex flex-wrap items-end justify-between gap-5"><SectionHeading eyebrow="THANH TOÁN VÀ ĐỐI SOÁT" title={'Giao dịch đơn #' + (id || '')} description="Lịch sử tiền thuê, tiền cọc, phụ phí và hoàn cọc đã được ghi nhận trong hệ thống."/><Link to={staff?'/operations':'/bookings/my'} className="btn-outline">← Quay lại đơn thuê</Link></div>
+  return <div className="container-page py-8 sm:py-12">
+    <ConfirmDialog open={confirmOpen} title="Xác nhận ghi nhận giao dịch" description={`Xác nhận đã thực sự nhận hoặc chi ${money(Number(form.amount)||0)} cho đơn #${id}?
+
+Thao tác này chỉ ghi nhận giao dịch vào sổ thanh toán, không tự chuyển tiền.`} confirmLabel="Ghi nhận giao dịch" busy={busy} onCancel={()=>setConfirmOpen(false)} onConfirm={()=>void confirmSubmit()}/>
+    <div className="flex flex-wrap items-end justify-between gap-5"><SectionHeading eyebrow="THANH TOÁN VÀ ĐỐI SOÁT" title={'Giao dịch đơn #' + (id || '')} description="Lịch sử tiền thuê, tiền cọc, phụ phí và hoàn cọc đã được ghi nhận trong hệ thống."/><Link to={staff?'/operations':'/bookings/my'} className="btn-outline">← Quay lại đơn thuê</Link></div>
     <div className="mt-7 rounded-2xl border border-[#e7eee9] bg-[#f8fbf8] p-5 text-sm leading-7 text-[#526b61]"><strong>Phương thức khách chọn:</strong> {booking?.preferredPaymentMethod==='SEPAY'?'SePay QR':booking?.preferredPaymentMethod==='TRANSFER'?'Chuyển khoản tại trạm':'Tiền mặt tại trạm'}. Giao dịch chỉ được tính đã thanh toán khi có bản ghi hợp lệ; riêng SePay chỉ ghi nhận qua IPN xác thực.</div>
     {notice && <p role="status" className="mt-5 rounded-xl border border-[#dfebe2] bg-[#f7faf7] p-4 text-sm text-[#416c53]">{notice}</p>}
     {error && <p role="alert" className="mt-5 rounded-xl border border-[#f0e4e1] bg-[#fcf8f7] p-4 text-sm text-[#87534b]">{error}</p>}

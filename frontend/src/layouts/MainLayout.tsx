@@ -12,7 +12,7 @@ const customerNav:NavItem[]=[
 ];
 const staffGroups:NavGroup[]=[
  {title:'CÔNG VIỆC',items:[{to:'/operations',label:'Tổng quan vận hành',icon:'clipboard'},{to:'/my-schedule',label:'Lịch trực của tôi',icon:'calendar'},{to:'/locations',label:'Bản đồ & vị trí xe',icon:'map'}]},
- {title:'ĐIỀU PHỐI',items:[{to:'/maintenance',label:'Bảo dưỡng',icon:'wrench'},{to:'/vehicle-transfers',label:'Điều chuyển xe',icon:'truck'},{to:'/batteries',label:'Kho pin & đổi pin',icon:'battery'},{to:'/issues',label:'Sự cố',icon:'alert'},{to:'/operating-costs',label:'Chi phí vận hành',icon:'receipt'}]}
+ {title:'ĐIỀU PHỐI',items:[{to:'/maintenance',label:'Bảo dưỡng',icon:'wrench'},{to:'/vehicle-transfers',label:'Điều chuyển xe',icon:'truck'},{to:'/batteries',label:'Kho pin',icon:'battery'},{to:'/battery-swap/requests',label:'Yêu cầu đổi pin',icon:'battery'},{to:'/issues',label:'Sự cố',icon:'alert'},{to:'/operating-costs',label:'Chi phí vận hành',icon:'receipt'}]}
 ];
 const adminGroups:NavGroup[]=[
  {title:'TỔNG QUAN',items:[{to:'/admin',label:'Dashboard',icon:'chart',end:true},{to:'/admin/dashboard',label:'Báo cáo & phân tích',icon:'receipt'}]},
@@ -21,7 +21,7 @@ const adminGroups:NavGroup[]=[
  {title:'KIỂM SOÁT',items:[{to:'/admin/audit-logs',label:'Nhật ký hệ thống',icon:'shield'}]}
 ];
 const routeTitles:[string,string][]=[
- ['/operations/bookings/','Thanh toán đơn thuê'],['/bookings/my','Đơn thuê của tôi'],['/bookings/','Chi tiết đơn thuê'],['/admin/staff-schedules','Lịch phân ca'],['/admin/staff-presence','Nhân viên đang trực'],['/admin/audit-logs','Nhật ký hệ thống'],['/admin/dashboard','Báo cáo & phân tích'],['/admin/vehicles','Quản lý đội xe'],['/admin/models','Quản lý dòng xe'],['/admin/stations','Quản lý trạm xe'],['/admin/staff','Quản lý nhân sự'],['/admin/customers','Quản lý khách hàng'],['/admin/vouchers','Quản lý voucher'],['/operations','Tổng quan vận hành'],['/my-schedule','Lịch trực của tôi'],['/locations','Bản đồ & vị trí xe'],['/maintenance','Bảo dưỡng'],['/vehicle-transfers','Điều chuyển xe'],['/batteries','Kho pin & đổi pin'],['/issues','Quản lý sự cố'],['/operating-costs','Chi phí vận hành'],['/notifications','Thông báo'],['/profile','Hồ sơ & bảo mật'],['/vehicles','Khám phá xe'],['/stations','Điểm nhận xe'],['/bookings/my','Đơn thuê của tôi'],['/battery-swap','Đổi pin nhanh'],['/admin','Dashboard']
+ ['/operations/bookings/','Thanh toán đơn thuê'],['/bookings/my','Đơn thuê của tôi'],['/bookings/','Chi tiết đơn thuê'],['/admin/staff-schedules','Lịch phân ca'],['/admin/staff-presence','Nhân viên đang trực'],['/admin/audit-logs','Nhật ký hệ thống'],['/admin/dashboard','Báo cáo & phân tích'],['/admin/vehicles','Quản lý đội xe'],['/admin/models','Quản lý dòng xe'],['/admin/stations','Quản lý trạm xe'],['/admin/staff','Quản lý nhân sự'],['/admin/customers','Quản lý khách hàng'],['/admin/vouchers','Quản lý voucher'],['/operations','Tổng quan vận hành'],['/my-schedule','Lịch trực của tôi'],['/locations','Bản đồ & vị trí xe'],['/maintenance','Bảo dưỡng'],['/vehicle-transfers','Điều chuyển xe'],['/battery-swap/requests','Yêu cầu đổi pin'],['/batteries','Kho pin'],['/issues','Quản lý sự cố'],['/operating-costs','Chi phí vận hành'],['/notifications','Thông báo'],['/profile','Hồ sơ & bảo mật'],['/vehicles','Khám phá xe'],['/stations','Điểm nhận xe'],['/bookings/my','Đơn thuê của tôi'],['/battery-swap','Đổi pin nhanh'],['/admin','Dashboard']
 ];
 
 export function MainLayout(){

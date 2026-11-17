@@ -17,8 +17,8 @@ const getError=(e:unknown)=>{const m=(e as {response?:{data?:{message?:string|st
 export function IssuesPage(){
   const [items,setItems]=useState<Issue[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [notice,setNotice]=useState('');const [busy,setBusy]=useState<number|null>(null);
   const [drafts,setDrafts]=useState<Record<number,{status:string;note:string}>>({});
-  const load=useCallback(async()=>{setLoading(true);try{const {data}=await api.get('/issues');const list=Array.isArray(data)?data:data?.items??[];setItems(list);setDrafts(Object.fromEntries(list.map((x:Issue)=>[x.id,{status:x.status,note:x.resolutionNote??''}])));setError('');}catch(e){setError(getError(e));}finally{setLoading(false);}},[]);
-  useEffect(()=>{void load();},[load]);
+  const load=useCallback(async(silent=false)=>{if(!silent)setLoading(true);try{const {data}=await api.get('/issues');const list=Array.isArray(data)?data:data?.items??[];setItems(list);setDrafts(Object.fromEntries(list.map((x:Issue)=>[x.id,{status:x.status,note:x.resolutionNote??''}])));setError('');}catch(e){setError(getError(e));}finally{if(!silent)setLoading(false);}},[]);
+  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(true),15000);return()=>window.clearInterval(timer);},[load]);
   async function save(issue:Issue){const draft=drafts[issue.id];if(!draft)return;if(draft.status==='RESOLVED'&&!draft.note.trim()){setError('Cần ghi chú cách xử lý trước khi đóng sự cố.');return;}setBusy(issue.id);setError('');setNotice('');try{await api.patch('/issues/'+issue.id,{status:draft.status,resolutionNote:draft.note||undefined});setNotice('Đã cập nhật báo cáo #'+issue.id);await load();}catch(e){setError(getError(e));}finally{setBusy(null);}}
   const openCount=items.filter(x=>x.status==='OPEN'||x.status==='IN_PROGRESS').length;
   return <div className="container-page py-8 sm:py-12">

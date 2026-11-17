@@ -12,7 +12,7 @@ export class HandoverRecord {
   @Column({ type: 'simple-enum', enum: HandoverKind }) kind: HandoverKind;
   @Column({ type: 'int' }) batteryPercent: number;
   @Column({ type: 'decimal', precision: 12, scale: 1 }) odometerKm: string;
-  @Column({ type: 'varchar', length: 1000 }) conditionNote: string;
+  @Column({ type: 'nvarchar', length: 1000 }) conditionNote: string;
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true })
   inspectionChecklist: string | null;
   @Column({ type: 'nvarchar', length: 1000, nullable: true })

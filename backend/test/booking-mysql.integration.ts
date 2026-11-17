@@ -151,8 +151,6 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
       batteryPercent: 45, odometerKm: 157, conditionNote: 'Không cho nhận xe hai lần',
     }));
 
-    const deposit = { purpose: PaymentPurpose.DEPOSIT, method: PaymentMethod.CASH,
-      amount: 1000000, idempotencyKey: 'test-deposit-' + second!.id };
     const firstPayment = await payments.create(staffForHandover, second!.id, deposit);
     const repeated = await payments.create(staffForHandover, second!.id, deposit);
     assert.equal(firstPayment.id, repeated.id);

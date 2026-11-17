@@ -22,10 +22,10 @@ export class MaintenanceRecord {
   @Column({ type: 'datetime', nullable: true })
   completedAt: Date | null;
 
-  @Column({ type: 'varchar', length: 160 })
+  @Column({ type: 'nvarchar', length: 160 })
   reason: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true })
   description: string | null;
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })

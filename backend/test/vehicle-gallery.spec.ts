@@ -20,7 +20,7 @@ test('vehicle gallery only stores HTTP(S) URLs and scopes deletion to the select
     findOneBy: async ({id,vehicleId}:{id:number;vehicleId:number}) => id === 11 && vehicleId === 7 ? {id,vehicleId,imageUrl:'https://cdn.example.test/vehicle.jpg'} : null,
     remove: async (value: {id:number;vehicleId:number;imageUrl:string}) => { removed.push(value); },
   };
-  const service = new VehiclesService(vehicleRepo as never, imageRepo as never, {} as never, {} as never);
+  const service = new VehiclesService(vehicleRepo as never, {} as never, {} as never, imageRepo as never);
   const created = await service.addImage(7, ' https://cdn.example.test/vehicle.jpg ');
   assert.equal(created.imageUrl, 'https://cdn.example.test/vehicle.jpg');
   assert.equal(saved.length, 1);

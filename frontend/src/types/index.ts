@@ -17,6 +17,7 @@ export interface Vehicle {
   dailyRate: string;
   depositAmount: string;
   status: 'ACTIVE' | 'CHARGING' | 'MAINTENANCE' | 'INACTIVE';
+  images?: Array<{ id: number; imageUrl: string; createdAt?: string }>;
   station: Station;
   model: { id: number; brand: string; name: string; imageUrl?: string | null; specifications?: string | null };
 }

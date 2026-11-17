@@ -7,6 +7,7 @@ import { AuditModule } from '../audit/audit.module';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from './booking-status-history.entity';
 import { Booking } from './booking.entity';
+import { BookingCharge } from './booking-charge.entity';
 import { VehicleTransfer } from '../transfers/vehicle-transfer.entity';
 import { BookingExpiryService } from './booking-expiry.service';
 import { BookingsController } from './bookings.controller';
@@ -14,7 +15,7 @@ import { BookingsService } from './bookings.service';
 import { VouchersModule } from '../vouchers/vouchers.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Booking, BookingStatusHistory, Vehicle, VehicleTransfer]), AuthModule, NotificationsModule, AuditModule, VouchersModule],
+  imports: [TypeOrmModule.forFeature([Booking, BookingStatusHistory, BookingCharge, Vehicle, VehicleTransfer]), AuthModule, NotificationsModule, AuditModule, VouchersModule],
   controllers: [BookingsController],
   providers: [BookingsService, BookingExpiryService, RolesGuard],
   exports: [BookingsService, TypeOrmModule],

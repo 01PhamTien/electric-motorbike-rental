@@ -8,6 +8,8 @@ import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { Vehicle } from '../vehicles/vehicle.entity';
 import { BookingStatusHistory } from './booking-status-history.entity';
+import { BookingCharge } from './booking-charge.entity';
+import { CreateBookingChargeDto } from './booking-charge.dto';
 import { Booking } from './booking.entity';
 import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance.entity';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -16,6 +18,7 @@ import { VehicleTransfer, VehicleTransferStatus } from '../transfers/vehicle-tra
 import { CancelBookingDto, CreateBookingDto } from './dto';
 import { VouchersService } from '../vouchers/vouchers.service';
 import { calculateCancellationFee } from './cancellation-policy';
+import { PaymentPurpose, PaymentTransaction } from '../payments/payment.entity';
 
 @Injectable()
 export class BookingsService {
@@ -216,6 +219,49 @@ export class BookingsService {
       relations: { vehicle: { station: true, model: true } },
       order: { id: 'DESC' },
     });
+  }
+
+  async statusHistory(current: JwtUser, id: number) {
+    const booking = await this.bookingRepo.findOne({ where: { id } });
+    if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+    this.assertAccess(current, booking);
+    return this.dataSource.getRepository(BookingStatusHistory).find({ where: { bookingId: id }, order: { createdAt: 'ASC', id: 'ASC' } });
+  }
+
+  async addCharge(current: JwtUser, id: number, dto: CreateBookingChargeDto) {
+    return this.dataSource.transaction(async manager => {
+      const booking = await manager.getRepository(Booking).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+      this.assertAccess(current, booking);
+      if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+      if (booking.status !== BookingStatus.COMPLETED) throw new BadRequestException('Chỉ được quyết toán phụ phí sau khi đã nhận xe trả');
+      const amount = Math.round(dto.amount * 100) / 100;
+      if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Số tiền phụ phí không hợp lệ');
+      const reason = dto.reason.trim();
+      if (!reason) throw new BadRequestException('Lý do phụ phí không được để trống');
+      if (dto.applyToDeposit) {
+        const payments = await manager.getRepository(PaymentTransaction).find({ where: { bookingId: id, purpose: PaymentPurpose.DEPOSIT } });
+        const existingDeductions = await manager.getRepository(BookingCharge).find({ where: { bookingId: id, applyToDeposit: true } });
+        const cents = (value: string | number) => Math.round(Number(value) * 100);
+        const depositCollected = payments.reduce((sum, payment) => sum + cents(payment.amount), 0);
+        const alreadyDeducted = existingDeductions.reduce((sum, charge) => sum + cents(charge.amount), 0);
+        const cancellationFee = cents(booking.cancellationFeeAmount ?? 0);
+        if (Math.round(amount * 100) + alreadyDeducted + cancellationFee > depositCollected) {
+          throw new BadRequestException('Khoản khấu trừ vượt quá tiền cọc thực tế đã thu. Hãy chọn thu phụ phí riêng nếu số tiền vượt cọc.');
+        }
+      }
+      return manager.getRepository(BookingCharge).save(manager.getRepository(BookingCharge).create({
+        bookingId: id, category: dto.category.trim().toUpperCase(), amount: amount.toFixed(2),
+        applyToDeposit: dto.applyToDeposit, reason, createdById: current.sub,
+      }));
+    });
+  }
+
+  async listCharges(current: JwtUser, id: number) {
+    const booking = await this.bookingRepo.findOne({ where: { id } });
+    if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+    this.assertAccess(current, booking);
+    return this.dataSource.getRepository(BookingCharge).find({ where: { bookingId: id }, order: { id: 'ASC' } });
   }
 
   async findOne(current: JwtUser, id: number) {

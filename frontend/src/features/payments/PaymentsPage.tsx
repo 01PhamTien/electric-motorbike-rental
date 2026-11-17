@@ -6,7 +6,9 @@ import { api } from '../../services/api';
 
 type Payment = { id: number; purpose: 'RENT'|'DEPOSIT'|'EXTRA'|'REFUND'; method: 'CASH'|'TRANSFER'|'SEPAY'; amount: string; note: string|null; createdAt: string };
 type BookingFinance = { rentalAmount: string; depositSnapshot: string; status: string };
-const purposes = { RENT:'Tiền thuê', DEPOSIT:'Tiền cọc', EXTRA:'Phụ phí', REFUND:'Hoàn cọc' };
+type Charge = { id:number; category:string; amount:string; applyToDeposit:boolean; reason:string; createdAt:string };
+type Settlement = { rental:{amountDue:number;collected:number;outstanding:number}; deposit:{amountExpected:number;collected:number;deductions:number;refunded:number;refundable:number}; extras:{separatelyBillable:number;collected:number;outstanding:number}; cashFlow:{net:number} };
+const purposes = { RENT:'Tiền thuê', DEPOSIT:'Tiền cọc', EXTRA:'Thu phụ phí', REFUND:'Hoàn cọc' };
 const methods = { CASH:'Tiền mặt', TRANSFER:'Chuyển khoản', SEPAY:'SePay QR' };
 function getError(error: unknown) {
   const message = (error as {response?:{data?:{message?:string|string[]}}})?.response?.data?.message;
@@ -18,6 +20,9 @@ export function PaymentsPage() {
   const [searchParams] = useSearchParams();
   const [items,setItems] = useState<Payment[]>([]);
   const [booking,setBooking] = useState<BookingFinance|null>(null);
+  const [charges,setCharges] = useState<Charge[]>([]);
+  const [settlement,setSettlement] = useState<Settlement|null>(null);
+  const [chargeForm,setChargeForm] = useState({category:'DAMAGE',amount:'',applyToDeposit:true,reason:''});
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
   const [notice,setNotice] = useState('');
@@ -29,8 +34,9 @@ export function PaymentsPage() {
   const load = useCallback(async() => {
     if (!id) return;
     setLoading(true);
-    const [paymentResult, bookingResult] = await Promise.allSettled([
+    const [paymentResult, bookingResult, chargeResult, summaryResult] = await Promise.allSettled([
       api.get('/bookings/' + id + '/payments'), api.get('/bookings/' + id),
+      api.get('/bookings/' + id + '/charges'), api.get('/bookings/' + id + '/payments/summary'),
     ]);
     if (paymentResult.status === 'fulfilled') {
       const data = paymentResult.value.data;
@@ -38,6 +44,8 @@ export function PaymentsPage() {
       setError('');
     } else setError(getError(paymentResult.reason));
     if (bookingResult.status === 'fulfilled') setBooking(bookingResult.value.data);
+    if (chargeResult.status === 'fulfilled') setCharges(chargeResult.value.data ?? []);
+    if (summaryResult.status === 'fulfilled') setSettlement(summaryResult.value.data);
     setLoading(false);
   },[id]);
   useEffect(() => { void load(); },[load]);
@@ -70,6 +78,16 @@ export function PaymentsPage() {
       document.body.appendChild(formElement); formElement.submit();
     } catch(e) { setError(getError(e)); setBusy(false); }
   }
+  async function submitCharge(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id || !chargeForm.reason.trim() || Number(chargeForm.amount) <= 0) { setError('Nhập số tiền và lý do phụ phí hợp lệ.'); return; }
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api.post('/bookings/' + id + '/charges', { ...chargeForm, amount:Number(chargeForm.amount), category:chargeForm.category.trim().toUpperCase(), reason:chargeForm.reason.trim() });
+      setNotice('Đã ghi nhận phụ phí vào biên bản quyết toán.'); setChargeForm({category:'DAMAGE',amount:'',applyToDeposit:true,reason:''}); await load();
+    } catch(e) { setError(getError(e)); }
+    finally { setBusy(false); }
+  }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const amount = Number(form.amount);
@@ -88,9 +106,11 @@ export function PaymentsPage() {
     {error && <p role="alert" className="mt-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
     {booking && customer && <section className="mt-8 flex flex-wrap gap-3"><button type="button" disabled={busy || (depositRemainingToCollect ?? 0) <= 0} onClick={()=>void startSePay('DEPOSIT')} className="btn-primary">{busy?'Đang chuyển tới SePay...':'Thanh toán tiền cọc qua QR →'}</button><button type="button" disabled={busy || (rentRemaining ?? 0) <= 0} onClick={()=>void startSePay('RENT')} className="btn-outline">Thanh toán tiền thuê qua QR →</button></section>}
     {booking && <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><div className="panel border-[#e7eee9] p-5 shadow-[0_14px_38px_rgba(30,90,65,.045)]"><p className="field-label">Tiền thuê theo đơn</p><p className="mt-2 text-xl font-extrabold">{money(booking.rentalAmount)}</p><p className="mt-1 text-xs text-slate-500">Còn ghi nhận: {money(rentRemaining ?? 0)}</p></div><div className="panel p-5"><p className="field-label">Tiền cọc theo đơn</p><p className="mt-2 text-xl font-extrabold">{money(booking.depositSnapshot)}</p><p className="mt-1 text-xs text-slate-500">Còn thu: {money(depositRemainingToCollect ?? 0)}</p></div><div className="panel p-5"><p className="field-label">Đã thu tiền cọc</p><p className="mt-2 text-xl font-extrabold text-emerald-700">{money(depositPaid)}</p><p className="mt-1 text-xs text-slate-500">Đã hoàn: {money(refunded)}</p></div><div className="panel p-5"><p className="field-label">Cọc còn có thể hoàn</p><p className="mt-2 text-xl font-extrabold text-sky-700">{money(depositAvailableToRefund)}</p><p className="mt-1 text-xs text-slate-500">Chỉ hoàn sau khi trả xe</p></div></section>}
+    {settlement && <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><div className="panel p-4"><p className="field-label">Đã thu tiền thuê</p><strong className="mt-2 block text-lg">{money(settlement.rental.collected)}</strong><span className="text-xs text-slate-500">Còn {money(settlement.rental.outstanding)}</span></div><div className="panel p-4"><p className="field-label">Khấu trừ tiền cọc</p><strong className="mt-2 block text-lg">{money(settlement.deposit.deductions)}</strong><span className="text-xs text-slate-500">Có thể hoàn {money(settlement.deposit.refundable)}</span></div><div className="panel p-4"><p className="field-label">Phụ phí thu riêng</p><strong className="mt-2 block text-lg">{money(settlement.extras.separatelyBillable)}</strong><span className="text-xs text-slate-500">Còn thu {money(settlement.extras.outstanding)}</span></div><div className="panel p-4"><p className="field-label">Dòng tiền ròng</p><strong className="mt-2 block text-lg">{money(settlement.cashFlow.net)}</strong></div></section>}
+    {charges.length > 0 && <section className="panel mt-6 p-6"><h2 className="text-lg font-extrabold">Phụ phí và khấu trừ</h2><div className="mt-4 divide-y divide-slate-100">{charges.map(charge=><div key={charge.id} className="flex flex-wrap justify-between gap-3 py-3"><div><strong>{charge.category}</strong><p className="text-sm text-slate-500">{charge.reason}</p><span className="text-xs text-slate-400">{charge.applyToDeposit?'Khấu trừ tiền cọc':'Thu riêng'}</span></div><strong>{money(charge.amount)}</strong></div>)}</div></section>}
     <div className={'mt-8 grid gap-6 ' + (staff?'lg:grid-cols-[1.1fr_.9fr]':'')}>
       <section className="panel border-[#e7eee9] p-6 shadow-[0_16px_42px_rgba(30,90,65,.05)]"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-extrabold">Lịch sử giao dịch</h2><button className="text-sm font-bold text-emerald-700" onClick={()=>void load()}>↻ Làm mới</button></div>{loading ? <div className="mt-6"><LoadingState /></div> : !items.length ? <div className="mt-6"><EmptyState title="Chưa có giao dịch" description="Các khoản đã ghi nhận sẽ hiển thị tại đây." /></div> : <div className="mt-5 divide-y divide-[#edf2ee]">{items.map(p => <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-5"><div><p className="font-bold">{purposes[p.purpose] || p.purpose}</p><p className="mt-1 text-xs text-slate-500">{methods[p.method] || p.method} · {timeText(p.createdAt)}</p>{p.note && <p className="mt-1 text-xs text-slate-500">{p.note}</p>}</div><strong className={'text-lg '+(p.purpose==='REFUND'?'text-rose-600':'text-emerald-700')}>{p.purpose==='REFUND'?'-':'+'}{money(p.amount)}</strong></div>)}</div>}</section>
-      {staff && <form onSubmit={submit} className="panel self-start border-[#e7eee9] p-6 shadow-[0_16px_42px_rgba(30,90,65,.05)]"><h2 className="text-xl font-extrabold">Ghi nhận giao dịch</h2><p className="mt-2 text-xs leading-6 text-slate-500">Chỉ lưu khi đã xác minh số tiền nhận/chi trong thực tế.</p><div className="mt-6 grid gap-5"><label><span className="field-label">Loại giao dịch</span><select className="field" value={form.purpose} onChange={e=>setForm({...form,purpose:e.target.value as Payment['purpose']})}>{Object.entries(purposes).map(([key,value])=><option key={key} value={key}>{value}</option>)}</select></label><label><span className="field-label">Phương thức</span><select className="field" value={form.method} onChange={e=>setForm({...form,method:e.target.value as Payment['method']})}>{Object.entries(methods).map(([key,value])=><option key={key} value={key}>{value}</option>)}</select></label><label><span className="field-label">Số tiền (VND)</span><input type="number" min="0.01" step="0.01" required className="field" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/></label><label><span className="field-label">Ghi chú</span><textarea className="field min-h-24" maxLength={255} value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></label><button disabled={busy} className="btn-primary w-full">{busy?'Đang lưu...':'Ghi nhận giao dịch →'}</button></div></form>}
+      {staff && <div className="grid gap-6"><form onSubmit={submitCharge} className="panel self-start border-[#e7eee9] p-6 shadow-[0_16px_42px_rgba(30,90,65,.05)]"><h2 className="text-xl font-extrabold">Ghi nhận phụ phí / khấu trừ</h2><p className="mt-2 text-xs text-slate-500">Chỉ áp dụng sau khi đơn hoàn thành và xe đã được nhận trả.</p><div className="mt-5 grid gap-4"><label><span className="field-label">Nhóm phụ phí</span><select className="field" value={chargeForm.category} onChange={e=>setChargeForm({...chargeForm,category:e.target.value})}><option value="DAMAGE">Hư hỏng</option><option value="CLEANING">Vệ sinh</option><option value="LATE_RETURN">Trả xe trễ</option><option value="OTHER">Khác</option></select></label><label><span className="field-label">Số tiền (VND)</span><input type="number" min="0.01" step="0.01" required className="field" value={chargeForm.amount} onChange={e=>setChargeForm({...chargeForm,amount:e.target.value})}/></label><label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={chargeForm.applyToDeposit} onChange={e=>setChargeForm({...chargeForm,applyToDeposit:e.target.checked})}/> Khấu trừ khoản này từ tiền cọc</label><label><span className="field-label">Lý do / mô tả</span><textarea required maxLength={500} className="field min-h-20" value={chargeForm.reason} onChange={e=>setChargeForm({...chargeForm,reason:e.target.value})}/></label><button disabled={busy || booking?.status!=='COMPLETED'} className="btn-primary w-full">Ghi nhận phụ phí</button></div></form><form onSubmit={submit} className="panel self-start border-[#e7eee9] p-6 shadow-[0_16px_42px_rgba(30,90,65,.05)]"><h2 className="text-xl font-extrabold">Ghi nhận giao dịch</h2><p className="mt-2 text-xs leading-6 text-slate-500">Chỉ lưu khi đã xác minh số tiền nhận/chi trong thực tế.</p><div className="mt-6 grid gap-5"><label><span className="field-label">Loại giao dịch</span><select className="field" value={form.purpose} onChange={e=>setForm({...form,purpose:e.target.value as Payment['purpose']})}>{Object.entries(purposes).map(([key,value])=><option key={key} value={key}>{value}</option>)}</select></label><label><span className="field-label">Phương thức</span><select className="field" value={form.method} onChange={e=>setForm({...form,method:e.target.value as Payment['method']})}>{Object.entries(methods).map(([key,value])=><option key={key} value={key}>{value}</option>)}</select></label><label><span className="field-label">Số tiền (VND)</span><input type="number" min="0.01" step="0.01" required className="field" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/></label><label><span className="field-label">Ghi chú</span><textarea className="field min-h-24" maxLength={255} value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></label><button disabled={busy} className="btn-primary w-full">{busy?'Đang lưu...':'Ghi nhận giao dịch →'}</button></div></form></div>}
     </div>
   </div>;
 }

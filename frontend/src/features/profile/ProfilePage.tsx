@@ -48,7 +48,8 @@ export function ProfilePage() {
       </div>
       {editing?<form onSubmit={saveProfile} className="grid gap-5 p-7 sm:grid-cols-2">
         <label><span className="field-label">Họ và tên</span><input className="field" required minLength={2} maxLength={120} value={fullName} onChange={e=>setFullName(e.target.value)}/></label>
-        <label><span className="field-label">Số điện thoại (không bắt buộc)</span><input className="field" maxLength={20} value={phone} onChange={e=>setPhone(e.target.value)}/></label>\n        <label className="sm:col-span-2"><span className="field-label">URL ảnh đại diện (HTTP/HTTPS)</span><input className="field" type="url" maxLength={2048} placeholder="https://..." value={avatarUrl} onChange={e=>setAvatarUrl(e.target.value)}/><span className="mt-1 block text-xs text-slate-500">Ảnh cần được lưu trữ tại dịch vụ hosting bên ngoài; hệ thống chỉ lưu đường dẫn.</span></label>
+        <label><span className="field-label">Số điện thoại (không bắt buộc)</span><input className="field" maxLength={20} value={phone} onChange={e=>setPhone(e.target.value)}/></label>
+        <label className="sm:col-span-2"><span className="field-label">URL ảnh đại diện (HTTP/HTTPS)</span><input className="field" type="url" maxLength={2048} placeholder="https://..." value={avatarUrl} onChange={e=>setAvatarUrl(e.target.value)}/><span className="mt-1 block text-xs text-slate-500">Ảnh cần được lưu trữ tại dịch vụ hosting bên ngoài; hệ thống chỉ lưu đường dẫn.</span></label>
         <div className="flex gap-3 sm:col-span-2"><button disabled={busy} className="btn-primary">{busy?'Đang lưu...':'Lưu hồ sơ'}</button><button type="button" className="btn-outline" onClick={()=>{setEditing(false);setError('');}}>Hủy</button></div>
       </form>:<div className="grid gap-6 p-7 sm:grid-cols-2 lg:grid-cols-3">
         <div><p className="field-label">Họ và tên</p><p className="mt-2 font-bold">{user?.fullName||'—'}</p></div>

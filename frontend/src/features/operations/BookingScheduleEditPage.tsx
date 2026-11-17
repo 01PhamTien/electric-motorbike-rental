@@ -19,7 +19,6 @@ export function BookingScheduleEditPage(){
   const [busy,setBusy]=useState(false);
   const [confirmOpen,setConfirmOpen]=useState(false);
   const [error,setError]=useState('');
-  const [notice,setNotice]=useState('');
   useEffect(()=>{
     let active=true;
     if(!id||!/^\\d+$/.test(id)){setError('Mã đơn thuê không hợp lệ.');setLoading(false);return;}
@@ -40,12 +39,11 @@ export function BookingScheduleEditPage(){
   }
   async function save(){
     if(!booking||!id)return;
-    setBusy(true);setError('');setNotice('');
+    setBusy(true);setError('');
     try{
       await api.patch('/bookings/'+id,{pickupAt:new Date(pickupAt).toISOString(),returnAt:new Date(returnAt).toISOString(),reason:reason.trim()});
-      setNotice('Đã cập nhật lịch đơn thuê #'+id+'. Vui lòng kiểm tra lại số tiền còn phải thu.');
       setConfirmOpen(false);
-      navigate('/operations',{replace:true,state:{notice:'Đã cập nhật lịch đơn thuê #'+id+'. Vui lòng kiểm tra lại số tiền còn phải thu.'}});
+      navigate('/operations',{replace:true});
     }catch(e){setError(errorText(e));}
     finally{setBusy(false);}
   }
@@ -63,7 +61,6 @@ Hệ thống sẽ tính lại tiền thuê theo đơn giá đã chốt và giữ
           <label className="sm:col-span-2"><span className="field-label">Lý do điều chỉnh</span><input className="field mt-1" maxLength={255} value={reason} onChange={e=>setReason(e.target.value)}/></label>
           <p className="text-xs leading-5 text-slate-500 sm:col-span-2">Chỉ điều chỉnh trước khi bàn giao xe. Nếu đã thu tiền thuê và thay đổi làm thay đổi tổng tiền, hệ thống sẽ yêu cầu xử lý tài chính riêng.</p>
           {error&&<p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700 sm:col-span-2">{error}</p>}
-          {notice&&<p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700 sm:col-span-2">{notice}</p>}
           <div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={busy} className="btn-primary">{busy?'Đang lưu...':'Kiểm tra và lưu lịch mới'}</button><Link to="/operations" className="btn-outline">Hủy, quay lại</Link></div>
         </form>
       </section>}

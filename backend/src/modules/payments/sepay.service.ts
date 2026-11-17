@@ -9,6 +9,7 @@ import { Booking } from '../bookings/booking.entity';
 import { PaymentMethod, PaymentPurpose, PaymentTransaction } from './payment.entity';
 import { SePayPaymentAttempt, SePayAttemptStatus } from './sepay-payment-attempt.entity';
 import { createSePaySignature, SePayCheckoutFields, safeSecretEquals } from './sepay-signature';
+import { calculateCombinedBookingAllocation } from './sepay-settlement';
 
 const CHECKOUT_URLS = {
   sandbox: 'https://pay-sandbox.sepay.vn/v1/checkout/init',
@@ -77,14 +78,11 @@ export class SePayService {
       let depositAmount: string | null = null;
 
       if (purpose === 'BOOKING') {
-        const rentCents = Math.max(0, cents(booking.rentalAmount) - collected(PaymentPurpose.RENT));
-        const depositCents = Math.max(0, cents(booking.depositSnapshot) - collected(PaymentPurpose.DEPOSIT));
-        amountCents = rentCents + depositCents;
-        if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
-          throw new BadRequestException('Tiền thuê và tiền cọc đã được ghi nhận đầy đủ');
-        }
-        rentAmount = (rentCents / 100).toFixed(2);
-        depositAmount = (depositCents / 100).toFixed(2);
+        const allocation = calculateCombinedBookingAllocation(booking.rentalAmount, booking.depositSnapshot, payments);
+        amountCents = allocation.totalAmountCents;
+        if (amountCents <= 0) throw new BadRequestException('Tiền thuê và tiền cọc đã được ghi nhận đầy đủ');
+        rentAmount = allocation.rentAmount;
+        depositAmount = allocation.depositAmount;
       } else {
         const target = purpose === PaymentPurpose.DEPOSIT ? cents(booking.depositSnapshot) : cents(booking.rentalAmount);
         amountCents = target - collected(purpose);

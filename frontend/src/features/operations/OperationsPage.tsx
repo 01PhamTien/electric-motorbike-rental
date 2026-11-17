@@ -64,13 +64,13 @@ export function OperationsPage() {
     ['MIRRORS','Gương và tay lái'],['HORN','Còi và công tắc'],
     ['BATTERY','Pin và cổng sạc'],['CHARGER','Bộ sạc và phụ kiện'],['KEYS','Chìa khóa / khóa xe'],
   ] as const;
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try { const { data } = await api.get('/bookings/operations'); setItems(Array.isArray(data) ? data : data?.items ?? []); setError(''); }
     catch(e) { setError(apiError(e)); }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   }, []);
-  useEffect(() => { void load(); },[load]);
+  useEffect(() => { void load(); const timer = window.setInterval(() => void load(true), 15000); return () => window.clearInterval(timer); },[load]);
   useEffect(() => {
     if (user?.role !== 'STAFF') return;
     let mounted = true;

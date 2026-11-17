@@ -1,57 +1,69 @@
-# Database migrations — MySQL 8.4
+# SQL Server database migrations
 
-The production backend **never runs TypeORM synchronize**. This repository now uses an immutable initial migration:
-`backend/src/database/migrations/1793664000000-InitialRentalSchema.ts`.
+VoltGo currently targets **Microsoft SQL Server**. The migration data source is `backend/src/database/data-source.ts`, uses `DB_TYPE=mssql`, and always has `synchronize: false` and `migrationsRun: false`. The production backend must never use TypeORM schema synchronization.
 
-## Before touching production
+## Fresh, empty database
 
-1. Schedule maintenance and take a verified, restorable MySQL backup (schema **and** data). Test restore on a separate database.
-2. Confirm the database target and credentials, and set `NODE_ENV=production`, `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`. Never run the destructive integration tests or demo seed against production.
-3. Run migrations as an explicit deployment step **before** starting the new backend instances. Do not set `DB_SYNCHRONIZE=true` on production. Use a single migration runner, not one in each web replica.
-4. Review subsequent migrations before execution. MySQL DDL commits implicitly; a failed migration may require restoring the verified backup rather than a transaction rollback.
+Use this path only when the target database has no application tables and is intended to be initialized from the checked-in SQL Server migrations.
 
-## A fresh empty database
-
-From `backend/` with Node 20 and dependencies installed:
+From `backend/`:
 
 ```bash
 npm ci
+# Configure DB_TYPE=mssql and the SQL Server connection variables.
 npm run migration:show
-npm run migration:run
-npm run migration:check
+npm run migration:run:mssql
+npm run migration:check:mssql
 npm run migration:show
 ```
 
-These commands use `src/database/data-source.ts` with `synchronize: false`. On a built deployment:
+For a built deployment, build first and run the compiled migration command as a single explicit deployment step:
 
 ```bash
 npm run build
 npm run migration:run:prod
 ```
 
-`migration:run:prod` reads compiled migration JavaScript under `dist/database/migrations`.
+Do not run migration commands against a production database until the target, credentials, backup, restore test, and migration plan have been reviewed. Never run destructive integration tests or demo seed commands against production.
 
-## An existing database previously created by synchronize
+## Existing database with application data
 
-**Do not run the initial schema migration directly against an existing populated database.** Doing so would fail on existing tables. Instead:
+**Do not run the initial migration against a populated database. Do not use TypeORM `synchronize` to make the schema match.**
 
-1. Back up and verify restore. Ensure application writes are stopped during the operation.
-2. Match the existing schema to the current entity metadata. Fix any drift with a separately reviewed migration; do not blindly run synchronize.
-3. With `BASELINE_CONFIRM=I_HAVE_A_VERIFIED_BACKUP` set, execute `npm run migration:baseline`.
-4. Baseline checks for application tables, **requires zero pending schema changes**, refuses pre-existing migration history, and then inserts only the baseline record in the `migrations` history table.
-5. Run `npm run migration:show` and `npm run migration:check` to confirm nothing is pending. Release application writes only after validation.
+The legacy baseline/adoption command is intentionally disabled. The only available preflight is read-only:
 
-The baseline tool never deletes application rows. If schema mismatch is found, it intentionally **stops** and prints the first differences. Examine them and create an explicit upgrade migration; do not weaken this guard.
+```bash
+# Set DB_TYPE=mssql and configure the target SQL Server connection.
+# First create a backup and test that it can be restored.
+BASELINE_CONFIRM=I_HAVE_A_VERIFIED_BACKUP npm run migration:baseline:preflight
+```
 
-## Further schema changes
+The preflight:
+- Requires SQL Server and an explicit verified-backup acknowledgement.
+- Counts application tables and checks whether migration history already exists.
+- Refuses existing migration history.
+- Compares TypeORM entity metadata and reports schema drift.
+- Does **not** create a migration-history table, insert migration rows, alter schema, or change application data.
 
-- Add a new timestamped `MigrationInterface` under `src/database/migrations`, with reviewed SQL in `up` and safe `down` where feasible.
-- Run the exact change through the MySQL 8.4 CI job, including `migration:check`.
-- For destructive changes use expand/backfill/contract across deployments, and document the rollback/restore procedure.
-- Never edit a migration already applied to any environment.
+An entity metadata match is not proof that every migration-specific index, constraint, or data invariant is present. Therefore, a populated database is **not authorized for automatic baseline adoption**, even if the read-only preflight reports no entity drift. The legacy baseline command `npm run migration:baseline` deliberately exits with an error and performs no database changes.
 
-## Safety and scope
+Issue [#64](https://github.com/01PhamTien/electric-motorbike-rental/issues/64) tracks the full SQL Server legacy-schema verifier. Do not mark a populated database as adopted or run later migrations until that verifier can validate the exact target schema, migration-specific objects, and data invariants in a disposable restored copy. The remaining verification depends on a schema/data snapshot from the actual target database; CI against a newly created database cannot establish that the user's existing database is safe to adopt.
 
-The initial migration creates the **current** bookings, users/staff roles, stations, vehicles, handovers, payments, maintenance and location tables. Creating/staff editing does not require extra columns beyond this schema. Its `down` intentionally refuses automatic destruction; restoring a database backup is safer than dropping all customer and payment data.
+## Migration authoring
 
-The legacy PR #1 has *different* future schema additions (e.g. maintenance windows, images) and must be migrated separately if those features are adopted. These migrations do **not** silently bring PR #1's extra entities into the production schema.
+- Add timestamped TypeORM migrations under `backend/src/database/migrations-mssql`.
+- Use SQL Server-compatible DDL and explicit, stable names for indexes, constraints, and foreign keys.
+- Make migrations additive where possible. A `down` migration must refuse to destroy user-generated or financial records.
+- Run `npm run build`, `npm test`, `npm run migration:run:mssql`, `npm run migration:check:mssql`, and the SQL Server integration suite before merging.
+- Never edit a migration that may already have run in any environment. Create a new forward migration instead.
+
+## Operational safety
+
+1. Confirm the exact target database and SQL Server instance.
+2. Take a full backup and test restoring it to a separate database.
+3. Review the migration diff and expected schema changes.
+4. Stop application writes or schedule a maintenance window when required.
+5. Run migrations once, using one deployment runner rather than every web replica.
+6. Verify migration history and schema after the run before restoring application traffic.
+
+No command in this document authorizes changes to the user's existing database. Production migration execution remains an explicit deployment decision after backup and target verification.

@@ -21,7 +21,7 @@ export function BookingScheduleEditPage(){
   const [error,setError]=useState('');
   useEffect(()=>{
     let active=true;
-    if(!id||!/^\\d+$/.test(id)){setError('Mã đơn thuê không hợp lệ.');setLoading(false);return;}
+    if(!id||!Number.isInteger(Number(id))||Number(id)<1){setError('Mã đơn thuê không hợp lệ.');setLoading(false);return;}
     api.get('/bookings/'+id).then(({data})=>{
       if(!active)return;
       setBooking(data);

@@ -1,6 +1,5 @@
 import { Check, Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
-import { PaymentPurpose } from './payment.entity';
 
 export enum SePayAttemptStatus {
   PENDING = 'PENDING',
@@ -9,7 +8,7 @@ export enum SePayAttemptStatus {
 }
 
 @Entity('sepay_payment_attempts')
-@Check('CK_sepay_attempt_purpose', "[purpose] IN ('RENT', 'DEPOSIT')")
+@Check('CK_sepay_attempt_purpose', "[purpose] IN ('RENT', 'DEPOSIT', 'BOOKING')")
 @Check('CK_sepay_attempt_status', "[status] IN ('PENDING', 'PAID', 'VOID')")
 @Check('CK_sepay_attempt_amount', '[amount] > 0')
 @Index('IDX_sepay_attempt_booking_created', ['bookingId', 'createdAt'])
@@ -32,10 +31,16 @@ export class SePayPaymentAttempt {
   providerOrderId: string | null;
 
   @Column({ type: 'varchar', length: 16 })
-  purpose: PaymentPurpose;
+  purpose: 'RENT' | 'DEPOSIT' | 'BOOKING';
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: string;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  rentAmount: string | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  depositAmount: string | null;
 
   @Column({ type: 'varchar', length: 16, default: SePayAttemptStatus.PENDING })
   status: SePayAttemptStatus;

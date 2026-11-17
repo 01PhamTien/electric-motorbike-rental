@@ -19,3 +19,8 @@ export class UpdateVehicleDto {
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) depositAmount?: number;
   @IsOptional() @IsEnum(VehicleStatus) status?: VehicleStatus;
 }
+
+export class AddVehicleImageDto {
+  @IsString()
+  imageUrl: string;
+}

@@ -175,7 +175,7 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
       purpose: PaymentPurpose.REFUND, method: PaymentMethod.CASH,
       amount: 1000000, idempotencyKey: 'test-refund-' + second!.id,
     });
-    assert.equal(await dataSource.getRepository(PaymentTransaction).countBy({ bookingId: second!.id }), 2);
+    assert.equal(await dataSource.getRepository(PaymentTransaction).countBy({ bookingId: second!.id }), 3);
     assert.equal((await dataSource.getRepository(Booking).findOneByOrFail({id:second!.id})).status,
       BookingStatus.COMPLETED);
 

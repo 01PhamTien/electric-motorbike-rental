@@ -63,7 +63,7 @@ export function OperationsPage() {
   ] as const;
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
-    try { const { data } = await api.get('/bookings/operations'); setItems(Array.isArray(data) ? data : data?.items ?? []); setError(''); }
+    try { const { data } = await api.get('/bookings/operations'); setItems(Array.isArray(data) ? data : data?.items ?? []); if(!silent)setError(''); }
     catch(e) { setError(apiError(e)); }
     finally { if (!silent) setLoading(false); }
   }, []);

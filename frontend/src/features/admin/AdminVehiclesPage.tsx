@@ -6,7 +6,7 @@ import { api } from '../../services/api';
 
 type Model = { id: number; brand: string; name: string };
 type Station = { id: number; name: string; isActive: boolean };
-type Vehicle = { id: number; code: string; licensePlate: string; modelId: number; stationId: number; model: Model; station: Station; dailyRate: string; depositAmount: string; status: string; isActive: boolean };
+type Vehicle = { id: number; code: string; licensePlate: string; modelId: number; stationId: number; model: Model; station: Station; dailyRate: string; depositAmount: string; status: string; isActive: boolean; images?: Array<{id:number;imageUrl:string}> };
 const initial = { code: '', licensePlate: '', modelId: '', stationId: '', dailyRate: '180000', depositAmount: '1000000', status: 'ACTIVE', isActive: true };
 const statuses = ['ACTIVE', 'CHARGING', 'MAINTENANCE', 'INACTIVE'] as const;
 function errorText(err: unknown) {
@@ -30,6 +30,8 @@ export function AdminVehiclesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [galleryUrl, setGalleryUrl] = useState('');
+  const [gallerySaving, setGallerySaving] = useState(false);
   async function load() {
     setLoading(true);
     try {
@@ -55,6 +57,21 @@ export function AdminVehiclesPage() {
   function newVehicle() { setNotice(''); navigate('/admin/vehicles/new'); }
   function edit(v: Vehicle) {
     setNotice(''); navigate('/admin/vehicles/'+v.id+'/edit');
+  }
+  async function addGalleryImage(e: FormEvent) {
+    e.preventDefault();
+    if (editing === null || !galleryUrl.trim()) return;
+    setGallerySaving(true); setError(''); setNotice('');
+    try { await api.post('/vehicles/' + editing + '/images', { imageUrl: galleryUrl.trim() }); setGalleryUrl(''); await load(); setNotice('Đã thêm ảnh vào thư viện xe.'); }
+    catch (err) { setError(errorText(err)); }
+    finally { setGallerySaving(false); }
+  }
+  async function removeGalleryImage(imageId: number) {
+    if (editing === null) return;
+    setGallerySaving(true); setError('');
+    try { await api.delete('/vehicles/' + editing + '/images/' + imageId); await load(); setNotice('Đã xóa ảnh khỏi thư viện xe.'); }
+    catch (err) { setError(errorText(err)); }
+    finally { setGallerySaving(false); }
   }
   async function submit(e: FormEvent) {
     e.preventDefault(); setSaving(true); setError(''); setNotice('');
@@ -93,6 +110,7 @@ export function AdminVehiclesPage() {
         <label><span className="field-label">Tiền cọc (₫)</span><input type="number" min="0" required className="field" value={form.depositAmount} onChange={e=>setForm({...form,depositAmount:e.target.value})}/></label>
         {editing !== null && <><label><span className="field-label">Tình trạng</span><select className="field" value={form.status} onChange={e=>setForm({...form,status:e.target.value})}>{statuses.map(s=><option key={s}>{s}</option>)}</select></label><label className="flex items-center gap-3 pt-6"><input type="checkbox" checked={form.isActive} onChange={e=>setForm({...form,isActive:e.target.checked})}/> Cho phép khai thác xe</label></>}
       </div>
+      {editing !== null && <section className="mt-7 border-t border-slate-100 pt-6"><h3 className="font-extrabold">Thư viện ảnh xe</h3><p className="mt-1 text-xs text-slate-500">Thêm URL ảnh HTTP/HTTPS đã được lưu trữ ở dịch vụ bên ngoài.</p><form onSubmit={addGalleryImage} className="mt-3 flex flex-wrap gap-2"><input className="field min-w-0 flex-1" type="url" maxLength={2048} required placeholder="https://.../vehicle.jpg" value={galleryUrl} onChange={e=>setGalleryUrl(e.target.value)}/><button disabled={gallerySaving} className="btn-outline">Thêm ảnh</button></form><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{(items.find(v=>v.id===editing)?.images||[]).map(image=><div key={image.id} className="overflow-hidden rounded-xl border border-slate-200"><img src={image.imageUrl} alt="Ảnh xe" className="h-24 w-full object-cover"/><button type="button" disabled={gallerySaving} onClick={()=>void removeGalleryImage(image.id)} className="w-full px-2 py-2 text-xs font-bold text-rose-700">Xóa ảnh</button></div>)}</div>{!(items.find(v=>v.id===editing)?.images||[]).length&&<p className="mt-3 text-sm text-slate-400">Xe chưa có ảnh riêng.</p>}</section>}
       {error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}
       <div className="mt-7 flex justify-end gap-3"><button type="button" className="btn-outline" onClick={()=>navigate('/admin/vehicles')}>Quay lại danh sách</button><button disabled={saving} className="btn-primary">{saving?'Đang lưu...':'Lưu thông tin'}</button></div>
     </form>}

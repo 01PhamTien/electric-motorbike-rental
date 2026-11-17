@@ -7,7 +7,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtUser } from '../../common/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BookingsService } from './bookings.service';
-import { CancelBookingDto, CreateBookingDto } from './dto';
+import { CancelBookingDto, CreateBookingDto, UpdateBookingDto } from './dto';
 import { CreateBookingChargeDto } from './booking-charge.dto';
 
 @ApiTags('Bookings')
@@ -47,6 +47,12 @@ export class BookingsController {
 
   @Get(':id')
   findOne(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) { return this.service.findOne(user, id); }
+
+  @Patch(':id')
+  @Roles(Role.ADMIN, Role.STAFF)
+  update(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBookingDto) {
+    return this.service.update(user, id, dto);
+  }
 
   @Patch(':id/confirm')
   @Roles(Role.ADMIN, Role.STAFF)

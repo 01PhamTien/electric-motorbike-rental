@@ -133,6 +133,16 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
       batteryPercent: 90, odometerKm: 120, conditionNote: 'Kiểm tra phân quyền',
     }));
     await bookingService.confirm(staffForHandover, second!.id);
+    await assert.rejects(() => handovers.process(staffForHandover, second!.id, HandoverKind.PICKUP, {
+      batteryPercent: 90, odometerKm: 120, conditionNote: 'Chưa thanh toán',
+    }), /Chưa thể bàn giao xe/);
+    const deposit = { purpose: PaymentPurpose.DEPOSIT, method: PaymentMethod.CASH,
+      amount: 1000000, idempotencyKey: 'test-deposit-' + second!.id };
+    await payments.create(staffForHandover, second!.id, {
+      purpose: PaymentPurpose.RENT, method: PaymentMethod.CASH,
+      amount: Number(second!.rentalAmount), idempotencyKey: 'test-rent-' + second!.id,
+    });
+    await payments.create(staffForHandover, second!.id, deposit);
     // Simulate the scheduled pickup time having arrived without sleeping in CI.
     await dataSource.getRepository(Booking).update(second!.id, { pickupAt: new Date(Date.now() - 1_000) });
     const pickupRecord = await handovers.process(staffForHandover, second!.id, HandoverKind.PICKUP, {
@@ -151,8 +161,6 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
       batteryPercent: 45, odometerKm: 157, conditionNote: 'Không cho nhận xe hai lần',
     }));
 
-    const deposit = { purpose: PaymentPurpose.DEPOSIT, method: PaymentMethod.CASH,
-      amount: 1000000, idempotencyKey: 'test-deposit-' + second!.id };
     const firstPayment = await payments.create(staffForHandover, second!.id, deposit);
     const repeated = await payments.create(staffForHandover, second!.id, deposit);
     assert.equal(firstPayment.id, repeated.id);
@@ -167,7 +175,7 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
       purpose: PaymentPurpose.REFUND, method: PaymentMethod.CASH,
       amount: 1000000, idempotencyKey: 'test-refund-' + second!.id,
     });
-    assert.equal(await dataSource.getRepository(PaymentTransaction).countBy({ bookingId: second!.id }), 2);
+    assert.equal(await dataSource.getRepository(PaymentTransaction).countBy({ bookingId: second!.id }), 3);
     assert.equal((await dataSource.getRepository(Booking).findOneByOrFail({id:second!.id})).status,
       BookingStatus.COMPLETED);
 
@@ -179,6 +187,14 @@ test('SQL Server: concurrent booking, overlap rejection and expired-hold release
       returnAt: new Date(Date.now() + 6 * 86_400_000).toISOString(),
     });
     await bookingService.confirm(staffForHandover, followUp!.id);
+    await payments.create(staffForHandover, followUp!.id, {
+      purpose: PaymentPurpose.RENT, method: PaymentMethod.CASH,
+      amount: Number(followUp!.rentalAmount), idempotencyKey: 'test-followup-rent-' + followUp!.id,
+    });
+    await payments.create(staffForHandover, followUp!.id, {
+      purpose: PaymentPurpose.DEPOSIT, method: PaymentMethod.CASH,
+      amount: Number(followUp!.depositSnapshot), idempotencyKey: 'test-followup-deposit-' + followUp!.id,
+    });
     // Simulate arrival at the pickup time for this second lifecycle scenario.
     await dataSource.getRepository(Booking).update(followUp!.id, { pickupAt: new Date(Date.now() - 1_000) });
     await handovers.process(staffForHandover, followUp!.id, HandoverKind.PICKUP, {

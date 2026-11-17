@@ -58,7 +58,8 @@ export function App() {
       <Route path="/bookings/my" element={<CustomerOnly><CustomerBookingsRoute /></CustomerOnly>} />
       <Route path="/bookings/my/:bookingId" element={<CustomerOnly><CustomerBookingsRoute /></CustomerOnly>} />
       <Route path="/battery-swap" element={<CustomerOnly><CustomerBatterySwapPage /></CustomerOnly>} />
-      <Route path="/bookings/:id/payments" element={<CustomerOnly><PaymentsPage /></CustomerOnly>} />
+      <Route path="/bookings/:id/payments" element={<RoleRoute allowed={['CUSTOMER']}><PaymentsPage /></RoleRoute>} />
+      <Route path="/operations/bookings/:id/payments" element={<RoleRoute allowed={['ADMIN','STAFF']}><PaymentsPage /></RoleRoute>} />
       <Route path="/locations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><LocationsPage /></RoleRoute>} />
       <Route path="/maintenance" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />
       <Route path="/maintenance/new" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><MaintenancePage /></RoleRoute>} />

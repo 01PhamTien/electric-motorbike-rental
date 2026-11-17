@@ -30,6 +30,7 @@ export class PaymentsService {
           throw new BadRequestException('Mã chống lặp đã được sử dụng cho giao dịch khác');
         return previous;
       }
+      if (dto.method === 'SEPAY') throw new BadRequestException('Giao dịch SePay chỉ được ghi nhận qua IPN đã xác thực, không nhập thủ công.');
       if ([BookingStatus.CANCELLED, BookingStatus.EXPIRED].includes(booking.status) && dto.purpose !== PaymentPurpose.REFUND)
         throw new BadRequestException('Không thể ghi nhận khoản thu mới cho đơn đã hủy/hết hạn');
       const all = await repo.findBy({ bookingId });

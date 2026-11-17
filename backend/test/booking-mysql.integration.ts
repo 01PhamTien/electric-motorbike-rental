@@ -135,6 +135,16 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
       batteryPercent: 90, odometerKm: 120, conditionNote: 'Kiểm tra phân quyền',
     }));
     await bookingService.confirm(staffForHandover, second!.id);
+    const deposit = { purpose: PaymentPurpose.DEPOSIT, method: PaymentMethod.CASH,
+      amount: 1000000, idempotencyKey: 'test-deposit-' + second!.id };
+    await assert.rejects(() => handovers.process(staffForHandover, second!.id, HandoverKind.PICKUP, {
+      batteryPercent: 90, odometerKm: 120, conditionNote: 'Chưa thanh toán',
+    }), /Chưa thể bàn giao xe/);
+    await payments.create(staffForHandover, second!.id, {
+      purpose: PaymentPurpose.RENT, method: PaymentMethod.CASH,
+      amount: Number(second!.rentalAmount), idempotencyKey: 'test-rent-' + second!.id,
+    });
+    await payments.create(staffForHandover, second!.id, deposit);
     const pickupRecord = await handovers.process(staffForHandover, second!.id, HandoverKind.PICKUP, {
       batteryPercent: 90, odometerKm: 120, conditionNote: 'Xe tốt khi giao',
     });
@@ -151,8 +161,6 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
       batteryPercent: 45, odometerKm: 157, conditionNote: 'Không cho nhận xe hai lần',
     }));
 
-    const deposit = { purpose: PaymentPurpose.DEPOSIT, method: PaymentMethod.CASH,
-      amount: 1000000, idempotencyKey: 'test-deposit-' + second!.id };
     const firstPayment = await payments.create(staffForHandover, second!.id, deposit);
     const repeated = await payments.create(staffForHandover, second!.id, deposit);
     assert.equal(firstPayment.id, repeated.id);
@@ -167,7 +175,7 @@ test('MySQL: concurrent booking, overlap rejection and expired-hold release', as
       purpose: PaymentPurpose.REFUND, method: PaymentMethod.CASH,
       amount: 1000000, idempotencyKey: 'test-refund-' + second!.id,
     });
-    assert.equal(await dataSource.getRepository(PaymentTransaction).countBy({ bookingId: second!.id }), 2);
+    assert.equal(await dataSource.getRepository(PaymentTransaction).countBy({ bookingId: second!.id }), 3);
     assert.equal((await dataSource.getRepository(Booking).findOneByOrFail({id:second!.id})).status,
       BookingStatus.COMPLETED);
 

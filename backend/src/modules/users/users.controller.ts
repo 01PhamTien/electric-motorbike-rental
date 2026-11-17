@@ -25,7 +25,7 @@ export class UsersController {
 
   @Patch('me')
   updateMe(@CurrentUser() current: JwtUser, @Body() dto: UpdateMyProfileDto) {
-    return this.usersService.updateMyProfile(current.sub, dto.fullName, dto.phone ?? null);
+    return this.usersService.updateMyProfile(current.sub, dto.fullName, dto.phone ?? null, dto.avatarUrl);
   }
 
   @Get('customers')

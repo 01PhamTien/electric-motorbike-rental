@@ -15,7 +15,7 @@ import { MaintenanceRecord, MaintenanceStatus } from '../maintenance/maintenance
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { VehicleTransfer, VehicleTransferStatus } from '../transfers/vehicle-transfer.entity';
-import { CancelBookingDto, CreateBookingDto } from './dto';
+import { CancelBookingDto, CreateBookingDto, UpdateBookingDto } from './dto';
 import { VouchersService } from '../vouchers/vouchers.service';
 import { calculateCancellationFee } from './cancellation-policy';
 import { PaymentPurpose, PaymentTransaction } from '../payments/payment.entity';
@@ -104,6 +104,7 @@ export class BookingsService {
         voucherId: null,
         voucherCodeSnapshot: null,
         holdExpiresAt,
+        preferredPaymentMethod: dto.preferredPaymentMethod ?? 'CASH',
         status: BookingStatus.PENDING,
       }));
 
@@ -131,6 +132,44 @@ export class BookingsService {
     });
   }
 
+
+  async update(current: JwtUser, id: number, dto: UpdateBookingDto) {
+    if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();
+    return this.dataSource.transaction(async manager => {
+      const booking = await manager.getRepository(Booking).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!booking) throw new NotFoundException('Không tìm thấy đơn thuê');
+      this.assertAccess(current, booking);
+      if (![BookingStatus.PENDING, BookingStatus.CONFIRMED].includes(booking.status)) {
+        throw new BadRequestException('Chỉ được điều chỉnh lịch đơn đang chờ hoặc đã xác nhận, trước khi bàn giao xe');
+      }
+      if (new Date() >= booking.pickupAt) throw new BadRequestException('Đã đến giờ nhận xe; không thể tự chỉnh sửa đơn. Vui lòng xử lý theo quy trình hỗ trợ.');
+      if (dto.pickupAt === undefined && dto.returnAt === undefined) throw new BadRequestException('Không có thông tin lịch thuê cần cập nhật');
+      const pickupAt = dto.pickupAt ? new Date(dto.pickupAt) : booking.pickupAt;
+      const returnAt = dto.returnAt ? new Date(dto.returnAt) : booking.returnAt;
+      if (!(pickupAt > new Date()) || !(returnAt > pickupAt)) throw new BadRequestException('Thời gian nhận/trả xe không hợp lệ');
+      const overlapping = await manager.getRepository(Booking).createQueryBuilder('b')
+        .setLock('pessimistic_write')
+        .where('b.vehicleId = :vehicleId AND b.id <> :id', { vehicleId: booking.vehicleId, id })
+        .andWhere('b.status IN (:...statuses)', { statuses: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.RENTING] })
+        .andWhere('b.pickupAt < :returnAt AND b.returnAt > :pickupAt', { pickupAt, returnAt })
+        .getOne();
+      if (overlapping) throw new BadRequestException('Xe đã có đơn khác trong khoảng thời gian mới');
+      const rentalDays = Math.ceil((returnAt.getTime() - pickupAt.getTime()) / 86_400_000);
+      const base = Math.round(rentalDays * Number(booking.dailyRateSnapshot) * 100);
+      const discount = Math.min(Math.max(0, Math.round(Number(booking.discountAmount || 0) * 100)), base);
+      const previous = { pickupAt: booking.pickupAt, returnAt: booking.returnAt, rentalAmount: booking.rentalAmount };
+      booking.pickupAt = pickupAt; booking.returnAt = returnAt;
+      booking.baseRentalAmount = (base / 100).toFixed(2);
+      booking.discountAmount = (discount / 100).toFixed(2);
+      booking.rentalAmount = ((base - discount) / 100).toFixed(2);
+      const saved = await manager.getRepository(Booking).save(booking);
+      await this.audit?.record(current.sub, 'BOOKING_SCHEDULE_UPDATED', 'BOOKING', id, {
+        previous: { pickupAt: previous.pickupAt, returnAt: previous.returnAt, rentalAmount: previous.rentalAmount },
+        current: { pickupAt, returnAt, rentalAmount: saved.rentalAmount },
+      });
+      return saved;
+    });
+  }
 
   async listCalendar(current: JwtUser, fromInput: string, toInput: string) {
     if (![Role.ADMIN, Role.STAFF].includes(current.role)) throw new ForbiddenException();

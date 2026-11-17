@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, LoadingState, SectionHeading } from '../../components/Brand';
+import { AppIcon } from '../../components/AppIcon';
 import { StationMap, coordinatesValid, stationDirections } from '../../components/StationMap';
 import type { StationMapPoint, UserMapLocation } from '../../components/StationMap';
 import { api } from '../../services/api';
@@ -165,10 +166,9 @@ export function StationsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-extrabold">Danh sách điểm nhận xe</h2><span className="text-sm text-slate-500">{location ? 'Đã sắp xếp theo khoảng cách tới bạn' : 'Bật định vị để sắp xếp theo khoảng cách'}</span></div>
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             {ranked.map(({station: s, distance, availableVehicles, availableBatteryCount}, i) => <article key={s.id} className={'panel overflow-hidden ' + (i === 0 && location ? 'ring-2 ring-emerald-300' : '')}>
-              <div className="relative h-48 overflow-hidden bg-slate-100">
-                <StationMap latitude={s.latitude} longitude={s.longitude} name={s.name} compact/>
-                <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-white/95 px-4 py-2 text-xs font-extrabold text-emerald-800 shadow-sm">{location && i === 0 ? 'GẦN BẠN NHẤT' : 'ĐIỂM NHẬN ' + String(i + 1).padStart(2,'0')}</span>
-                {distance !== null && <span className="pointer-events-none absolute right-4 top-4 rounded-full bg-slate-900/80 px-3 py-2 text-xs font-bold text-white">{distance.toFixed(1)} km</span>}
+              <div className="flex items-center justify-between gap-3 border-b border-[#edf1ed] bg-[#f8faf8] px-5 py-4">
+                <span className="inline-flex items-center gap-2 text-xs font-bold text-[#526b5e]"><AppIcon name="map" size={15}/>{location && i === 0 ? 'GẦN BẠN NHẤT' : 'ĐIỂM NHẬN ' + String(i + 1).padStart(2,'0')}</span>
+                {distance !== null && <span className="rounded-full border border-[#e3ebe5] bg-white px-3 py-1.5 text-xs font-bold text-[#526b5e]">{distance.toFixed(1)} km</span>}
               </div>
               <div className="p-6">
                 <h3 className="text-xl font-extrabold">{s.name}</h3>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { SectionHeading } from '../../components/Brand';
+import { AppIcon } from '../../components/AppIcon';
 import { api } from '../../services/api';
 
 type AuditEntry={id:number;actorId:number|null;action:string;targetType:string;targetId:number|null;details:string|null;createdAt:string};
@@ -48,12 +49,12 @@ export function AuditLogsPage(){
    return()=>{mounted=false;};
  },[]);
  useEffect(()=>{void loadShifts();},[loadShifts]);
- return <div className="container-page py-12 sm:py-16">
+ return <div className="container-page py-8 sm:py-12">
    <SectionHeading eyebrow="QUẢN TRỊ HỆ THỐNG" title="Nhật ký hoạt động" description="Theo dõi thao tác hệ thống và tra cứu biên bản nhận ca, bàn giao ca theo nhân viên, trạm và thời gian."/>
    {error&&<p role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
-   <section className="mt-8">
+   <section className="mt-7">
      <div className="mb-4"><h2 className="text-xl font-bold text-slate-900">Lịch sử bàn giao ca</h2><p className="mt-1 text-sm text-slate-500">Dữ liệu được ghi nhận theo tài khoản nhân viên và thời điểm thực hiện.</p></div>
-     <div className="panel grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-5">
+     <div className="panel grid gap-3 p-5 sm:p-6 sm:grid-cols-2 lg:grid-cols-5">
        <label className="text-sm"><span className="field-label">Từ ngày</span><input type="date" className="field" value={from} onChange={e=>setFrom(e.target.value)}/></label>
        <label className="text-sm"><span className="field-label">Đến ngày</span><input type="date" min={from||undefined} className="field" value={to} onChange={e=>setTo(e.target.value)}/></label>
        <label className="text-sm"><span className="field-label">Nhân viên</span><select className="field" value={staffId} onChange={e=>setStaffId(e.target.value)}><option value="">Tất cả nhân viên</option>{staff.map(x=><option key={x.id} value={x.id}>{x.fullName}</option>)}</select></label>
@@ -61,7 +62,7 @@ export function AuditLogsPage(){
        <div className="flex items-end gap-2"><button type="button" onClick={()=>{setFrom('');setTo('');setStaffId('');setStationId('');}} className="btn-outline flex-1">Xóa lọc</button><button type="button" onClick={()=>void loadShifts()} disabled={shiftLoading} className="btn-primary flex-1">{shiftLoading?'Đang tải…':'Lọc'}</button></div>
      </div>
      {shiftError&&<p role="alert" className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{shiftError}</p>}
-     {shiftLoading?<p className="py-10 text-center text-slate-500">Đang tải lịch sử bàn giao…</p>:shifts.length===0?<div className="mt-5 rounded-2xl border border-dashed border-slate-300 p-10 text-center text-slate-500">Không có biên bản bàn giao phù hợp.</div>:<div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200 bg-white"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-4">Thời gian</th><th className="px-5 py-4">Nhân viên</th><th className="px-5 py-4">Điểm thuê</th><th className="px-5 py-4">Loại ghi nhận</th><th className="px-5 py-4">Biên bản</th></tr></thead><tbody className="divide-y divide-slate-100">{shifts.map(x=><tr key={x.id} className="align-top"><td className="whitespace-nowrap px-5 py-4 text-slate-600">{new Date(x.createdAt).toLocaleString('vi-VN')}</td><td className="px-5 py-4 font-semibold">{x.actor?.fullName||('Nhân viên #'+(x.actorId??'—'))}</td><td className="px-5 py-4">{x.actor?.station?.name||'Chưa phân trạm'}</td><td className="px-5 py-4"><span className={x.action==='SHIFT_STARTED'?'rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700':'rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700'}>{x.action==='SHIFT_STARTED'?'Bắt đầu ca':'Kết thúc ca'}</span></td><td className="max-w-lg whitespace-pre-wrap px-5 py-4 text-xs leading-5 text-slate-600">{detailText(x.details)}</td></tr>)}</tbody></table></div>}
+     {shiftLoading?<p className="py-10 text-center text-slate-500">Đang tải lịch sử bàn giao…</p>:shifts.length===0?<div className="mt-5 rounded-2xl border border-dashed border-[#dce6de] p-10 text-center text-slate-500">Không có biên bản bàn giao phù hợp.</div>:<div className="mt-5 overflow-x-auto rounded-2xl border border-[#e7ede8] bg-white"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-[#f8faf8] text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-4">Thời gian</th><th className="px-5 py-4">Nhân viên</th><th className="px-5 py-4">Điểm thuê</th><th className="px-5 py-4">Loại ghi nhận</th><th className="px-5 py-4">Biên bản</th></tr></thead><tbody className="divide-y divide-slate-100">{shifts.map(x=><tr key={x.id} className="align-top"><td className="whitespace-nowrap px-5 py-4 text-slate-600">{new Date(x.createdAt).toLocaleString('vi-VN')}</td><td className="px-5 py-4 font-semibold">{x.actor?.fullName||('Nhân viên #'+(x.actorId??'—'))}</td><td className="px-5 py-4">{x.actor?.station?.name||'Chưa phân trạm'}</td><td className="px-5 py-4"><span className={x.action==='SHIFT_STARTED'?'rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700':'rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700'}>{x.action==='SHIFT_STARTED'?'Bắt đầu ca':'Kết thúc ca'}</span></td><td className="max-w-lg whitespace-pre-wrap px-5 py-4 text-xs leading-5 text-slate-600">{detailText(x.details)}</td></tr>)}</tbody></table></div>}
    </section>
    <section className="mt-12">
      <h2 className="text-xl font-bold text-slate-900">Nhật ký hoạt động khác</h2>

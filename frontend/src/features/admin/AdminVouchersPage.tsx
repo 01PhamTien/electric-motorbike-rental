@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import { LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
+import { AppIcon } from '../../components/AppIcon';
 
 type Voucher = { id:number; code:string; discountType:'PERCENT'|'FIXED'; discountValue:string; maxDiscountAmount:string|null; minRentalAmount:string; startsAt:string; endsAt:string; usageLimit:number|null; perCustomerLimit:number; usageCount:number; isActive:boolean; description:string|null };
 type Redemption = { id:number; bookingId:number; customerId:number; discountAmount:string; createdAt:string };
@@ -44,12 +45,12 @@ export function AdminVouchersPage() {
     try{const {data}=await api.get('/vouchers/'+item.id+'/redemptions');setRedemptions(Array.isArray(data)?data:[]);}
     catch(e){setError(errorText(e));}
   }
-  return <section className="container-page space-y-8 py-12 sm:py-16">
+  return <section className="container-page space-y-7 py-8 sm:py-12">
     <SectionHeading eyebrow="KHUYẾN MÃI VOLTGO" title="Quản lý Voucher" description="Tạo mã giảm giá, kiểm soát ngân sách khuyến mãi, giới hạn lượt dùng và tra cứu lịch sử áp dụng."/>
     {notice&&<p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</p>}
     {error&&<p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
-    <form onSubmit={create} className="panel grid gap-4 p-6 md:grid-cols-2">
-      <div className="md:col-span-2"><h3 className="text-lg font-extrabold">Tạo voucher mới</h3><p className="mt-1 text-sm text-slate-500">Mã không phân biệt chữ hoa/thường; hệ thống lưu và kiểm tra ở dạng chữ in hoa.</p></div>
+    <form onSubmit={create} className="panel grid gap-4 p-5 sm:p-6 md:grid-cols-2">
+      <div className="md:col-span-2"><h3 className="text-lg font-bold tracking-tight">Tạo voucher mới</h3><p className="mt-1 text-sm text-slate-500">Mã không phân biệt chữ hoa/thường; hệ thống lưu và kiểm tra ở dạng chữ in hoa.</p></div>
       <label><span className="field-label">Mã voucher</span><input required maxLength={40} pattern="[A-Za-z0-9_-]+" className="field uppercase" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="VD: VOLTGO10"/></label>
       <label><span className="field-label">Loại giảm giá</span><select className="field" value={discountType} onChange={e=>setDiscountType(e.target.value as 'PERCENT'|'FIXED')}><option value="PERCENT">Theo phần trăm (%)</option><option value="FIXED">Số tiền cố định (₫)</option></select></label>
       <label><span className="field-label">Giá trị giảm {discountType==='PERCENT'?'(%)':'(₫)'}</span><input required type="number" min="0.01" max={discountType==='PERCENT'?100:undefined} step="0.01" className="field" value={discountValue} onChange={e=>setDiscountValue(e.target.value)}/></label>

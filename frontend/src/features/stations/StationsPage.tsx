@@ -112,13 +112,13 @@ export function StationsPage() {
 
   return <section className="container-page space-y-9 py-12 sm:py-16">
     <div className="flex flex-wrap items-end justify-between gap-6">
-      <SectionHeading eyebrow="MẠNG LƯỚI ĐIỂM THUÊ" title="Tìm trạm nhận xe gần bạn" description="Bản đồ chỉ hiển thị các điểm nhận xe với tọa độ GPS của trạm. Bật định vị để tìm trạm gần nhất và xem khoảng cách ước tính."/>
+      <SectionHeading eyebrow="MẠNG LƯỚI ĐIỂM THUÊ" title="Tìm trạm nhận xe gần bạn" description="Cho phép trình duyệt truy cập vị trí để hiển thị điểm của bạn trên bản đồ, sắp xếp trạm theo khoảng cách và mở chỉ đường."/>
       <div className="flex flex-wrap gap-2">
-        <button onClick={locateMe} disabled={locating} className="btn-outline">{locating ? 'Đang xác định...' : location ? '↻ Cập nhật vị trí' : '◎ Dùng vị trí của tôi'}</button>
+        <button onClick={locateMe} disabled={locating} aria-label={location ? 'Cập nhật vị trí hiện tại' : 'Hiển thị vị trí hiện tại và tìm trạm gần nhất'} className="btn-outline">{locating ? 'Đang xác định...' : location ? '↻ Cập nhật vị trí' : '◎ Dùng vị trí của tôi'}</button>
         <Link to="/vehicles" className="btn-dark">Khám phá xe ↗</Link>
       </div>
     </div>
-    {locationError && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{locationError}</p>}
+    {locationError && <div role="alert" className="rounded-xl border border-[#f0e7d5] bg-[#fffaf0] p-4 text-sm text-[#806337]"><p className="font-semibold">Chưa xác định được vị trí</p><p className="mt-1 leading-6">{locationError}</p><p className="mt-2 text-xs">Bạn vẫn có thể chọn trạm thủ công hoặc mở trang cài đặt quyền vị trí của trình duyệt để thử lại.</p></div>}
     {loading ? <LoadingState /> : error ? <p role="alert" className="rounded-xl bg-rose-50 p-6 text-rose-700">{error}</p> : !items.length ?
       <EmptyState title="Chưa có điểm thuê" description="Các điểm nhận xe có tọa độ hợp lệ sẽ xuất hiện tại đây." /> :
       <>
@@ -137,7 +137,7 @@ export function StationsPage() {
               <div className="pointer-events-none absolute left-5 top-5 flex flex-wrap gap-2">
                 <span className="rounded-full border border-[#e4eee8] bg-white/95 px-4 py-2 text-xs font-extrabold text-emerald-800 shadow-md">📍 {items.length} TRẠM</span>
                 <span className="rounded-full bg-white/95 px-4 py-2 text-xs font-extrabold text-sky-800 shadow-md">⚡ {vehicles.length} XE SẴN SÀNG</span>
-                {location && <span className="rounded-full bg-sky-50 px-4 py-2 text-xs font-extrabold text-sky-800 shadow-md">◎ VỊ TRÍ CỦA BẠN</span>}
+                {location && <span className="rounded-full border border-sky-100 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-800 shadow-sm">● Vị trí của bạn</span>}
               </div>
               
             </div>
@@ -147,7 +147,7 @@ export function StationsPage() {
                 <h2 className="mt-4 text-2xl font-extrabold">{selected?.name ?? ranked[0]?.station.name}</h2>
                 <p className="mt-3 text-sm leading-7 text-[#647873]">{selected?.address}</p>
                 {selected && location && <p className="mt-3 inline-flex rounded-full bg-white px-3 py-2 text-sm font-bold text-[#159b70] shadow-sm">Cách bạn khoảng {distanceKm(location,{latitude:Number(selected.latitude),longitude:Number(selected.longitude)}).toFixed(1)} km</p>}
-                {location && ranked[0] && <p className="mt-2 text-xs text-[#71847c]">Trạm gần nhất: {ranked[0].station.name} ({ranked[0].distance?.toFixed(1)} km)</p>}
+                {location && ranked[0] && <div className="mt-3 rounded-xl border border-[#dcebe1] bg-white p-3"><p className="text-[11px] font-bold uppercase tracking-wide text-[#71847c]">Gần vị trí của bạn nhất</p><p className="mt-1 text-sm font-bold text-[#315b4d]">{ranked[0].station.name}</p><p className="mt-1 text-xs text-[#159b70]">{ranked[0].distance?.toFixed(1)} km · khoảng cách đường chim bay</p></div>}
                 <p className="mt-3 text-sm font-bold text-[#4d8292]">⚡ {ranked.find(x => x.station.id === selected?.id)?.availableVehicles ?? 0} xe đang sẵn sàng tại trạm</p>
                 <p className="mt-2 text-sm font-bold text-[#159b70]">🔋 {ranked.find(x => x.station.id === selected?.id)?.availableBatteryCount ?? 0} pin đầy có thể đổi ngay</p>
                 <label className="mt-7 block text-sm font-bold" htmlFor="station-map-choice">Chọn điểm nhận xe</label>
@@ -163,7 +163,7 @@ export function StationsPage() {
           </div>
         </div>
         <div>
-          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-extrabold">Danh sách điểm nhận xe</h2><span className="text-sm text-slate-500">{location ? 'Đã sắp xếp theo khoảng cách tới bạn' : 'Bật định vị để sắp xếp theo khoảng cách'}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-extrabold">Danh sách điểm nhận xe</h2><span className="text-sm text-slate-500">{location ? 'Đã sắp xếp theo khoảng cách tới bạn' : 'Bật vị trí để sắp xếp theo khoảng cách'}</span></div>
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             {ranked.map(({station: s, distance, availableVehicles, availableBatteryCount}, i) => <article key={s.id} className={'panel overflow-hidden ' + (i === 0 && location ? 'ring-2 ring-emerald-300' : '')}>
               <div className="flex items-center justify-between gap-3 border-b border-[#edf1ed] bg-[#f8faf8] px-5 py-4">

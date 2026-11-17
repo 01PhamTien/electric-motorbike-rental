@@ -13,6 +13,7 @@ import { HandoverKind, HandoverRecord } from './handover.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { assertPickupWindow } from './handover-policy';
+import { PaymentPurpose, PaymentTransaction } from '../payments/payment.entity';
 
 @Injectable()
 export class HandoversService {
@@ -40,6 +41,16 @@ export class HandoversService {
       if (booking.vehicleId !== vehicle.id) throw new BadRequestException('Xe của đơn đã thay đổi, vui lòng thử lại');
       if (kind === HandoverKind.PICKUP && dto.requiresMaintenance) throw new BadRequestException('Chỉ có thể đánh dấu cần bảo dưỡng khi nhận trả xe');
       if (kind === HandoverKind.RETURN && dto.requiresMaintenance && !dto.damageNotes?.trim()) throw new BadRequestException('Cần mô tả hư hỏng hoặc vấn đề an toàn trước khi đưa xe vào bảo dưỡng');
+      if (kind === HandoverKind.PICKUP) {
+        const payments = await manager.getRepository(PaymentTransaction).find({ where: { bookingId } });
+        const cents = (value: string | number) => Math.round(Number(value) * 100);
+        const collected = (purpose: PaymentPurpose) => payments.filter(p => p.purpose === purpose).reduce((sum, p) => sum + cents(p.amount), 0);
+        const rentOutstanding = cents(booking.rentalAmount) - collected(PaymentPurpose.RENT);
+        const depositOutstanding = cents(booking.depositSnapshot) - collected(PaymentPurpose.DEPOSIT);
+        if (rentOutstanding > 0 || depositOutstanding > 0) {
+          throw new BadRequestException('Chưa thể bàn giao xe: cần thu đủ tiền thuê và tiền cọc. Còn thiếu tiền thuê ' + (Math.max(0, rentOutstanding) / 100).toLocaleString('vi-VN') + ' VND, tiền cọc ' + (Math.max(0, depositOutstanding) / 100).toLocaleString('vi-VN') + ' VND.');
+        }
+      }
       if (kind === HandoverKind.PICKUP && vehicle.status !== VehicleStatus.ACTIVE)
         throw new BadRequestException('Xe hiện không sẵn sàng để bàn giao');
       if (kind === HandoverKind.PICKUP && (!vehicle.isActive || !vehicle.station?.isActive))

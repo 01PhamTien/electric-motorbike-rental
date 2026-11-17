@@ -64,7 +64,7 @@ export class Booking {
   @Column({ type: 'simple-enum', enum: BookingStatus, default: BookingStatus.PENDING })
   status: BookingStatus;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'nvarchar', length: 255, nullable: true })
   cancelReason: string | null;
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })

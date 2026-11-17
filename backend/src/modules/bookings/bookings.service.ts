@@ -18,6 +18,7 @@ import { VehicleTransfer, VehicleTransferStatus } from '../transfers/vehicle-tra
 import { CancelBookingDto, CreateBookingDto } from './dto';
 import { VouchersService } from '../vouchers/vouchers.service';
 import { calculateCancellationFee } from './cancellation-policy';
+import { PaymentPurpose, PaymentTransaction } from '../payments/payment.entity';
 
 @Injectable()
 export class BookingsService {
@@ -236,9 +237,22 @@ export class BookingsService {
       if (booking.status !== BookingStatus.COMPLETED) throw new BadRequestException('Chỉ được quyết toán phụ phí sau khi đã nhận xe trả');
       const amount = Math.round(dto.amount * 100) / 100;
       if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Số tiền phụ phí không hợp lệ');
+      const reason = dto.reason.trim();
+      if (!reason) throw new BadRequestException('Lý do phụ phí không được để trống');
+      if (dto.applyToDeposit) {
+        const payments = await manager.getRepository(PaymentTransaction).find({ where: { bookingId: id, purpose: PaymentPurpose.DEPOSIT } });
+        const existingDeductions = await manager.getRepository(BookingCharge).find({ where: { bookingId: id, applyToDeposit: true } });
+        const cents = (value: string | number) => Math.round(Number(value) * 100);
+        const depositCollected = payments.reduce((sum, payment) => sum + cents(payment.amount), 0);
+        const alreadyDeducted = existingDeductions.reduce((sum, charge) => sum + cents(charge.amount), 0);
+        const cancellationFee = cents(booking.cancellationFeeAmount ?? 0);
+        if (Math.round(amount * 100) + alreadyDeducted + cancellationFee > depositCollected) {
+          throw new BadRequestException('Khoản khấu trừ vượt quá tiền cọc thực tế đã thu. Hãy chọn thu phụ phí riêng nếu số tiền vượt cọc.');
+        }
+      }
       return manager.getRepository(BookingCharge).save(manager.getRepository(BookingCharge).create({
         bookingId: id, category: dto.category.trim().toUpperCase(), amount: amount.toFixed(2),
-        applyToDeposit: dto.applyToDeposit, reason: dto.reason.trim(), createdById: current.sub,
+        applyToDeposit: dto.applyToDeposit, reason, createdById: current.sub,
       }));
     });
   }

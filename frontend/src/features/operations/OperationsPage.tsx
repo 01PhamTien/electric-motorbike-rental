@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
 import { AppIcon } from '../../components/AppIcon';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { api } from '../../services/api';
 import { useAuth } from '../auth/AuthContext';
 
 type CalendarEvent = { type:'BOOKING'|'MAINTENANCE'; id:number; vehicleId:number; vehicleCode:string; model:string; stationName:string; customerName:string; title:string; status:string; start:string; end:string|null };
 function localDateInput(date:Date) { const offset=date.getTimezoneOffset(); return new Date(date.getTime()-offset*60000).toISOString().slice(0,10); }
-function localDateTimeInput(value:string) { const date=new Date(value); const offset=date.getTimezoneOffset(); return new Date(date.getTime()-offset*60000).toISOString().slice(0,16); }
 type ShiftState = { active: boolean; latest?: { action: string; createdAt: string; details?: string | null } | null };
 type Booking = {
   id: number; status: string; pickupAt: string; returnAt: string; preferredPaymentMethod?: 'CASH'|'TRANSFER'|'SEPAY';
@@ -47,10 +47,7 @@ export function OperationsPage() {
   const [notice,setNotice] = useState('');
   const [filter,setFilter] = useState('ALL');
   const [busy,setBusy] = useState<number | null>(null);
-  const [editingBookingId,setEditingBookingId] = useState<number|null>(null);
-  const [editPickupAt,setEditPickupAt] = useState('');
-  const [editReturnAt,setEditReturnAt] = useState('');
-  const [editReason,setEditReason] = useState('Khách yêu cầu điều chỉnh lịch thuê');
+  const [actionDialog,setActionDialog] = useState<{type:'confirm'|'no-show';id:number}|null>(null);
   const [battery,setBattery] = useState('80');
   const [odometer,setOdometer] = useState('');
   const [condition,setCondition] = useState('Xe hoạt động bình thường');
@@ -110,29 +107,22 @@ export function OperationsPage() {
     setCheckedItems([]); setDamageNotes(''); setRequiresMaintenance(false); setPhotoUrlsText('');
     setError(''); setNotice(''); navigate('/operations/handover/'+id+'/'+kind);
   }
-  function beginEditBooking(booking:Booking) {
-    setEditingBookingId(booking.id); setEditPickupAt(localDateTimeInput(booking.pickupAt)); setEditReturnAt(localDateTimeInput(booking.returnAt)); setEditReason('Khách yêu cầu điều chỉnh lịch thuê'); setError(''); setNotice('');
-  }
-  async function saveBookingSchedule(event:React.FormEvent) {
-    event.preventDefault(); if(editingBookingId===null)return;
-    if(!editPickupAt||!editReturnAt||new Date(editReturnAt)<=new Date(editPickupAt)){setError('Thời gian trả phải sau thời gian nhận.');return;}
-    if(!window.confirm('Lưu thời gian thuê mới? Hệ thống sẽ tính lại tiền thuê theo đơn giá đã chốt và giữ nguyên lịch sử thanh toán.'))return;
-    setBusy(editingBookingId);setError('');setNotice('');
-    try { await api.patch('/bookings/'+editingBookingId,{pickupAt:new Date(editPickupAt).toISOString(),returnAt:new Date(editReturnAt).toISOString(),reason:editReason.trim()}); setNotice('Đã cập nhật lịch đơn thuê #'+editingBookingId+'. Vui lòng kiểm tra lại số tiền còn phải thu.'); setEditingBookingId(null); await load(); }
-    catch(e){setError(apiError(e));} finally{setBusy(null);}
-  }
-  async function confirm(id: number) {
-    if (!window.confirm('Xác nhận đơn thuê #' + id + '?')) return;
-    setBusy(id);setError('');setNotice('');
-    try { await api.patch('/bookings/' + id + '/confirm'); setNotice('Đã xác nhận đơn #' + id); await load(); }
-    catch(e){setError(apiError(e));}
-    finally{setBusy(null);}
-  }
-  async function markNoShow(id:number) {
-    if (!window.confirm('Ghi nhận khách không đến nhận xe cho đơn #' + id + '? Phí No-show sẽ được tính theo chính sách và cần đối soát thủ công.')) return;
-    setBusy(id);setError('');setNotice('');
-    try { const {data}=await api.patch('/bookings/'+id+'/no-show'); setNotice('Đã ghi nhận No-show cho đơn #'+id+'. Phí hủy: '+money(data?.cancellationFeeAmount)+'.'); await load(); }
-    catch(e){setError(apiError(e));}
+  function confirm(id:number){setActionDialog({type:'confirm',id});}
+  function markNoShow(id:number){setActionDialog({type:'no-show',id});}
+  async function executeBookingAction(){
+    if(!actionDialog)return;
+    const action=actionDialog;
+    setBusy(action.id);setError('');setNotice('');
+    try{
+      if(action.type==='confirm'){
+        await api.patch('/bookings/'+action.id+'/confirm');
+        setNotice('Đã xác nhận đơn #'+action.id+'.');
+      }else{
+        const {data}=await api.patch('/bookings/'+action.id+'/no-show');
+        setNotice('Đã ghi nhận No-show cho đơn #'+action.id+'. Phí hủy: '+money(data?.cancellationFeeAmount)+'.');
+      }
+      setActionDialog(null);await load();
+    }catch(e){setError(apiError(e));}
     finally{setBusy(null);}
   }
   async function submitHandover(event: React.FormEvent) {
@@ -159,6 +149,7 @@ export function OperationsPage() {
     } catch(e) { setError(apiError(e)); } finally { setBusy(null); }
   }
   return <div className="container-page py-8 sm:py-12">
+    <ConfirmDialog open={Boolean(actionDialog)} title={actionDialog?.type==='confirm'?'Xác nhận đơn thuê':'Ghi nhận khách không đến'} description={actionDialog?.type==='confirm'?`Bạn có chắc muốn xác nhận đơn thuê #${actionDialog.id}?`:`Ghi nhận khách không đến nhận xe cho đơn #${actionDialog?.id}? Phí No-show sẽ được tính theo chính sách và cần đối soát thủ công.`} confirmLabel={actionDialog?.type==='confirm'?'Xác nhận đơn':'Ghi nhận No-show'} tone={actionDialog?.type==='no-show'?'danger':'default'} busy={busy!==null} onCancel={()=>setActionDialog(null)} onConfirm={()=>void executeBookingAction()}/>
     {!handover && <>
     <div className="flex flex-wrap items-end justify-between gap-6"><SectionHeading eyebrow="TRUNG TÂM VẬN HÀNH" title="Điều phối đơn thuê" description="Xác nhận đặt xe, ghi nhận bàn giao và nhận trả phương tiện. Danh sách giới hạn 100 đơn gần nhất theo quyền tài khoản."/><div className="flex flex-wrap gap-2"><Link to="/vehicle-transfers" className="btn-outline">Điều chuyển xe ↗</Link><Link to="/issues" className="btn-outline">Sự cố khách báo ↗</Link><Link to="/maintenance" className="btn-outline">Bảo dưỡng ↗</Link><Link to="/locations" className="btn-outline">Vị trí xe ↗</Link>{user?.role==='ADMIN'&&<Link to="/admin/dashboard" className="btn-outline">Báo cáo ↗</Link>}</div></div>
     {user?.role==='STAFF' && <section className="mt-7 panel p-5 sm:p-6">
@@ -190,7 +181,7 @@ export function OperationsPage() {
     <div className="mt-7 flex flex-wrap items-center justify-between gap-4"><div className="flex flex-wrap gap-2">{[{value:'ALL',label:'Tất cả'},...Object.entries(statuses).map(([value,label])=>({value,label}))].map(x => <button key={x.value} onClick={()=>setFilter(x.value)} className={'rounded-full px-4 py-2 text-xs font-extrabold '+(filter===x.value?'bg-[#10373b] text-white':'bg-white text-slate-600')}>{x.label}</button>)}</div><button className="btn-outline" onClick={()=>void load()}><AppIcon name="refresh" size={15}/> Làm mới</button></div>
     {notice && <div role="status" className="mt-6 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}
     {error && <div role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</div>}
-    {loading ? <div className="mt-6"><LoadingState label="Đang tải danh sách đơn..." /></div> : !visible.length ? <div className="mt-6"><EmptyState title="Không có đơn thuê phù hợp" description="Đơn mới sẽ xuất hiện sau khi khách gửi yêu cầu đặt xe." /></div> : <div className="mt-6 grid gap-4">{visible.map(b => <article key={b.id} className="panel flex flex-wrap items-center justify-between gap-5 p-5 sm:p-6"><div><p className="text-xs font-extrabold tracking-wider text-slate-400">ĐƠN #{b.id} · {statuses[b.status] || b.status}</p><h3 className="mt-2 text-lg font-extrabold">{b.vehicle?.model?.brand} {b.vehicle?.model?.name} <span className="text-slate-400">({b.vehicle?.code})</span></h3><p className="mt-2 text-sm text-slate-600">Khách: {b.customer?.fullName || b.customer?.email || '—'}</p><p className="mt-2 text-sm text-slate-500">{timeText(b.pickupAt)} → {timeText(b.returnAt)}</p><p className="mt-2 text-sm font-bold text-emerald-700">Tiền thuê: {money(b.rentalAmount)} · Cọc: {money(b.depositSnapshot)}</p><p className="mt-1 text-xs text-slate-500">Khách chọn: {b.preferredPaymentMethod==='SEPAY'?'SePay QR':b.preferredPaymentMethod==='TRANSFER'?'Chuyển khoản':'Tiền mặt'}</p>{Number(b.cancellationFeeAmount||0)>0&&<p className="mt-1 text-sm font-bold text-rose-700">Phí hủy / No-show cần đối soát: {money(b.cancellationFeeAmount)}</p>}<p className="mt-1 text-xs text-slate-500">{b.vehicle?.station?.name}</p></div><div className="flex flex-wrap gap-2"><Link to={'/operations/bookings/' + b.id + '/payments'} className="btn-outline">Thanh toán</Link>{['PENDING','CONFIRMED'].includes(b.status) && <button disabled={busy===b.id} onClick={()=>beginEditBooking(b)} className="btn-outline">Điều chỉnh lịch</button>}{b.status==='PENDING' && <button disabled={busy===b.id} onClick={()=>void confirm(b.id)} className="btn-primary">Xác nhận đơn</button>}{b.status==='CONFIRMED' && <button onClick={()=>beginHandover(b.id,'pickup')} className="btn-dark">Bàn giao xe →</button>}{b.status==='CONFIRMED' && Date.now() >= new Date(b.pickupAt).getTime()+30*60_000 && <button disabled={busy===b.id} onClick={()=>void markNoShow(b.id)} className="rounded-lg border border-rose-200 px-4 py-2 text-xs font-extrabold text-rose-700 hover:bg-rose-50">Ghi nhận No-show</button>}{b.status==='RENTING' && <button onClick={()=>beginHandover(b.id,'return')} className="btn-dark">Nhận trả xe →</button>}</div>{editingBookingId===b.id&&<form onSubmit={saveBookingSchedule} className="mt-5 w-full basis-full grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 sm:grid-cols-2"><label><span className="field-label">Giờ nhận mới</span><input type="datetime-local" required className="field" value={editPickupAt} onChange={e=>setEditPickupAt(e.target.value)}/></label><label><span className="field-label">Giờ trả mới</span><input type="datetime-local" required min={editPickupAt} className="field" value={editReturnAt} onChange={e=>setEditReturnAt(e.target.value)}/></label><label className="sm:col-span-2"><span className="field-label">Lý do điều chỉnh</span><input className="field" maxLength={255} value={editReason} onChange={e=>setEditReason(e.target.value)}/></label><p className="text-xs text-slate-500 sm:col-span-2">Chỉ điều chỉnh trước khi bàn giao xe. Nếu đã thu tiền thuê và thay đổi làm thay đổi tổng tiền, hệ thống sẽ yêu cầu xử lý tài chính riêng.</p><div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={busy===b.id} className="btn-primary">Lưu điều chỉnh</button><button type="button" onClick={()=>setEditingBookingId(null)} className="btn-outline">Hủy</button></div></form>}</article>)}</div>}
+    {loading ? <div className="mt-6"><LoadingState label="Đang tải danh sách đơn..." /></div> : !visible.length ? <div className="mt-6"><EmptyState title="Không có đơn thuê phù hợp" description="Đơn mới sẽ xuất hiện sau khi khách gửi yêu cầu đặt xe." /></div> : <div className="mt-6 grid gap-4">{visible.map(b => <article key={b.id} className="panel flex flex-wrap items-center justify-between gap-5 p-5 sm:p-6"><div><p className="text-xs font-extrabold tracking-wider text-slate-400">ĐƠN #{b.id} · {statuses[b.status] || b.status}</p><h3 className="mt-2 text-lg font-extrabold">{b.vehicle?.model?.brand} {b.vehicle?.model?.name} <span className="text-slate-400">({b.vehicle?.code})</span></h3><p className="mt-2 text-sm text-slate-600">Khách: {b.customer?.fullName || b.customer?.email || '—'}</p><p className="mt-2 text-sm text-slate-500">{timeText(b.pickupAt)} → {timeText(b.returnAt)}</p><p className="mt-2 text-sm font-bold text-emerald-700">Tiền thuê: {money(b.rentalAmount)} · Cọc: {money(b.depositSnapshot)}</p><p className="mt-1 text-xs text-slate-500">Khách chọn: {b.preferredPaymentMethod==='SEPAY'?'SePay QR':b.preferredPaymentMethod==='TRANSFER'?'Chuyển khoản':'Tiền mặt'}</p>{Number(b.cancellationFeeAmount||0)>0&&<p className="mt-1 text-sm font-bold text-rose-700">Phí hủy / No-show cần đối soát: {money(b.cancellationFeeAmount)}</p>}<p className="mt-1 text-xs text-slate-500">{b.vehicle?.station?.name}</p></div><div className="flex flex-wrap gap-2"><Link to={'/operations/bookings/' + b.id + '/payments'} className="btn-outline">Thanh toán</Link>{['PENDING','CONFIRMED'].includes(b.status) && <Link to={'/operations/bookings/'+b.id+'/schedule'} className="btn-outline">Điều chỉnh lịch</Link>}{b.status==='PENDING' && <button disabled={busy===b.id} onClick={()=>void confirm(b.id)} className="btn-primary">Xác nhận đơn</button>}{b.status==='CONFIRMED' && <button onClick={()=>beginHandover(b.id,'pickup')} className="btn-dark">Bàn giao xe →</button>}{b.status==='CONFIRMED' && Date.now() >= new Date(b.pickupAt).getTime()+30*60_000 && <button disabled={busy===b.id} onClick={()=>void markNoShow(b.id)} className="rounded-lg border border-rose-200 px-4 py-2 text-xs font-extrabold text-rose-700 hover:bg-rose-50">Ghi nhận No-show</button>}{b.status==='RENTING' && <button onClick={()=>beginHandover(b.id,'return')} className="btn-dark">Nhận trả xe →</button>}</div></article>)}</div>}
     </>}
     {handover && <form onSubmit={submitHandover} aria-labelledby="handover-title" className="panel mx-auto w-full max-w-3xl p-5 sm:p-7"><div className="flex justify-between"><div><p className="eyebrow">BIÊN BẢN XE</p><h2 id="handover-title" className="mt-2 text-2xl font-bold tracking-tight">{handover.kind==='pickup'?'Bàn giao xe':'Nhận xe trả'} · #{handover.id}</h2></div><button type="button" onClick={()=>setHandover(null)} className="self-start rounded-lg bg-slate-100 px-3 py-2" aria-label="Quay lại"><AppIcon name="arrow-left" size={17}/></button></div><div className="mt-7 grid gap-5"><label><span className="field-label">Pin hiện tại (%)</span><input type="number" min="0" max="100" step="1" required className="field" value={battery} onChange={e=>setBattery(e.target.value)}/></label><label><span className="field-label">Số km đồng hồ</span><input type="number" min="0" step="0.1" required className="field" value={odometer} onChange={e=>setOdometer(e.target.value)}/></label><div><span className="field-label">Checklist kiểm tra xe</span><p className="mb-3 text-xs text-slate-500">Đánh dấu các hạng mục đã kiểm tra thực tế ở lần giao hoặc nhận xe này.</p><div className="grid gap-2 sm:grid-cols-2">{inspectionItems.map(([key,label])=><label key={key} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 text-sm"><input type="checkbox" checked={checkedItems.includes(key)} onChange={e=>setCheckedItems(old=>e.target.checked?[...old,key]:old.filter(x=>x!==key))} className="h-4 w-4 accent-emerald-700"/>{label}</label>)}</div></div><label><span className="field-label">Tình trạng tổng quát</span><textarea maxLength={1000} required className="field min-h-24" value={condition} onChange={e=>setCondition(e.target.value)}/></label><label><span className="field-label">Hư hỏng / trầy xước ghi nhận</span><textarea maxLength={1000} className="field min-h-20" value={damageNotes} onChange={e=>setDamageNotes(e.target.value)} placeholder="Mô tả vị trí, mức độ hư hỏng; để trống nếu không có."/></label>{handover.kind==='return' && <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm"><input type="checkbox" checked={requiresMaintenance} onChange={e=>setRequiresMaintenance(e.target.checked)} className="mt-1 h-4 w-4 accent-amber-700"/><span><strong className="block text-amber-900">Xe cần kiểm tra / bảo dưỡng trước khi cho thuê lại</strong><span className="mt-1 block text-amber-800">Khi bật, hệ thống tạo phiếu bảo dưỡng và khóa xe khỏi trạng thái sẵn sàng cho thuê. Bắt buộc mô tả vấn đề ở mục hư hỏng.</span></span></label>}<label><span className="field-label">Đường dẫn ảnh bằng chứng (tối đa 8 ảnh)</span><textarea className="field min-h-20" value={photoUrlsText} onChange={e=>setPhotoUrlsText(e.target.value)} placeholder="Mỗi dòng một URL ảnh"/><span className="mt-1 block text-xs text-slate-500">Mỗi dòng một URL ảnh http/https. Tính năng tải ảnh trực tiếp lên máy chủ chưa được cấu hình; dùng đường dẫn ảnh đã tải lên kho lưu trữ.</span></label>{error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}<button disabled={busy===handover.id} className="btn-primary w-full">{busy===handover.id?'Đang lưu...':'Lưu biên bản →'}</button></div><div className="mt-7 flex justify-end"><button type="button" className="btn-outline" onClick={()=>setHandover(null)}>Quay lại vận hành</button></div></form>}
   </div>;

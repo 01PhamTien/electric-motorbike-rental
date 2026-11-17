@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Min, MaxLength } from 'class-validator';
 import { VehicleStatus } from '../../common/enums/vehicle-status.enum';
 
 export class CreateVehicleDto {
@@ -22,5 +22,6 @@ export class UpdateVehicleDto {
 
 export class AddVehicleImageDto {
   @IsString()
+  @MaxLength(2048)
   imageUrl: string;
 }

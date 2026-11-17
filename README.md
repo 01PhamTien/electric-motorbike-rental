@@ -42,7 +42,7 @@ Trong PowerShell:
 
 ```powershell
 cd backend
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 npm ci
 ```
 
@@ -90,7 +90,7 @@ Mở **cửa sổ PowerShell khác** tại thư mục gốc dự án:
 
 ```powershell
 cd frontend
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 npm ci
 npm run dev
 ```

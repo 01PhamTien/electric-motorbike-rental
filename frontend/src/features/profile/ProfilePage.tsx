@@ -16,16 +16,17 @@ export function ProfilePage() {
   const [securityOpen,setSecurityOpen]=useState(false);
   const [fullName,setFullName]=useState(user?.fullName||'');
   const [phone,setPhone]=useState(user?.phone||'');
+  const [avatarUrl,setAvatarUrl]=useState(user?.avatarUrl||'');
   const [currentPassword,setCurrentPassword]=useState('');
   const [newPassword,setNewPassword]=useState('');
   const [confirmPassword,setConfirmPassword]=useState('');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
-  useEffect(()=>{if(!editing){setFullName(user?.fullName||'');setPhone(user?.phone||'');}},[user,editing]);
+  useEffect(()=>{if(!editing){setFullName(user?.fullName||'');setPhone(user?.phone||'');setAvatarUrl(user?.avatarUrl||'');}},[user,editing]);
   async function saveProfile(e:FormEvent){
     e.preventDefault();setBusy(true);setError('');setNotice('');
-    try {await api.patch('/users/me',{fullName:fullName.trim(),phone:phone.trim()||null});await refresh();setEditing(false);setNotice('Thông tin cá nhân đã được cập nhật.');}
+    try {await api.patch('/users/me',{fullName:fullName.trim(),phone:phone.trim()||null,avatarUrl:avatarUrl.trim()||null});await refresh();setEditing(false);setNotice('Thông tin cá nhân đã được cập nhật.');}
     catch(err){setError(errorMessage(err));}finally{setBusy(false);}
   }
   async function changePassword(e:FormEvent){
@@ -41,13 +42,14 @@ export function ProfilePage() {
     {error&&<p role="alert" className="rounded-xl bg-rose-50 p-4 text-rose-800">{error}</p>}
     <div className="panel overflow-hidden border-[#e7eee9] shadow-[0_18px_50px_rgba(30,90,65,.05)]">
       <div className="flex flex-wrap items-center gap-5 border-b border-[#edf2ee] bg-gradient-to-r from-[#f0faf4] to-white p-7">
-        <div aria-hidden="true" className="flex h-20 w-20 items-center justify-center rounded-[26px] border-4 border-white bg-gradient-to-br from-[#c9f4df] to-[#eaf9f0] text-3xl font-black text-[#13865f] shadow-sm">{(user?.fullName||'V').trim().slice(0,1).toUpperCase()}</div>
+        {user?.avatarUrl?<img src={user.avatarUrl} alt="Ảnh đại diện" className="h-20 w-20 rounded-[26px] border-4 border-white object-cover shadow-sm"/>:<div aria-hidden="true" className="flex h-20 w-20 items-center justify-center rounded-[26px] border-4 border-white bg-gradient-to-br from-[#c9f4df] to-[#eaf9f0] text-3xl font-black text-[#13865f] shadow-sm">{(user?.fullName||'V').trim().slice(0,1).toUpperCase()}</div>}
         <div className="flex-1"><h2 className="text-2xl font-extrabold">{user?.fullName||'Tài khoản VoltGo'}</h2><p className="mt-1 text-sm text-slate-500">{user?.email}</p><span className="tag mt-2 inline-block">{user?.role?roleLabels[user.role]:'—'}</span></div>
         {!editing&&<button className="btn-outline" onClick={()=>{setEditing(true);setError('');setNotice('');}}>Chỉnh sửa hồ sơ</button>}
       </div>
       {editing?<form onSubmit={saveProfile} className="grid gap-5 p-7 sm:grid-cols-2">
         <label><span className="field-label">Họ và tên</span><input className="field" required minLength={2} maxLength={120} value={fullName} onChange={e=>setFullName(e.target.value)}/></label>
         <label><span className="field-label">Số điện thoại (không bắt buộc)</span><input className="field" maxLength={20} value={phone} onChange={e=>setPhone(e.target.value)}/></label>
+        <label className="sm:col-span-2"><span className="field-label">URL ảnh đại diện (HTTP/HTTPS)</span><input className="field" type="url" maxLength={2048} placeholder="https://..." value={avatarUrl} onChange={e=>setAvatarUrl(e.target.value)}/><span className="mt-1 block text-xs text-slate-500">Ảnh cần được lưu trữ tại dịch vụ hosting bên ngoài; hệ thống chỉ lưu đường dẫn.</span></label>
         <div className="flex gap-3 sm:col-span-2"><button disabled={busy} className="btn-primary">{busy?'Đang lưu...':'Lưu hồ sơ'}</button><button type="button" className="btn-outline" onClick={()=>{setEditing(false);setError('');}}>Hủy</button></div>
       </form>:<div className="grid gap-6 p-7 sm:grid-cols-2 lg:grid-cols-3">
         <div><p className="field-label">Họ và tên</p><p className="mt-2 font-bold">{user?.fullName||'—'}</p></div>

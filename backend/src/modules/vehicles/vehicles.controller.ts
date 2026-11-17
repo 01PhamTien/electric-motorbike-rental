@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateVehicleDto, UpdateVehicleDto } from './dto';
+import { AddVehicleImageDto, CreateVehicleDto, UpdateVehicleDto } from './dto';
 import { VehiclesService } from './vehicles.service';
 
 @ApiTags('Vehicles')
@@ -31,6 +31,22 @@ export class VehiclesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   create(@Body() dto: CreateVehicleDto) { return this.service.create(dto); }
+
+  @Post(':id/images')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  addImage(@Param('id', ParseIntPipe) id: number, @Body() dto: AddVehicleImageDto) {
+    return this.service.addImage(id, dto.imageUrl);
+  }
+
+  @Delete(':id/images/:imageId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  removeImage(@Param('id', ParseIntPipe) id: number, @Param('imageId', ParseIntPipe) imageId: number) {
+    return this.service.removeImage(id, imageId);
+  }
 
   @Patch(':id')
   @ApiBearerAuth()

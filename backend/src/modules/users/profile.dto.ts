@@ -1,4 +1,4 @@
-import { IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
 
 export class UpdateMyProfileDto {
   @IsString()
@@ -9,4 +9,9 @@ export class UpdateMyProfileDto {
   @IsString()
   @Matches(/^[0-9+(). -]{8,20}$/, { message: 'Số điện thoại không hợp lệ' })
   phone?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  avatarUrl?: string | null;
 }

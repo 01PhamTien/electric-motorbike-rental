@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuthModule } from '../auth/auth.module';
 import { Vehicle } from './vehicle.entity';
+import { VehicleImage } from './vehicle-image.entity';
 import { VehicleModel } from '../vehicle-models/vehicle-model.entity';
 import { Station } from '../stations/station.entity';
 import { VehicleTransfer } from '../transfers/vehicle-transfer.entity';
@@ -10,7 +11,7 @@ import { VehiclesController } from './vehicles.controller';
 import { VehiclesService } from './vehicles.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Vehicle, VehicleModel, Station, VehicleTransfer]), AuthModule],
+  imports: [TypeOrmModule.forFeature([Vehicle, VehicleImage, VehicleModel, Station, VehicleTransfer]), AuthModule],
   controllers: [VehiclesController],
   providers: [VehiclesService, RolesGuard],
   exports: [VehiclesService, TypeOrmModule],

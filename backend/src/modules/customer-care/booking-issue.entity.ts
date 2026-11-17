@@ -24,10 +24,10 @@ export class BookingIssue {
   @Column({ type: 'varchar', length: 30 }) issueType: BookingIssueType;
   @Column({ type: 'varchar', length: 20 }) severity: BookingIssueSeverity;
   @Column({ type: 'varchar', length: 20, default: BookingIssueStatus.OPEN }) status: BookingIssueStatus;
-  @Column({ type: 'varchar', length: 2000 }) description: string;
+  @Column({ type: 'nvarchar', length: 2000 }) description: string;
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true }) latitude: string | null;
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true }) longitude: string | null;
-  @Column({ type: 'varchar', length: 1000, nullable: true }) resolutionNote: string | null;
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) resolutionNote: string | null;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

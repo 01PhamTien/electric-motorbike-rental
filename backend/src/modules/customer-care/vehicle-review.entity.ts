@@ -16,6 +16,6 @@ export class VehicleReview {
   @ManyToOne(() => User, { eager: true, onDelete: 'NO ACTION' }) @JoinColumn({ name: 'customerId', foreignKeyConstraintName: 'FK_vehicle_reviews_customer' }) customer: User;
   @Column({ type: 'int' }) customerId: number;
   @Column({ type: 'int' }) rating: number;
-  @Column({ type: 'varchar', length: 1200, nullable: true }) comment: string | null;
+  @Column({ type: 'nvarchar', length: 1200, nullable: true }) comment: string | null;
   @CreateDateColumn() createdAt: Date;
 }

@@ -12,7 +12,7 @@ export class VehicleModel {
   @Column({ length: 120 })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true })
   specifications: string | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true })

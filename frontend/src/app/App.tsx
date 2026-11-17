@@ -10,6 +10,7 @@ import { ProfilePage } from '../features/profile/ProfilePage';
 import { StaffPage } from '../features/staff/StaffPage';
 import { MaintenancePage } from '../features/maintenance/MaintenancePage';
 import { OperationsPage } from '../features/operations/OperationsPage';
+import { BookingScheduleEditPage } from '../features/operations/BookingScheduleEditPage';
 import { IssuesPage } from '../features/operations/IssuesPage';
 import { LocationsPage } from '../features/locations/LocationsPage';
 import { StationsPage } from '../features/stations/StationsPage';
@@ -69,6 +70,7 @@ export function App() {
       <Route path="/batteries" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><BatteriesPage /></RoleRoute>} />
       <Route path="/battery-swap/requests" element={<RoleRoute allowed={['ADMIN','STAFF']}><StaffBatterySwapRequestsPage /></RoleRoute>} />
       <Route path="/operations" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
+      <Route path="/operations/bookings/:id/schedule" element={<RoleRoute allowed={['ADMIN','STAFF']}><BookingScheduleEditPage /></RoleRoute>} />
       <Route path="/operations/handover/:handoverBookingId/:handoverKind" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><OperationsPage /></RoleRoute>} />
       <Route path="/vehicle-transfers" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><VehicleTransfersPage /></RoleRoute>} />
       <Route path="/issues" element={<RoleRoute allowed={['ADMIN', 'STAFF']}><IssuesPage /></RoleRoute>} />

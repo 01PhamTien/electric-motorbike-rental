@@ -11,6 +11,7 @@ export enum SePayAttemptStatus {
 @Check('CK_sepay_attempt_purpose', "[purpose] IN ('RENT', 'DEPOSIT', 'BOOKING')")
 @Check('CK_sepay_attempt_status', "[status] IN ('PENDING', 'PAID', 'VOID')")
 @Check('CK_sepay_attempt_amount', '[amount] > 0')
+@Check('CK_sepay_attempt_booking_allocation', "(([purpose] = 'BOOKING' AND [rentAmount] IS NOT NULL AND [depositAmount] IS NOT NULL AND [rentAmount] >= 0 AND [depositAmount] >= 0 AND [rentAmount] + [depositAmount] = [amount] AND [rentAmount] + [depositAmount] > 0) OR ([purpose] IN ('RENT','DEPOSIT') AND [rentAmount] IS NULL AND [depositAmount] IS NULL))")
 @Index('IDX_sepay_attempt_booking_created', ['bookingId', 'createdAt'])
 @Index('UQ_sepay_attempt_invoice', ['invoiceNumber'], { unique: true })
 export class SePayPaymentAttempt {

@@ -44,7 +44,7 @@ export class UsersService {
     return this.repo.findOneByOrFail({ id: customer.id });
   }
 
-  async updateMyProfile(id: number, fullName: string, phone: string | null) {
+  async updateMyProfile(id: number, fullName: string, phone: string | null, avatarUrl?: string | null) {
     const user = await this.repo.findOneBy({ id });
     if (!user) throw new NotFoundException('Không tìm thấy tài khoản');
     const cleanName = fullName.trim();
@@ -53,6 +53,17 @@ export class UsersService {
     await this.validateUnique(user.email, cleanPhone, user.id);
     user.fullName = cleanName;
     user.phone = cleanPhone;
+    if (avatarUrl !== undefined) {
+      const cleanAvatar = avatarUrl?.trim() || null;
+      if (cleanAvatar) {
+        let parsed: URL;
+        try { parsed = new URL(cleanAvatar); } catch { throw new BadRequestException('Đường dẫn ảnh đại diện không hợp lệ'); }
+        if (!['http:', 'https:'].includes(parsed.protocol) || cleanAvatar.length > 2048) {
+          throw new BadRequestException('Ảnh đại diện phải dùng URL HTTP(S) hợp lệ');
+        }
+      }
+      user.avatarUrl = cleanAvatar;
+    }
     await this.repo.save(user);
     return this.findById(id);
   }

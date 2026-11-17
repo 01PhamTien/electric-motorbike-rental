@@ -5,6 +5,9 @@ export class AddBookingPreferredPaymentMethod1795824000000 implements MigrationI
 
   async up(queryRunner: QueryRunner): Promise<void> {
     if (!(await queryRunner.hasTable('bookings'))) throw new Error('Cannot add preferred payment method: bookings table does not exist.');
+
+    // Keep DDL statements in separate batches. SQL Server compiles a batch before
+    // executing it, so a new column cannot safely be referenced later in that batch.
     await queryRunner.query(`
       IF COL_LENGTH(N'dbo.bookings', N'preferredPaymentMethod') IS NULL
       BEGIN
@@ -12,6 +15,9 @@ export class AddBookingPreferredPaymentMethod1795824000000 implements MigrationI
           ADD [preferredPaymentMethod] varchar(20) NOT NULL
           CONSTRAINT [DF_bookings_preferredPaymentMethod] DEFAULT ('CASH');
       END;
+    `);
+
+    await queryRunner.query(`
       IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_bookings_preferredPaymentMethod')
       BEGIN
         ALTER TABLE [dbo].[bookings] WITH CHECK
@@ -22,7 +28,7 @@ export class AddBookingPreferredPaymentMethod1795824000000 implements MigrationI
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
-    if (await queryRunner.hasTable('bookings')) {
+    if (await queryRunner.hasTable('bookings') && await queryRunner.hasColumn('bookings', 'preferredPaymentMethod')) {
       const nonCash = await queryRunner.query(`SELECT COUNT(*) AS [total] FROM [dbo].[bookings] WHERE [preferredPaymentMethod] <> 'CASH'`);
       if (Number(nonCash[0]?.total ?? 0) > 0) {
         throw new Error('Cannot remove preferred payment method while bookings contain non-cash preferences.');
@@ -30,16 +36,15 @@ export class AddBookingPreferredPaymentMethod1795824000000 implements MigrationI
       await queryRunner.query(`
         IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_bookings_preferredPaymentMethod')
           ALTER TABLE [dbo].[bookings] DROP CONSTRAINT [CK_bookings_preferredPaymentMethod];
-        IF COL_LENGTH(N'dbo.bookings', N'preferredPaymentMethod') IS NOT NULL
-        BEGIN
-          DECLARE @constraintName sysname;
-          SELECT @constraintName = dc.name
-          FROM sys.default_constraints dc
-          INNER JOIN sys.columns c ON c.default_object_id = dc.object_id
-          WHERE dc.parent_object_id = OBJECT_ID(N'dbo.bookings') AND c.name = N'preferredPaymentMethod';
-          IF @constraintName IS NOT NULL EXEC(N'ALTER TABLE [dbo].[bookings] DROP CONSTRAINT [' + @constraintName + N']');
-          ALTER TABLE [dbo].[bookings] DROP COLUMN [preferredPaymentMethod];
-        END;
+      `);
+      await queryRunner.query(`
+        DECLARE @constraintName sysname;
+        SELECT @constraintName = dc.name
+        FROM sys.default_constraints dc
+        INNER JOIN sys.columns c ON c.default_object_id = dc.object_id
+        WHERE dc.parent_object_id = OBJECT_ID(N'dbo.bookings') AND c.name = N'preferredPaymentMethod';
+        IF @constraintName IS NOT NULL EXEC(N'ALTER TABLE [dbo].[bookings] DROP CONSTRAINT [' + @constraintName + N']');
+        ALTER TABLE [dbo].[bookings] DROP COLUMN [preferredPaymentMethod];
       `);
     }
   }

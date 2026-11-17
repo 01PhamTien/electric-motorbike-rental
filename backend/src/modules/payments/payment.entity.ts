@@ -10,7 +10,7 @@ export class PaymentTransaction {
   @Column({ type: 'simple-enum', enum: PaymentPurpose }) purpose: PaymentPurpose;
   @Column({ type: 'simple-enum', enum: PaymentMethod }) method: PaymentMethod;
   @Column({ type: 'decimal', precision: 12, scale: 2 }) amount: string;
-  @Column({ type: 'varchar', length: 255, nullable: true }) note: string | null;
+  @Column({ type: 'nvarchar', length: 255, nullable: true }) note: string | null;
   @Index({ unique: true }) @Column({ type: 'varchar', length: 100 }) idempotencyKey: string;
   @Column({ type: 'int' }) recordedById: number;
   @CreateDateColumn() createdAt: Date;

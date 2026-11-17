@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { EmptyState, LoadingState, money, SectionHeading, timeText } from '../../components/Brand';
 import { AppIcon } from '../../components/AppIcon';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { api } from '../../services/api';
 
 type BookingStatus = 'PENDING' | 'CONFIRMED' | 'RENTING' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
@@ -30,6 +31,7 @@ export function MyBookingsPage() {
   const [error, setError] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [cancelDialog,setCancelDialog]=useState<{booking:Booking;description:string}|null>(null);
   const [filter, setFilter] = useState('ALL');
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -93,7 +95,7 @@ export function MyBookingsPage() {
     if (issueResult.status === 'fulfilled') setIssues(Array.isArray(issueResult.value.data) ? issueResult.value.data : issueResult.value.data?.items ?? []);
     setDetailLoading(false);
   }
-  async function cancel(booking: Booking) {
+  function cancel(booking: Booking) {
     const now = Date.now();
     const pickup = new Date(booking.pickupAt).getTime();
     if (now >= pickup) { setError('Đã đến giờ nhận xe. Vui lòng liên hệ nhân viên để được hỗ trợ.'); return; }
@@ -102,11 +104,15 @@ export function MyBookingsPage() {
       ? Math.min(Math.round(Number(booking.rentalAmount) * 0.20 * 100) / 100, Number(booking.depositSnapshot))
       : 0;
     const policy = fee > 0
-      ? 'Do hủy trong vòng 24 giờ trước giờ nhận xe, phí hủy dự kiến là ' + money(fee) + ' (20% tiền thuê, tối đa bằng tiền cọc).'
+      ? 'Hủy trong vòng 24 giờ trước giờ nhận xe. Phí dự kiến: ' + money(fee) + ' (20% tiền thuê, tối đa bằng tiền cọc).'
       : 'Đơn này được hủy miễn phí theo chính sách hiện tại.';
-    if (!window.confirm('Bạn có chắc muốn hủy đơn #' + booking.id + '?\\n\\n' + policy + '\\n\\nPhí được ghi nhận để nhân viên đối soát thủ công; hệ thống không tự động thu tiền.')) return;
+    setCancelDialog({booking,description:'Bạn có chắc muốn hủy đơn #' + booking.id + '?\\n\\n' + policy + '\\n\\nPhí chỉ được nhân viên đối soát thủ công; hệ thống không tự động thu tiền.'});
+  }
+  async function confirmCancel() {
+    if(!cancelDialog)return;
+    const booking=cancelDialog.booking;
     setBusyId(booking.id); setError(''); setSuccessNotice('');
-    try { await api.patch('/bookings/' + booking.id + '/cancel', { reason: 'Khách hàng chủ động hủy' }); setSuccessNotice('Đã gửi yêu cầu hủy đơn #' + booking.id + '.'); await load(); }
+    try { await api.patch('/bookings/' + booking.id + '/cancel', { reason: 'Khách hàng chủ động hủy' }); setSuccessNotice('Đã gửi yêu cầu hủy đơn #' + booking.id + '.'); setCancelDialog(null); await load(); }
     catch (err) { setError(getError(err)); }
     finally { setBusyId(null); }
   }
@@ -152,6 +158,7 @@ export function MyBookingsPage() {
       </article>)}</div>}
     </>}
     </>}
+    <ConfirmDialog open={Boolean(cancelDialog)} title={cancelDialog?'Hủy đơn thuê #'+cancelDialog.booking.id:'Xác nhận'} description={cancelDialog?.description??''} confirmLabel="Xác nhận hủy đơn" tone="danger" busy={busyId!==null} onCancel={()=>setCancelDialog(null)} onConfirm={()=>void confirmCancel()}/>
     {detail && <section aria-labelledby="booking-detail-title" className="mx-auto w-full max-w-5xl rounded-2xl border border-[#e5ece6] bg-white p-5 shadow-[0_12px_36px_rgba(24,55,43,.055)] sm:p-8">
       <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">CHI TIẾT CHUYẾN THUÊ</p><h2 id="booking-detail-title" className="mt-2 text-2xl font-bold tracking-tight">Đơn thuê #{detail.id}</h2><span className={'mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold '+badge[detail.status]}>{labels[detail.status]}</span></div><button onClick={closeDetails} className="rounded-lg bg-slate-100 px-3 py-2" aria-label="Quay lại danh sách đơn"><AppIcon name="arrow-left" size={17}/></button></div>
       {detailLoading?<div className="mt-6"><LoadingState label="Đang tải thông tin đơn..."/></div>:<>

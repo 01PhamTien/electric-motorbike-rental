@@ -53,14 +53,14 @@ export function MyBookingsPage() {
   const [issueLocation,setIssueLocation]=useState<{latitude:number;longitude:number}|null>(null);
   const [issueBusy,setIssueBusy]=useState(false);
   const loggedIn = Boolean(localStorage.getItem('accessToken'));
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent=false) => {
     if (!loggedIn) { setLoading(false); return; }
-    setLoading(true); setError('');
+    if(!silent)setLoading(true); setError('');
     try { const { data } = await api.get('/bookings/my'); setItems(Array.isArray(data) ? data : data?.items ?? []); }
     catch (err) { setError(getError(err)); }
-    finally { setLoading(false); }
+    finally { if(!silent)setLoading(false); }
   }, [loggedIn]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); const timer=window.setInterval(()=>void load(true),15000); return()=>window.clearInterval(timer); }, [load]);
   const visible = filter === 'ALL' ? items : items.filter(b => b.status === filter);
   useEffect(() => {
     if (!bookingId) {
@@ -106,7 +106,7 @@ export function MyBookingsPage() {
     const policy = fee > 0
       ? 'Hủy trong vòng 24 giờ trước giờ nhận xe. Phí dự kiến: ' + money(fee) + ' (20% tiền thuê, tối đa bằng tiền cọc).'
       : 'Đơn này được hủy miễn phí theo chính sách hiện tại.';
-    setCancelDialog({booking,description:'Bạn có chắc muốn hủy đơn #' + booking.id + '?\\n\\n' + policy + '\\n\\nPhí chỉ được nhân viên đối soát thủ công; hệ thống không tự động thu tiền.'});
+    setCancelDialog({booking,description:`Bạn có chắc muốn hủy đơn #${booking.id}?\n\n${policy}\n\nPhí chỉ được nhân viên đối soát thủ công; hệ thống không tự động thu tiền.`});
   }
   async function confirmCancel() {
     if(!cancelDialog)return;

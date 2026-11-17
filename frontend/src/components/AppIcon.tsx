@@ -24,6 +24,7 @@ const paths: Record<string, ReactNode> = {
   menu: <><path d="M4 6h16M4 12h16M4 18h16"/></>,
   close: <><path d="m6 6 12 12M18 6 6 18"/></>,
   chevron: <path d="m7 10 5 5 5-5"/>,
+  "arrow-left": <><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>,
   refresh: <><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9a7 7 0 0 1 12-2L20 12M4 12l2.5 5a7 7 0 0 0 12-2"/></>,
 };
 

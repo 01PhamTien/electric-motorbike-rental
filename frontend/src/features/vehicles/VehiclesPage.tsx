@@ -36,6 +36,7 @@ export function VehiclesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'CASH'|'TRANSFER'|'SEPAY'>('CASH');
   const [voucherCode, setVoucherCode] = useState('');
   const [voucherPreview, setVoucherPreview] = useState<{code:string;baseRentalAmount:string;discountAmount:string;finalRentalAmount:string}|null>(null);
   const [voucherMessage, setVoucherMessage] = useState('');
@@ -92,7 +93,7 @@ export function VehiclesPage() {
     finally { setReviewsLoading(false); }
   }
   const closeBooking = () => {
-    setSelected(null); setBookingError(''); setAcceptedTerms(false); setVoucherCode(''); setVoucherPreview(null); setVoucherMessage('');
+    setSelected(null); setBookingError(''); setAcceptedTerms(false); setPaymentMethod('CASH'); setVoucherCode(''); setVoucherPreview(null); setVoucherMessage('');
     if (params.has('vehicle')) { params.delete('vehicle'); setParams(params, { replace: true }); }
     if (bookingPage) navigate('/vehicles');
   };
@@ -141,8 +142,9 @@ export function VehiclesPage() {
     setSubmitting(true); setBookingError('');
     try {
       if (voucherCode.trim() && !activeVoucher) { setBookingError('Voucher chưa được kiểm tra cho mức tiền thuê hiện tại. Vui lòng áp dụng lại hoặc xóa mã.'); return; }
-      await api.post('/bookings', { vehicleId: selected.id, pickupAt: new Date(pickup).toISOString(), returnAt: new Date(returnDate).toISOString(), ...(activeVoucher ? { voucherCode: activeVoucher.code } : {}) });
-      navigate('/bookings/my?created=1');
+      const { data: created } = await api.post('/bookings', { vehicleId: selected.id, pickupAt: new Date(pickup).toISOString(), returnAt: new Date(returnDate).toISOString(), preferredPaymentMethod: paymentMethod, ...(activeVoucher ? { voucherCode: activeVoucher.code } : {}) });
+      if (paymentMethod === 'SEPAY' && created?.id) navigate('/bookings/' + created.id + '/payments');
+      else navigate('/bookings/my?created=1');
     } catch (err) { setBookingError(errorMessage(err)); }
     finally { setSubmitting(false); }
   }
@@ -185,7 +187,7 @@ export function VehiclesPage() {
           <p className="mt-3 text-xs leading-5 text-[#647873]">Tổng trên gồm tiền thuê và tiền cọc, không phải khoản đã thu. Cọc được đối soát khi trả xe theo tình trạng xe và điều khoản thuê. Phụ phí (nếu có) phải được thông báo và xác nhận riêng.</p>
         </div>
         <div className="rounded-2xl border border-[#e4eee8] bg-white p-4"><label><span className="field-label">Mã ưu đãi / Voucher</span><div className="mt-1 flex flex-wrap gap-2"><input maxLength={40} className="field min-w-0 flex-1 uppercase" value={voucherCode} onChange={e=>{setVoucherCode(e.target.value.toUpperCase());setVoucherPreview(null);setVoucherMessage('');}} placeholder="Nhập mã voucher"/><button type="button" disabled={voucherBusy||!voucherCode.trim()||!validPeriod} onClick={()=>void previewVoucher()} className="btn-dark">{voucherBusy?'Đang kiểm tra...':'Áp dụng'}</button></div></label>{voucherMessage&&<p role="status" className={'mt-2 text-xs '+(activeVoucher?'text-emerald-700':'text-rose-700')}>{voucherMessage}</p>}{activeVoucher&&<button type="button" onClick={()=>{setVoucherCode('');setVoucherPreview(null);setVoucherMessage('Đã bỏ voucher.');}} className="mt-2 text-xs font-bold text-slate-500 underline">Bỏ mã giảm giá</button>}</div>
-        <div className="rounded-xl border border-[#dcebf0] bg-[#f3f9fb] p-4 text-sm leading-6 text-[#426b78]"><strong>Thanh toán:</strong> Hiện VoltGo ghi nhận thanh toán tại quầy bởi nhân viên. Website chưa kết nối cổng thanh toán trực tuyến, nên thao tác này chỉ gửi yêu cầu đặt xe; chưa trừ tiền hoặc thu tiền cọc.</div>
+        <div className="rounded-2xl border border-[#e4eee8] bg-white p-4"><h3 className="font-extrabold text-slate-800">Phương thức thanh toán</h3><p className="mt-1 text-xs text-slate-500">Chọn cách bạn dự kiến thanh toán tiền thuê và tiền cọc. Nhân viên chỉ bàn giao xe sau khi hệ thống ghi nhận đủ hai khoản.</p><div className="mt-3 grid gap-3 sm:grid-cols-3"><label className={'cursor-pointer rounded-xl border p-3 '+(paymentMethod==='CASH'?'border-emerald-500 bg-emerald-50':'border-slate-200')}><input type="radio" name="bookingPaymentMethod" value="CASH" checked={paymentMethod==='CASH'} onChange={()=>setPaymentMethod('CASH')}/><span className="ml-2 font-bold">Tiền mặt</span><p className="mt-1 text-xs text-slate-500">Thanh toán tại quầy khi nhận xe.</p></label><label className={'cursor-pointer rounded-xl border p-3 '+(paymentMethod==='TRANSFER'?'border-emerald-500 bg-emerald-50':'border-slate-200')}><input type="radio" name="bookingPaymentMethod" value="TRANSFER" checked={paymentMethod==='TRANSFER'} onChange={()=>setPaymentMethod('TRANSFER')}/><span className="ml-2 font-bold">Chuyển khoản</span><p className="mt-1 text-xs text-slate-500">Nhân viên đối chiếu tiền vào trước khi xác nhận.</p></label><label className={'cursor-pointer rounded-xl border p-3 '+(paymentMethod==='SEPAY'?'border-emerald-500 bg-emerald-50':'border-slate-200')}><input type="radio" name="bookingPaymentMethod" value="SEPAY" checked={paymentMethod==='SEPAY'} onChange={()=>setPaymentMethod('SEPAY')}/><span className="ml-2 font-bold">SePay QR</span><p className="mt-1 text-xs text-slate-500">Thanh toán trực tuyến, xác nhận bằng IPN.</p></label></div></div>
         <label className="flex items-start gap-3 text-sm leading-6 text-slate-600"><input type="checkbox" className="mt-1" checked={acceptedTerms} onChange={e=>setAcceptedTerms(e.target.checked)}/><span>Tôi đã kiểm tra thông tin xe, trạm nhận, thời gian và bảng kê chi phí dự kiến trước khi gửi yêu cầu.</span></label>
         {bookingError && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{bookingError}</p>}
         <div className="flex flex-wrap gap-3"><button type="button" onClick={closeBooking} className="btn-outline flex-1">Quay lại danh sách xe</button><button disabled={submitting||authLoading||isOperator||!validPeriod||!acceptedTerms||!availableAtSelectedStation.length} className="btn-primary flex-1">{submitting?'Đang gửi yêu cầu...':'Gửi yêu cầu đặt xe →'}</button></div>

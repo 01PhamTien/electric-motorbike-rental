@@ -55,7 +55,7 @@ export function MyBookingsPage() {
   const loggedIn = Boolean(localStorage.getItem('accessToken'));
   const load = useCallback(async (silent=false) => {
     if (!loggedIn) { setLoading(false); return; }
-    if(!silent)setLoading(true); setError('');
+    if(!silent){setLoading(true);setError('');}
     try { const { data } = await api.get('/bookings/my'); setItems(Array.isArray(data) ? data : data?.items ?? []); }
     catch (err) { setError(getError(err)); }
     finally { if(!silent)setLoading(false); }

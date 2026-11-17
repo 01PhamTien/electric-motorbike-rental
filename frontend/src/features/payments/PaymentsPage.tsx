@@ -43,7 +43,7 @@ export function PaymentsPage() {
     if (paymentResult.status === 'fulfilled') {
       const data = paymentResult.value.data;
       setItems(Array.isArray(data) ? data : data?.items ?? []);
-      setError('');
+      if(!silent)setError('');
     } else setError(getError(paymentResult.reason));
     if (bookingResult.status === 'fulfilled') setBooking(bookingResult.value.data);
     if (chargeResult.status === 'fulfilled') setCharges(chargeResult.value.data ?? []);

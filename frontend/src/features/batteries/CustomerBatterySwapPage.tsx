@@ -30,8 +30,8 @@ export function CustomerBatterySwapPage(){
   const [notice,setNotice]=useState('');
   const [clock,setClock]=useState(Date.now());
 
-  const load=useCallback(async()=>{
-    setLoading(true);setError('');
+  const load=useCallback(async(silent=false)=>{
+    if(!silent)setLoading(true);setError('');
     try{
       const [bookingResponse,availabilityResponse,reservationResponse]=await Promise.all([
         api.get('/bookings/my'),api.get('/battery-swap/availability'),api.get('/batteries/reservations/my'),
@@ -43,9 +43,9 @@ export function CustomerBatterySwapPage(){
       setReservations(Array.isArray(reservationResponse.data)?reservationResponse.data:[]);
       setSelectedBooking(current=>activeBookings.some((item:Booking)=>String(item.id)===current)?current:String(activeBookings[0]?.id??''));
     }catch(e){setError(errorText(e));}
-    finally{setLoading(false);}
+    finally{if(!silent)setLoading(false);}
   },[]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(true),15000);return()=>window.clearInterval(timer);},[load]);
   useEffect(()=>{const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>window.clearInterval(timer);},[]);
 
   const booking=useMemo(()=>bookings.find(item=>String(item.id)===selectedBooking),[bookings,selectedBooking]);
